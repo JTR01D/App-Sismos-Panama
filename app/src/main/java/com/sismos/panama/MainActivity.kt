@@ -4,10 +4,8 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,58 +32,6 @@ class MainActivity : ComponentActivity() {
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
 
-    private val adbReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent == null) return
-            val screen = intent.getStringExtra("screen")
-            val index = intent.getIntExtra("index", 0)
-            val minMag = intent.getStringExtra("min_magnitude")?.toDoubleOrNull() ?: intent.getDoubleExtra("min_magnitude", -1.0)
-            val region = intent.getStringExtra("region")
-
-            val alertMode = intent.getStringExtra("alert_mode")
-            if (alertMode != null && context != null) {
-                val newSettings = when (alertMode.lowercase()) {
-                    "vibrate_only" -> com.sismos.panama.data.models.AlertSettings.presetVibrateOnly()
-                    "sound_only" -> com.sismos.panama.data.models.AlertSettings.presetSoundOnly()
-                    "messages_only" -> com.sismos.panama.data.models.AlertSettings.presetMessagesOnly()
-                    "disable_all" -> com.sismos.panama.data.models.AlertSettings.presetDisableAll()
-                    else -> com.sismos.panama.data.models.AlertSettings.presetAll()
-                }
-                com.sismos.panama.data.models.AlertSettings.save(context, newSettings)
-            }
-
-            val testAlert = intent.getBooleanExtra("test_alert", false)
-            if (testAlert && context != null) {
-                com.sismos.panama.data.background.SeismicAlarmReceiver.sendTestNotification(
-                    context,
-                    com.sismos.panama.data.models.AlertSettings.load(context)
-                )
-            }
-
-            if (minMag >= 0.0) {
-                viewModel.setMinMagnitudeFilter(minMag)
-            }
-            if (region != null) {
-                viewModel.setRegionFilter(region)
-            }
-
-            when (screen?.lowercase()) {
-                "home" -> currentScreenState.value = Screen.Home
-                "dashboard" -> currentScreenState.value = Screen.Dashboard
-                "faults" -> currentScreenState.value = Screen.Faults
-                "map" -> currentScreenState.value = Screen.Map
-                "about" -> currentScreenState.value = Screen.About
-                "detail" -> {
-                    val list = viewModel.uiState.value.filteredEarthquakes
-                    if (list.isNotEmpty()) {
-                        val safeIndex = index.coerceIn(0, list.lastIndex)
-                        currentScreenState.value = Screen.Detail(list[safeIndex])
-                    }
-                }
-            }
-        }
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -102,13 +48,6 @@ class MainActivity : ComponentActivity() {
             else -> currentScreenState.value = Screen.Home
         }
 
-        val filter = IntentFilter("com.sismos.panama.COMMAND")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(adbReceiver, filter, Context.RECEIVER_EXPORTED)
-        } else {
-            registerReceiver(adbReceiver, filter)
-        }
-
         setContent {
             SismosPanamaTheme {
                 SismosAppNavigation(
@@ -117,13 +56,6 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        try {
-            unregisterReceiver(adbReceiver)
-        } catch (_: Exception) {}
     }
 
     override fun onNewIntent(intent: Intent) {

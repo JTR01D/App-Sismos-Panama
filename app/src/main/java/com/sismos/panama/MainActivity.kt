@@ -17,6 +17,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
 import com.sismos.panama.data.models.Earthquake
+import com.sismos.panama.ui.screens.AboutScreen
 import com.sismos.panama.ui.screens.DashboardScreen
 import com.sismos.panama.ui.screens.DetailScreen
 import com.sismos.panama.ui.screens.FaultsScreen
@@ -53,6 +54,7 @@ class MainActivity : ComponentActivity() {
                 "dashboard" -> currentScreenState.value = Screen.Dashboard
                 "faults" -> currentScreenState.value = Screen.Faults
                 "map" -> currentScreenState.value = Screen.Map
+                "about" -> currentScreenState.value = Screen.About
                 "detail" -> {
                     val list = viewModel.uiState.value.filteredEarthquakes
                     if (list.isNotEmpty()) {
@@ -76,6 +78,7 @@ class MainActivity : ComponentActivity() {
             "dashboard" -> currentScreenState.value = Screen.Dashboard
             "faults" -> currentScreenState.value = Screen.Faults
             "map" -> currentScreenState.value = Screen.Map
+            "about" -> currentScreenState.value = Screen.About
             else -> currentScreenState.value = Screen.Home
         }
 
@@ -109,6 +112,7 @@ class MainActivity : ComponentActivity() {
             "dashboard" -> currentScreenState.value = Screen.Dashboard
             "faults" -> currentScreenState.value = Screen.Faults
             "map" -> currentScreenState.value = Screen.Map
+            "about" -> currentScreenState.value = Screen.About
             "home" -> currentScreenState.value = Screen.Home
         }
     }
@@ -132,6 +136,7 @@ sealed class Screen {
     object Faults : Screen()
     object Dashboard : Screen()
     object Map : Screen()
+    object About : Screen()
 }
 
 @Composable
@@ -154,7 +159,15 @@ fun SismosAppNavigation(
                 },
                 onNavigateToMap = {
                     screenState.value = Screen.Map
+                },
+                onNavigateToAbout = {
+                    screenState.value = Screen.About
                 }
+            )
+        }
+        is Screen.About -> {
+            AboutScreen(
+                onBack = { screenState.value = Screen.Home }
             )
         }
         is Screen.Map -> {

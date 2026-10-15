@@ -23,10 +23,12 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
@@ -71,7 +73,8 @@ fun HomeScreen(
     onEarthquakeSelected: (Earthquake) -> Unit,
     onNavigateToFaults: () -> Unit,
     onNavigateToDashboard: () -> Unit,
-    onNavigateToMap: () -> Unit
+    onNavigateToMap: () -> Unit,
+    onNavigateToAbout: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -83,7 +86,8 @@ fun HomeScreen(
                 onRefresh = { viewModel.loadEarthquakes(isManualRefresh = true) },
                 onNavigateToFaults = onNavigateToFaults,
                 onNavigateToDashboard = onNavigateToDashboard,
-                onNavigateToMap = onNavigateToMap
+                onNavigateToMap = onNavigateToMap,
+                onNavigateToAbout = onNavigateToAbout
             )
         }
     ) { padding ->
@@ -172,6 +176,52 @@ fun HomeScreen(
                                 orderIndex = index
                             )
                         }
+
+                        // Acceso rápido a Acerca de la Aplicación
+                        item {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Color(0xFF141C2B))
+                                    .border(0.8.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                                    .clickable { onNavigateToAbout() }
+                                    .padding(vertical = 12.dp, horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = Color(0xFFA78BFA),
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Column {
+                                        Text(
+                                            text = "Acerca de Sismos Panamá",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                        Text(
+                                            text = "v2.5.0 • Propósito, fuentes oficiales y emergencias",
+                                            fontSize = 11.sp,
+                                            color = Color(0xFF94A3B8)
+                                        )
+                                    }
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ChevronRight,
+                                    contentDescription = null,
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
                     }
                 }
             }
@@ -185,7 +235,8 @@ private fun HomeTopBar(
     onRefresh: () -> Unit,
     onNavigateToFaults: () -> Unit,
     onNavigateToDashboard: () -> Unit,
-    onNavigateToMap: () -> Unit
+    onNavigateToMap: () -> Unit,
+    onNavigateToAbout: () -> Unit
 ) {
     val topBarBrush = Brush.verticalGradient(
         colors = listOf(
@@ -262,9 +313,25 @@ private fun HomeTopBar(
                     .border(0.8.dp, Color(0x33FFFFFF), CircleShape)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Info,
+                    imageVector = Icons.Default.Layers,
                     contentDescription = "Fallas Geológicas",
                     tint = Color(0xFFCBD5E1),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Botón Acerca de
+            IconButton(
+                onClick = onNavigateToAbout,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color(0x228B5CF6))
+                    .border(0.8.dp, Color(0x558B5CF6), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = "Acerca de",
+                    tint = Color(0xFFA78BFA),
                     modifier = Modifier.size(20.dp)
                 )
             }

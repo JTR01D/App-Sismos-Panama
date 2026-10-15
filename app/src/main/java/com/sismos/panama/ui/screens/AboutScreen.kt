@@ -1,0 +1,739 @@
+package com.sismos.panama.ui.screens
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.sismos.panama.ui.theme.*
+
+@Composable
+fun AboutScreen(
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+
+    val topBarBrush = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xFF161F30),
+            Color(0xFF0F1724)
+        )
+    )
+
+    Scaffold(
+        containerColor = BgDark,
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(topBarBrush)
+                    .statusBarsPadding()
+                    .border(
+                        width = 0.8.dp,
+                        brush = Brush.verticalGradient(listOf(Color(0x33FFFFFF), Color.Transparent)),
+                        shape = androidx.compose.ui.graphics.RectangleShape
+                    )
+                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color(0x1AFFFFFF))
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Atrás",
+                        tint = Color.White
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = "Acerca de la Aplicación",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Text(
+                        text = "Sismos Panamá • Información y Tecnología",
+                        fontSize = 11.sp,
+                        color = Color(0xFF94A3B8)
+                    )
+                }
+            }
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Hero Banner de la Aplicación con Glassmorphism
+            item {
+                AppHeroCard()
+            }
+
+            // Propósito y Misión Ciudadana
+            item {
+                AboutMissionCard()
+            }
+
+            // Módulos y Tecnologías Principales
+            item {
+                AboutModulesCard()
+            }
+
+            // Fuentes Oficiales y Científicas
+            item {
+                AboutSourcesCard(context = context)
+            }
+
+            // Números y Líneas de Emergencia en Panamá
+            item {
+                EmergencyContactsCard(context = context)
+            }
+
+            // Créditos y Reconocimientos
+            item {
+                AboutCreditsCard(context = context)
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AppHeroCard() {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulseHero")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "heroAlpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFF131D2E),
+                        Color(0xFF0F1826)
+                    )
+                )
+            )
+            .border(
+                1.dp,
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFF3186FF).copy(alpha = pulseAlpha),
+                        Color(0xFF00E5FF).copy(alpha = 0.2f)
+                    )
+                ),
+                RoundedCornerShape(20.dp)
+            )
+            .padding(20.dp)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Emblema Sísmico Circular con Pulso
+            Box(
+                modifier = Modifier
+                    .size(76.dp)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color(0xFF3186FF).copy(alpha = 0.35f),
+                                Color(0xFF0D1726)
+                            )
+                        )
+                    )
+                    .border(1.5.dp, Color(0xFF3186FF), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Sensors,
+                    contentDescription = "Emblema Sísmico",
+                    tint = Color(0xFF00E5FF),
+                    modifier = Modifier.size(42.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Text(
+                text = "SISMOS PANAMÁ",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color.White,
+                letterSpacing = 0.5.sp
+            )
+
+            Text(
+                text = "Red Sismológica & Explorador Tectónico Oficial",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF94A3B8)
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Versión y Estado de Compilación
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0x333186FF),
+                    border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0x663186FF))
+                ) {
+                    Text(
+                        text = "v2.5.0 Pro Tectónica",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF60A5FA),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0x3300E676),
+                    border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0x6600E676))
+                ) {
+                    Text(
+                        text = "En Vivo • 24/7",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF00E676),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutMissionCard() {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard),
+        border = androidx.compose.foundation.BorderStroke(0.8.dp, StrokeDark),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Public,
+                    contentDescription = null,
+                    tint = Color(0xFF38BDF8),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "PROPÓSITO Y CIENCIA CIUDADANA",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF38BDF8),
+                    letterSpacing = 0.5.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "La República de Panamá se sitúa en un entorno geológico único en el mundo: una zona de convergencia activa entre cuatro entidades tectónicas principales (la Placa de Nazca, la Placa de Cocos, la Placa del Caribe y la Microplaca de Panamá).\n\nEsta aplicación nace con el objetivo de democratizar la información sismológica y acercarla a la población panameña de forma clara, moderna e interactiva, facilitando la comprensión de enjambres sísmicos, fallas geológicas y propagación de ondas.",
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = Color(0xFFE2E8F0)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutModulesCard() {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard),
+        border = androidx.compose.foundation.BorderStroke(0.8.dp, StrokeDark),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Layers,
+                    contentDescription = null,
+                    tint = Color(0xFFA78BFA),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "MÓDULOS DEL SISTEMA",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFA78BFA),
+                    letterSpacing = 0.5.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            ModuleItem(
+                icon = Icons.Default.Explore,
+                iconColor = Color(0xFF00E5FF),
+                title = "Explorador Tectónico 2D de Panamá",
+                description = "Mapa cartográfico interactivo que visualiza las fallas activas (Soná-Tonosí, Gatún, Zona de Fractura de Panamá) y sismicidad histórica y en tiempo real."
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ModuleItem(
+                icon = Icons.Default.Warning,
+                iconColor = Color(0xFFFFD600),
+                title = "Detector Inteligente de Enjambres",
+                description = "Agrupamiento de sismos por zona y tiempo con identificación del sismo más reciente (★ #1 RECIENTE) mediante pulsos concéntricos de radar."
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ModuleItem(
+                icon = Icons.Default.Waves,
+                iconColor = Color(0xFF38BDF8),
+                title = "Simulador Físico de Ondas P & S",
+                description = "Modelo animado en el detalle de cada sismo que calcula los frentes de onda primarios (compresión) y secundarios (corte) con velocidades de la corteza panameña."
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ModuleItem(
+                icon = Icons.Default.Equalizer,
+                iconColor = Color(0xFF3186FF),
+                title = "Dashboard y Estadísticas en Vivo",
+                description = "Gráficos de distribución de magnitudes, histogramas de profundidad hipocentral (someros vs profundos) y comparativas de actividad en 24h y 7 días."
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            ModuleItem(
+                icon = Icons.Default.NotificationsActive,
+                iconColor = Color(0xFFFF5252),
+                title = "Sistema de Alertas y Notificaciones",
+                description = "Canal de alerta temprana con prioridad alta en segundo plano, clasificado según la escala de potencial destructivo y alerta de tsunami."
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModuleItem(
+    icon: ImageVector,
+    iconColor: Color,
+    title: String,
+    description: String
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(iconColor.copy(alpha = 0.15f))
+                .border(0.8.dp, iconColor.copy(alpha = 0.4f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column {
+            Text(
+                text = title,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = description,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                color = Color(0xFF94A3B8)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutSourcesCard(context: Context) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard),
+        border = androidx.compose.foundation.BorderStroke(0.8.dp, StrokeDark),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Shield,
+                    contentDescription = null,
+                    tint = Color(0xFF4ADE80),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "REDES CIENTÍFICAS Y FUENTES OFICIALES",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF4ADE80),
+                    letterSpacing = 0.5.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = "Los datos sísmicos provienen de redes sismológicas reconocidas y calibradas internacionalmente:",
+                fontSize = 12.sp,
+                color = Color(0xFF94A3B8)
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            SourceLinkItem(
+                name = "IGC - Instituto de Geociencias (UP)",
+                subtitle = "Red Sismológica Nacional de referencia oficial en Panamá",
+                url = "http://www.igc.up.ac.pa",
+                context = context
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            SourceLinkItem(
+                name = "USGS (U.S. Geological Survey)",
+                subtitle = "Monitoreo global y regional de sismos en tiempo real",
+                url = "https://earthquake.usgs.gov",
+                context = context
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            SourceLinkItem(
+                name = "RSN (Costa Rica) & NOAA / PTWC",
+                subtitle = "Monitoreo fronterizo y alertas de tsunami en el Pacífico",
+                url = "https://www.tsunami.gov",
+                context = context
+            )
+        }
+    }
+}
+
+@Composable
+private fun SourceLinkItem(
+    name: String,
+    subtitle: String,
+    url: String,
+    context: Context
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(Color(0xFF0F1724))
+            .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(10.dp))
+            .clickable {
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                    context.startActivity(intent)
+                } catch (_: Exception) {}
+            }
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = name,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = subtitle,
+                fontSize = 11.sp,
+                color = Color(0xFF94A3B8)
+            )
+        }
+        Icon(
+            imageVector = Icons.Default.OpenInNew,
+            contentDescription = "Abrir enlace",
+            tint = Color(0xFF60A5FA),
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
+
+@Composable
+private fun EmergencyContactsCard(context: Context) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard),
+        border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0x44FF5252)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Emergency,
+                    contentDescription = null,
+                    tint = Color(0xFFFF5252),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "LÍNEAS DE EMERGENCIA EN PANAMÁ",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFFF5252),
+                    letterSpacing = 0.5.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "Toca cualquier número para marcar directamente en caso de emergencia sísmica o réplicas fuertes:",
+                fontSize = 12.sp,
+                color = Color(0xFF94A3B8)
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                EmergencyButton(
+                    modifier = Modifier.weight(1f),
+                    title = "SINAPROC",
+                    subtitle = "Protección Civil",
+                    phone = "911",
+                    color = Color(0xFFFF9100),
+                    context = context
+                )
+                EmergencyButton(
+                    modifier = Modifier.weight(1f),
+                    title = "BOMBEROS",
+                    subtitle = "Rescate y Fuego",
+                    phone = "103",
+                    color = Color(0xFFFF5252),
+                    context = context
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                EmergencyButton(
+                    modifier = Modifier.weight(1f),
+                    title = "CRUZ ROJA",
+                    subtitle = "Ambulancia / Salud",
+                    phone = "455",
+                    color = Color(0xFFE53935),
+                    context = context
+                )
+                EmergencyButton(
+                    modifier = Modifier.weight(1f),
+                    title = "POLICÍA",
+                    subtitle = "Seguridad Nacional",
+                    phone = "104",
+                    color = Color(0xFF29B6F6),
+                    context = context
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmergencyButton(
+    modifier: Modifier = Modifier,
+    title: String,
+    subtitle: String,
+    phone: String,
+    color: Color,
+    context: Context
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(color.copy(alpha = 0.12f))
+            .border(0.8.dp, color.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            .clickable {
+                try {
+                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
+                    context.startActivity(intent)
+                } catch (_: Exception) {}
+            }
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(color.copy(alpha = 0.25f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Call,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column {
+            Text(
+                text = "$title ($phone)",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = subtitle,
+                fontSize = 10.sp,
+                color = Color(0xFF94A3B8)
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutCreditsCard(context: Context) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard),
+        border = androidx.compose.foundation.BorderStroke(0.8.dp, StrokeDark),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Desarrollado con pasión para Panamá por",
+                fontSize = 12.sp,
+                color = Color(0xFF94A3B8)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "JTR01D & Equipo Sismos Panamá",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF60A5FA),
+                fontFamily = FontFamily.SansSerif
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Text(
+                text = "\"Monitor Sísmico y Tectónico de Panamá\"",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                color = Color(0xFFFFD600)
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Botón Compartir Aplicación
+            Button(
+                onClick = {
+                    try {
+                        val shareIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(
+                                Intent.EXTRA_TEXT,
+                                "Descarga Sismos Panamá: Monitor sísmico en tiempo real, explorador de fallas tectónicas y alertas tempranas para Panamá."
+                            )
+                            type = "text/plain"
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "Compartir Sismos Panamá"))
+                    } catch (_: Exception) {}
+                },
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0x553186FF))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = null,
+                    tint = Color(0xFF38BDF8),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Compartir Aplicación",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}

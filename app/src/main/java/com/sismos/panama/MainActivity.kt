@@ -169,7 +169,10 @@ fun SismosAppNavigation(
         is Screen.Dashboard -> {
             DashboardScreen(
                 viewModel = viewModel,
-                onBack = { screenState.value = Screen.Home }
+                onBack = { screenState.value = Screen.Home },
+                onEarthquakeSelected = { eq ->
+                    screenState.value = Screen.Detail(eq)
+                }
             )
         }
         is Screen.Detail -> {

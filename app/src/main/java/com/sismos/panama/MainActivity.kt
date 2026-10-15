@@ -14,13 +14,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.content.ContextCompat
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.ui.Modifier
 import com.sismos.panama.data.models.Earthquake
+import com.sismos.panama.ui.components.PanamaBottomNavigationBar
 import com.sismos.panama.ui.screens.AboutScreen
 import com.sismos.panama.ui.screens.DashboardScreen
 import com.sismos.panama.ui.screens.DetailScreen
 import com.sismos.panama.ui.screens.FaultsScreen
 import com.sismos.panama.ui.screens.HomeScreen
 import com.sismos.panama.ui.screens.InteractiveMapScreen
+import com.sismos.panama.ui.theme.BgDark
 import com.sismos.panama.ui.theme.SismosPanamaTheme
 import com.sismos.panama.ui.viewmodel.SeismicViewModel
 
@@ -50,10 +57,33 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             SismosPanamaTheme {
-                SismosAppNavigation(
-                    viewModel = viewModel,
-                    screenState = currentScreenState
-                )
+                val currentScreen = currentScreenState.value
+                val showBottomBar = currentScreen !is Screen.Detail && currentScreen !is Screen.About
+
+                Scaffold(
+                    containerColor = BgDark,
+                    bottomBar = {
+                        if (showBottomBar) {
+                            PanamaBottomNavigationBar(
+                                currentScreen = currentScreen,
+                                onNavigate = { target ->
+                                    currentScreenState.value = target
+                                }
+                            )
+                        }
+                    }
+                ) { innerPadding ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = innerPadding.calculateBottomPadding())
+                    ) {
+                        SismosAppNavigation(
+                            viewModel = viewModel,
+                            screenState = currentScreenState
+                        )
+                    }
+                }
             }
         }
     }

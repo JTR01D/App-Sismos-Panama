@@ -325,47 +325,8 @@ private fun HomeTopBar(
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(if (isTablet) 4.dp else 0.dp)
+            horizontalArrangement = Arrangement.spacedBy(if (isTablet) 8.dp else 4.dp)
         ) {
-            // Botón Mapa Interactivo Tectónico
-            IconButton(
-                onClick = onNavigateToMap,
-                modifier = Modifier.size(if (isTablet) 40.dp else 36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Explore,
-                    contentDescription = "Mapa Tectónico Interactivo",
-                    tint = Color(0xFF00E5FF),
-                    modifier = Modifier.size(if (isTablet) 24.dp else 22.dp)
-                )
-            }
-
-            // Botón Dashboard Gráficas
-            IconButton(
-                onClick = onNavigateToDashboard,
-                modifier = Modifier.size(if (isTablet) 40.dp else 36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Equalizer,
-                    contentDescription = "Dashboard",
-                    tint = PrimaryBlue,
-                    modifier = Modifier.size(if (isTablet) 24.dp else 22.dp)
-                )
-            }
-
-            // Botón Fallas Tectónicas
-            IconButton(
-                onClick = onNavigateToFaults,
-                modifier = Modifier.size(if (isTablet) 40.dp else 36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Layers,
-                    contentDescription = "Fallas Geológicas",
-                    tint = Color(0xFFCBD5E1),
-                    modifier = Modifier.size(if (isTablet) 24.dp else 22.dp)
-                )
-            }
-
             // Botón Alertas y Notificaciones (Campana Dinámica)
             IconButton(
                 onClick = onOpenNotificationSettings,
@@ -375,6 +336,19 @@ private fun HomeTopBar(
                     imageVector = notifIcon,
                     contentDescription = "Configurar Alertas Sísmicas",
                     tint = notifTint,
+                    modifier = Modifier.size(if (isTablet) 24.dp else 22.dp)
+                )
+            }
+
+            // Botón Acerca de
+            IconButton(
+                onClick = onNavigateToAbout,
+                modifier = Modifier.size(if (isTablet) 40.dp else 36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = "Acerca de",
+                    tint = Color(0xFFA78BFA),
                     modifier = Modifier.size(if (isTablet) 24.dp else 22.dp)
                 )
             }
@@ -397,21 +371,6 @@ private fun HomeTopBar(
                         contentDescription = "Actualizar",
                         tint = Color(0xFFE2E8F0),
                         modifier = Modifier.size(if (isTablet) 24.dp else 22.dp)
-                    )
-                }
-            }
-
-            // En tablets mostramos también Acerca de directo
-            if (isTablet) {
-                IconButton(
-                    onClick = onNavigateToAbout,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = "Acerca de",
-                        tint = Color(0xFFA78BFA),
-                        modifier = Modifier.size(24.dp)
                     )
                 }
             }

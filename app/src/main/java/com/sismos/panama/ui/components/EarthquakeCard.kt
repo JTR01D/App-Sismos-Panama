@@ -36,8 +36,24 @@ import com.sismos.panama.ui.theme.TsunamiWarningColor
 fun EarthquakeCard(
     earthquake: Earthquake,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    orderIndex: Int = -1
 ) {
+    val isSwarmEvent = earthquake.latitude in 7.0..8.2 && earthquake.longitude in -82.0..-80.2
+    val depthLabel = when {
+        earthquake.depthKm <= 20.0 -> "Superficial (${earthquake.depthKm.toInt()} km) • Mayor fuerza local"
+        earthquake.depthKm <= 50.0 -> "Intermedio (${earthquake.depthKm.toInt()} km)"
+        else -> "Profundo (${earthquake.depthKm.toInt()} km) • Energía dispersa"
+    }
+
+    val citizenEffect = when {
+        earthquake.magnitude >= 6.0 -> "⚠️ Severo • Peligro destructivo"
+        earthquake.magnitude >= 5.0 -> "🟠 Fuerte • Sacudida notable"
+        earthquake.magnitude >= 4.0 -> "🟡 Moderado • Sentido por la población"
+        earthquake.magnitude >= 3.0 -> "🔵 Leve • Sentido en reposo"
+        else -> "🟢 Instrumental • Sin peligro"
+    }
+
     GlassCard(
         modifier = modifier
             .fillMaxWidth()
@@ -45,6 +61,69 @@ fun EarthquakeCard(
         cornerRadius = 18.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            // Fila de encabezado cronológico
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (orderIndex == 0) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x33FFB300))
+                                .border(0.8.dp, Color(0xFFFFB300), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "⚡ #1 MÁS RECIENTE",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFFFFD54F)
+                            )
+                        }
+                    } else if (orderIndex > 0) {
+                        Text(
+                            text = "#${orderIndex + 1}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+
+                    if (isSwarmEvent) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0x22F59E0B))
+                                .border(0.8.dp, Color(0x66F59E0B), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "Enjambre Azuero",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFFFFB74D)
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = citizenEffect,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFCBD5E1)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -74,7 +153,7 @@ fun EarthquakeCard(
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
-                            text = "${earthquake.getTimeAgo()} • $sourceTag",
+                            text = "${earthquake.getTimeAgo()} • ${earthquake.getFormattedTime()} • $sourceTag",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFF94A3B8)
                         )
@@ -91,17 +170,17 @@ fun EarthquakeCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Metadata con etiquetas acrílicas traslúcidas
+            // Metadata con etiquetas acrílicas traslúcidas explicadas para no geólogos
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AcrylicInfoChip(label = "Prof", value = "${earthquake.depthKm.toInt()} km")
+                AcrylicInfoChip(label = "Prof", value = depthLabel, modifier = Modifier.weight(1.1f))
                 AcrylicInfoChip(
                     label = "Falla",
                     value = earthquake.nearestFault,
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f)
                 )
             }
 

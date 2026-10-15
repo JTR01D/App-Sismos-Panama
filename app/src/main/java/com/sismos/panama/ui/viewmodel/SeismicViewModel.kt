@@ -22,6 +22,8 @@ data class SeismicUiState(
     val errorMessage: String? = null,
     val selectedMinMag: Double? = null,
     val selectedRegion: String? = null,
+    val selectedFaultId: String? = null,
+    val isSwarmOnly: Boolean = false,
     val lastUpdated: Long = System.currentTimeMillis()
 )
 
@@ -68,7 +70,9 @@ class SeismicViewModel(
                     filteredEarthquakes = applyFilters(
                         list,
                         _uiState.value.selectedMinMag,
-                        _uiState.value.selectedRegion
+                        _uiState.value.selectedRegion,
+                        _uiState.value.selectedFaultId,
+                        _uiState.value.isSwarmOnly
                     ),
                     lastUpdated = System.currentTimeMillis()
                 )
@@ -89,7 +93,9 @@ class SeismicViewModel(
             filteredEarthquakes = applyFilters(
                 _uiState.value.earthquakes,
                 minMag,
-                _uiState.value.selectedRegion
+                _uiState.value.selectedRegion,
+                _uiState.value.selectedFaultId,
+                _uiState.value.isSwarmOnly
             )
         )
     }
@@ -100,7 +106,55 @@ class SeismicViewModel(
             filteredEarthquakes = applyFilters(
                 _uiState.value.earthquakes,
                 _uiState.value.selectedMinMag,
-                region
+                region,
+                _uiState.value.selectedFaultId,
+                _uiState.value.isSwarmOnly
+            )
+        )
+    }
+
+    fun setFaultFilter(faultId: String?) {
+        val newFault = if (_uiState.value.selectedFaultId == faultId) null else faultId
+        _uiState.value = _uiState.value.copy(
+            selectedFaultId = newFault,
+            isSwarmOnly = false,
+            filteredEarthquakes = applyFilters(
+                _uiState.value.earthquakes,
+                _uiState.value.selectedMinMag,
+                _uiState.value.selectedRegion,
+                newFault,
+                false
+            )
+        )
+    }
+
+    fun toggleSwarmFilter() {
+        val newSwarm = !_uiState.value.isSwarmOnly
+        _uiState.value = _uiState.value.copy(
+            isSwarmOnly = newSwarm,
+            selectedFaultId = null,
+            filteredEarthquakes = applyFilters(
+                _uiState.value.earthquakes,
+                _uiState.value.selectedMinMag,
+                _uiState.value.selectedRegion,
+                null,
+                newSwarm
+            )
+        )
+    }
+
+    fun clearAllFilters() {
+        _uiState.value = _uiState.value.copy(
+            selectedMinMag = null,
+            selectedRegion = null,
+            selectedFaultId = null,
+            isSwarmOnly = false,
+            filteredEarthquakes = applyFilters(
+                _uiState.value.earthquakes,
+                null,
+                null,
+                null,
+                false
             )
         )
     }
@@ -108,13 +162,34 @@ class SeismicViewModel(
     private fun applyFilters(
         list: List<Earthquake>,
         minMag: Double?,
-        region: String?
+        region: String?,
+        faultId: String?,
+        isSwarmOnly: Boolean
     ): List<Earthquake> {
         return list.filter { eq ->
             val matchesMag = minMag == null || eq.magnitude >= minMag
             val matchesRegion = region == null || eq.panamaRegion.equals(region, ignoreCase = true)
-            matchesMag && matchesRegion
-        }
+            val matchesFault = faultId == null || when (faultId) {
+                "sona_tonosi" -> eq.nearestFault.contains("Soná", ignoreCase = true) ||
+                        eq.nearestFault.contains("Tonosí", ignoreCase = true) ||
+                        (eq.latitude in 7.0..8.2 && eq.longitude in -82.0..-80.2)
+                "zfp" -> eq.nearestFault.contains("Fractura", ignoreCase = true) ||
+                        eq.nearestFault.contains("ZFP", ignoreCase = true)
+                "burica" -> eq.nearestFault.contains("Burica", ignoreCase = true) ||
+                        eq.nearestFault.contains("Armuelles", ignoreCase = true)
+                "pedro_miguel" -> eq.nearestFault.contains("Pedro Miguel", ignoreCase = true) ||
+                        eq.nearestFault.contains("Canal", ignoreCase = true)
+                "limon" -> eq.nearestFault.contains("Limón", ignoreCase = true) ||
+                        eq.nearestFault.contains("Limon", ignoreCase = true)
+                "cdnp" -> eq.nearestFault.contains("CDNP", ignoreCase = true) ||
+                        eq.nearestFault.contains("Caribe", ignoreCase = true)
+                "chucunaque" -> eq.nearestFault.contains("Chucunaque", ignoreCase = true) ||
+                        eq.nearestFault.contains("Darién", ignoreCase = true)
+                else -> eq.nearestFault.contains(faultId, ignoreCase = true)
+            }
+            val matchesSwarm = !isSwarmOnly || (eq.latitude in 7.0..8.2 && eq.longitude in -82.0..-80.2)
+            matchesMag && matchesRegion && matchesFault && matchesSwarm
+        }.sortedByDescending { it.timeMillis }
     }
 
     private fun startAutoRefresh() {

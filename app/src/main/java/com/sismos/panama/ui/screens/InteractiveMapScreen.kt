@@ -1331,7 +1331,7 @@ private fun SelectedFaultCard(
                 }
             }
 
-            // Datos de Geociencia de la Falla
+            // Datos de Geociencia explicados para ciudadanos (No geólogos)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1340,9 +1340,18 @@ private fun SelectedFaultCard(
                     .padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(text = "Mecanismo: ${fault.mechanism}", fontSize = 12.sp, color = Color(0xFFCBD5E1))
-                Text(text = "Tasa de desplazamiento: ${fault.slipRate}", fontSize = 12.sp, color = Color(0xFF93C5FD), fontFamily = FontFamily.Monospace)
-                Text(text = "Período de recurrencia: ${fault.recurrence}", fontSize = 12.sp, color = Color(0xFFFFB74D))
+                val mechanismPlain = when {
+                    fault.mechanism.contains("Rumbo", ignoreCase = true) || fault.mechanism.contains("transcurrente", ignoreCase = true) ->
+                        "Deslizamiento lateral (los bloques rozan horizontalmente)"
+                    fault.mechanism.contains("Cabalgamiento", ignoreCase = true) || fault.mechanism.contains("inverso", ignoreCase = true) ->
+                        "Choque frontal submarino (una placa se mete bajo la otra)"
+                    else -> "Deformación tectónica cortical activa"
+                }
+
+                Text(text = "Mecanismo: ${fault.mechanism}", fontSize = 12.sp, color = Color(0xFFCBD5E1), fontWeight = FontWeight.SemiBold)
+                Text(text = "💡 Explicación: $mechanismPlain", fontSize = 11.sp, color = Color(0xFF93C5FD))
+                Text(text = "Tasa de movimiento: ${fault.slipRate}", fontSize = 12.sp, color = Color(0xFFE2E8F0), fontFamily = FontFamily.Monospace)
+                Text(text = "Tiempo de recurrencia: ${fault.recurrence}", fontSize = 11.sp, color = Color(0xFFFFB74D))
 
                 val statusText = if (associatedQuakesCount > 0) {
                     "Sismos activos asociados: $associatedQuakesCount registrados${if (fault.id == "sona_tonosi") " (Enjambre activo en curso)" else ""}"

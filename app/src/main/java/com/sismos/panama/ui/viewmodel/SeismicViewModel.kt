@@ -53,13 +53,16 @@ class SeismicViewModel(
                 val list = result.getOrNull() ?: emptyList()
                 if (list.isNotEmpty()) {
                     val latest = list.first()
-                    // Si llega un sismo nuevo mientras la app está abierta, alertar inmediatamente
-                    if (previousTopEventId != null && previousTopEventId != latest.id && (latest.magnitude >= 3.0 || latest.isTsunamiWarning)) {
-                        val prefs = getApplication<Application>().getSharedPreferences("sismos_prefs", Context.MODE_PRIVATE)
-                        val lastNotified = prefs.getString("last_notified_event_id", null)
-                        if (lastNotified != latest.id) {
-                            SeismicAlarmReceiver.sendHighPriorityNotification(getApplication(), latest)
-                            prefs.edit().putString("last_notified_event_id", latest.id).apply()
+                    // Si llega un sismo nuevo mientras la app está abierta, alertar según preferencias
+                    if (previousTopEventId != null && previousTopEventId != latest.id) {
+                        val settings = com.sismos.panama.data.models.AlertSettings.load(getApplication())
+                        if (!settings.isCompletelyDisabled() && (latest.magnitude >= settings.minMagnitude || latest.isTsunamiWarning)) {
+                            val prefs = getApplication<Application>().getSharedPreferences("sismos_prefs", Context.MODE_PRIVATE)
+                            val lastNotified = prefs.getString("last_notified_event_id", null)
+                            if (lastNotified != latest.id) {
+                                SeismicAlarmReceiver.sendHighPriorityNotification(getApplication(), latest, settings)
+                                prefs.edit().putString("last_notified_event_id", latest.id).apply()
+                            }
                         }
                     }
                     previousTopEventId = latest.id

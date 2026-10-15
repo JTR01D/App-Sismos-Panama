@@ -32,6 +32,11 @@ import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.NotificationsOff
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -47,19 +52,24 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sismos.panama.data.models.AlertSettings
 import com.sismos.panama.data.models.Earthquake
 import com.sismos.panama.ui.components.EarthquakeCard
+import com.sismos.panama.ui.components.NotificationSettingsModal
 import com.sismos.panama.ui.components.PanamaRegionsBanner
 import com.sismos.panama.ui.theme.BgDark
 import com.sismos.panama.ui.theme.MagGreen
@@ -77,17 +87,22 @@ fun HomeScreen(
     onNavigateToAbout: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    var showNotificationSettings by remember { mutableStateOf(false) }
+    var alertSettings by remember { mutableStateOf(AlertSettings.load(context)) }
 
     Scaffold(
         containerColor = BgDark,
         topBar = {
             HomeTopBar(
                 isLoading = state.isLoading,
+                alertSettings = alertSettings,
                 onRefresh = { viewModel.loadEarthquakes(isManualRefresh = true) },
                 onNavigateToFaults = onNavigateToFaults,
                 onNavigateToDashboard = onNavigateToDashboard,
                 onNavigateToMap = onNavigateToMap,
-                onNavigateToAbout = onNavigateToAbout
+                onNavigateToAbout = onNavigateToAbout,
+                onOpenNotificationSettings = { showNotificationSettings = true }
             )
         }
     ) { padding ->
@@ -96,10 +111,12 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Live Status Banner Liquid Glass con acceso al Mapa y Dashboard
+            // Live Status Banner Liquid Glass con acceso al Mapa, Dashboard y Alertas
             LiveStatusBanner(
+                alertSettings = alertSettings,
                 onOpenDashboard = onNavigateToDashboard,
-                onOpenMap = onNavigateToMap
+                onOpenMap = onNavigateToMap,
+                onOpenNotificationSettings = { showNotificationSettings = true }
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -227,16 +244,25 @@ fun HomeScreen(
             }
         }
     }
+
+    if (showNotificationSettings) {
+        NotificationSettingsModal(
+            onDismiss = { showNotificationSettings = false },
+            onSettingsChanged = { alertSettings = it }
+        )
+    }
 }
 
 @Composable
 private fun HomeTopBar(
     isLoading: Boolean,
+    alertSettings: AlertSettings,
     onRefresh: () -> Unit,
     onNavigateToFaults: () -> Unit,
     onNavigateToDashboard: () -> Unit,
     onNavigateToMap: () -> Unit,
-    onNavigateToAbout: () -> Unit
+    onNavigateToAbout: () -> Unit,
+    onOpenNotificationSettings: () -> Unit
 ) {
     val topBarBrush = Brush.verticalGradient(
         colors = listOf(
@@ -320,6 +346,37 @@ private fun HomeTopBar(
                 )
             }
 
+            // Botón Alertas y Notificaciones (Campana Dinámica)
+            val notifIcon = when {
+                alertSettings.isCompletelyDisabled() -> Icons.Default.NotificationsOff
+                alertSettings.soundEnabled && alertSettings.vibrateEnabled -> Icons.Default.NotificationsActive
+                alertSettings.vibrateEnabled -> Icons.Default.Vibration
+                alertSettings.soundEnabled -> Icons.Default.VolumeUp
+                else -> Icons.Default.Notifications
+            }
+            val notifTint = when {
+                alertSettings.isCompletelyDisabled() -> Color(0xFFEF4444)
+                alertSettings.soundEnabled && alertSettings.vibrateEnabled -> Color(0xFF00E5FF)
+                alertSettings.vibrateEnabled -> Color(0xFFF59E0B)
+                alertSettings.soundEnabled -> Color(0xFF38BDF8)
+                else -> Color(0xFFA78BFA)
+            }
+
+            IconButton(
+                onClick = onOpenNotificationSettings,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(notifTint.copy(alpha = 0.2f))
+                    .border(0.8.dp, notifTint.copy(alpha = 0.6f), CircleShape)
+            ) {
+                Icon(
+                    imageVector = notifIcon,
+                    contentDescription = "Configurar Alertas Sísmicas",
+                    tint = notifTint,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
             // Botón Acerca de
             IconButton(
                 onClick = onNavigateToAbout,
@@ -366,8 +423,10 @@ private fun HomeTopBar(
 
 @Composable
 private fun LiveStatusBanner(
+    alertSettings: AlertSettings,
     onOpenDashboard: () -> Unit,
-    onOpenMap: () -> Unit
+    onOpenMap: () -> Unit,
+    onOpenNotificationSettings: () -> Unit
 ) {
     val bannerBrush = Brush.horizontalGradient(
         colors = listOf(
@@ -377,6 +436,14 @@ private fun LiveStatusBanner(
         )
     )
 
+    val notifBadgeColor = when {
+        alertSettings.isCompletelyDisabled() -> Color(0xFFEF4444)
+        alertSettings.soundEnabled && alertSettings.vibrateEnabled -> Color(0xFF00E5FF)
+        alertSettings.vibrateEnabled -> Color(0xFFF59E0B)
+        alertSettings.soundEnabled -> Color(0xFF38BDF8)
+        else -> Color(0xFFA78BFA)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -384,7 +451,6 @@ private fun LiveStatusBanner(
             .clip(RoundedCornerShape(12.dp))
             .background(bannerBrush)
             .border(1.dp, Color(0x4438BDF8), RoundedCornerShape(12.dp))
-            .clickable { onOpenMap() }
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Row(
@@ -392,7 +458,10 @@ private fun LiveStatusBanner(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onOpenMap() }
+            ) {
                 Box(
                     modifier = Modifier
                         .size(9.dp)
@@ -401,7 +470,7 @@ private fun LiveStatusBanner(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "EN VIVO IGC-UP • AUTO-REFRESCO 20S",
+                    text = "EN VIVO IGC-UP • 20S",
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -411,13 +480,31 @@ private fun LiveStatusBanner(
 
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Chip Interactivo de Alertas Sísmicas
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(notifBadgeColor.copy(alpha = 0.18f))
+                        .border(0.8.dp, notifBadgeColor.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                        .clickable { onOpenNotificationSettings() }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "🔔 ${alertSettings.getModeDescription()}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = notifBadgeColor
+                    )
+                }
+
                 Text(
-                    text = "Explorar Mapa ❯",
+                    text = "Mapa ❯",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF00E5FF)
+                    color = Color(0xFF00E5FF),
+                    modifier = Modifier.clickable { onOpenMap() }
                 )
             }
         }

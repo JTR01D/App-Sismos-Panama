@@ -52,12 +52,15 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
     }
 
     private fun checkAndNotifyNew(context: Context, latest: Earthquake) {
+        val settings = com.sismos.panama.data.models.AlertSettings.load(context)
+        if (settings.isCompletelyDisabled()) return
+
         val prefs = context.getSharedPreferences("sismos_prefs", Context.MODE_PRIVATE)
         val lastNotifiedId = prefs.getString("last_notified_event_id", null)
 
-        // Si es un evento no notificado y es perceptible (M >= 3.0) o aviso tsunami
-        if (latest.id != lastNotifiedId && (latest.magnitude >= 3.0 || latest.isTsunamiWarning)) {
-            sendHighPriorityNotification(context, latest)
+        // Si es un evento no notificado y cumple el umbral del usuario o es aviso tsunami
+        if (latest.id != lastNotifiedId && (latest.magnitude >= settings.minMagnitude || latest.isTsunamiWarning)) {
+            sendHighPriorityNotification(context, latest, settings)
             prefs.edit().putString("last_notified_event_id", latest.id).apply()
         }
     }
@@ -110,35 +113,26 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
             } catch (_: Exception) {}
         }
 
-        fun sendHighPriorityNotification(context: Context, eq: Earthquake) {
+        fun sendHighPriorityNotification(
+            context: Context,
+            eq: Earthquake,
+            customSettings: com.sismos.panama.data.models.AlertSettings? = null
+        ) {
+            val settings = customSettings ?: com.sismos.panama.data.models.AlertSettings.load(context)
+            if (settings.isCompletelyDisabled()) return
+
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-            val channelId = "seismic_alerts_channel"
+            // Seleccionar canal exacto según preferencias de sonido y vibración
+            val channelId = when {
+                settings.soundEnabled && settings.vibrateEnabled -> "seismic_alerts_all"
+                settings.soundEnabled && !settings.vibrateEnabled -> "seismic_alerts_sound_only"
+                !settings.soundEnabled && settings.vibrateEnabled -> "seismic_alerts_vibrate_only"
+                else -> "seismic_alerts_messages_only"
+            }
 
             val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val audioAttributes = AudioAttributes.Builder()
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .build()
-
-                val channel = NotificationChannel(
-                    channelId,
-                    context.getString(R.string.channel_name),
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = context.getString(R.string.channel_description)
-                    enableVibration(true)
-                    vibrationPattern = longArrayOf(0, 350, 150, 350, 150, 500)
-                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
-                    setSound(soundUri, audioAttributes)
-                    enableLights(true)
-                    lightColor = Color.RED
-                }
-                notificationManager.createNotificationChannel(channel)
-            }
 
             val launchIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -151,7 +145,14 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
 
-            val title = "⚡ ALERTA SÍSMICA PANAMÁ: M${String.format(java.util.Locale.US, "%.1f", eq.magnitude)}"
+            val modeTag = when {
+                settings.soundEnabled && settings.vibrateEnabled -> "⚡"
+                settings.soundEnabled -> "🔊"
+                settings.vibrateEnabled -> "📳"
+                else -> "💬"
+            }
+
+            val title = "$modeTag ALERTA SÍSMICA PANAMÁ: M${String.format(java.util.Locale.US, "%.1f", eq.magnitude)}"
             val content = "${eq.place} | Prof: ${eq.depthKm.toInt()} km • ${eq.nearestFault}"
 
             val builder = NotificationCompat.Builder(context, channelId)
@@ -159,15 +160,59 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
                 .setContentTitle(title)
                 .setContentText(content)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(content))
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setSound(soundUri)
-                .setVibrate(longArrayOf(0, 350, 150, 350, 150, 500))
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent)
 
+            if (settings.soundEnabled) {
+                builder.setSound(soundUri)
+                builder.setCategory(NotificationCompat.CATEGORY_ALARM)
+            } else {
+                builder.setSound(null)
+                builder.setCategory(NotificationCompat.CATEGORY_EVENT)
+            }
+
+            if (settings.vibrateEnabled) {
+                builder.setVibrate(longArrayOf(0, 350, 150, 350, 150, 500))
+            } else {
+                builder.setVibrate(longArrayOf(0))
+            }
+
+            if (settings.soundEnabled || settings.vibrateEnabled) {
+                builder.setPriority(NotificationCompat.PRIORITY_MAX)
+            } else {
+                builder.setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            }
+
             notificationManager.notify(eq.id.hashCode(), builder.build())
+        }
+
+        /**
+         * Envía una notificación de prueba instantánea con la configuración actual del usuario
+         */
+        fun sendTestNotification(
+            context: Context,
+            settings: com.sismos.panama.data.models.AlertSettings
+        ) {
+            val testEarthquake = Earthquake(
+                id = "test_alert_${System.currentTimeMillis()}",
+                magnitude = 4.5,
+                place = "Prueba de Alerta Sísmica - Panamá",
+                timeMillis = System.currentTimeMillis(),
+                latitude = 8.98,
+                longitude = -79.52,
+                depthKm = 10.0,
+                nearestCity = "Ciudad de Panamá",
+                distanceToNearestCityKm = 12,
+                nearestFault = "Falla de Pedro Miguel (Canal)",
+                faultMechanism = "Rumbo lateral izquierdo",
+                panamaRegion = "Canal / Metro",
+                isTsunamiWarning = false,
+                feltReports = 85,
+                officialUrl = "https://www.igc.up.ac.pa",
+                sourceName = "Prueba de Configuración Sísmica"
+            )
+            sendHighPriorityNotification(context, testEarthquake, settings)
         }
     }
 }

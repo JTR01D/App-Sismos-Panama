@@ -17,6 +17,9 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,6 +31,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sismos.panama.data.models.AlertSettings
+import com.sismos.panama.ui.components.NotificationSettingsModal
 import com.sismos.panama.ui.theme.*
 
 @Composable
@@ -35,6 +40,8 @@ fun AboutScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    var showNotificationSettings by remember { mutableStateOf(false) }
+    var alertSettings by remember { mutableStateOf(AlertSettings.load(context)) }
 
     val topBarBrush = Brush.verticalGradient(
         colors = listOf(
@@ -100,6 +107,14 @@ fun AboutScreen(
                 AppHeroCard()
             }
 
+            // Tarjeta de Configuración de Alertas Sísmicas (Acceso Directo)
+            item {
+                AboutAlertSettingsCard(
+                    alertSettings = alertSettings,
+                    onClick = { showNotificationSettings = true }
+                )
+            }
+
             // Propósito y Misión Ciudadana
             item {
                 AboutMissionCard()
@@ -129,6 +144,150 @@ fun AboutScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }
+    }
+
+    if (showNotificationSettings) {
+        NotificationSettingsModal(
+            onDismiss = { showNotificationSettings = false },
+            onSettingsChanged = { alertSettings = it }
+        )
+    }
+}
+
+@Composable
+private fun AboutAlertSettingsCard(
+    alertSettings: AlertSettings,
+    onClick: () -> Unit
+) {
+    val accentColor = when {
+        alertSettings.isCompletelyDisabled() -> Color(0xFFEF4444)
+        alertSettings.soundEnabled && alertSettings.vibrateEnabled -> Color(0xFF00E5FF)
+        alertSettings.vibrateEnabled -> Color(0xFFF59E0B)
+        alertSettings.soundEnabled -> Color(0xFF38BDF8)
+        else -> Color(0xFFA78BFA)
+    }
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard),
+        border = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.5f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(accentColor.copy(alpha = 0.18f))
+                            .border(0.8.dp, accentColor.copy(alpha = 0.5f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (alertSettings.isCompletelyDisabled()) Icons.Default.NotificationsOff else Icons.Default.NotificationsActive,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = "ALERTAS Y NOTIFICACIONES",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = "Modo: ${alertSettings.getModeDescription()}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = accentColor
+                        )
+                    }
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0x223186FF),
+                    border = androidx.compose.foundation.BorderStroke(0.6.dp, Color(0x553186FF))
+                ) {
+                    Text(
+                        text = "Configurar ❯",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF60A5FA),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Badges de estado individual
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                AlertStatusPill(
+                    label = "🔊 Sonido",
+                    isActive = alertSettings.soundEnabled && alertSettings.notificationsEnabled,
+                    activeColor = Color(0xFF38BDF8),
+                    modifier = Modifier.weight(1f)
+                )
+                AlertStatusPill(
+                    label = "📳 Vibrar",
+                    isActive = alertSettings.vibrateEnabled && alertSettings.notificationsEnabled,
+                    activeColor = Color(0xFFF59E0B),
+                    modifier = Modifier.weight(1f)
+                )
+                AlertStatusPill(
+                    label = "💬 Mensajes",
+                    isActive = alertSettings.messagesEnabled && alertSettings.notificationsEnabled,
+                    activeColor = Color(0xFFA78BFA),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlertStatusPill(
+    label: String,
+    isActive: Boolean,
+    activeColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val bg = if (isActive) activeColor.copy(alpha = 0.15f) else Color(0x11FFFFFF)
+    val border = if (isActive) activeColor.copy(alpha = 0.4f) else Color(0x1AFFFFFF)
+    val textCol = if (isActive) activeColor else Color(0xFF64748B)
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(bg)
+            .border(0.6.dp, border, RoundedCornerShape(8.dp))
+            .padding(vertical = 5.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "$label: ${if (isActive) "ON" else "OFF"}",
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = textCol
+        )
     }
 }
 

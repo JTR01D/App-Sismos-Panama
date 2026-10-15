@@ -42,6 +42,26 @@ class MainActivity : ComponentActivity() {
             val minMag = intent.getStringExtra("min_magnitude")?.toDoubleOrNull() ?: intent.getDoubleExtra("min_magnitude", -1.0)
             val region = intent.getStringExtra("region")
 
+            val alertMode = intent.getStringExtra("alert_mode")
+            if (alertMode != null && context != null) {
+                val newSettings = when (alertMode.lowercase()) {
+                    "vibrate_only" -> com.sismos.panama.data.models.AlertSettings.presetVibrateOnly()
+                    "sound_only" -> com.sismos.panama.data.models.AlertSettings.presetSoundOnly()
+                    "messages_only" -> com.sismos.panama.data.models.AlertSettings.presetMessagesOnly()
+                    "disable_all" -> com.sismos.panama.data.models.AlertSettings.presetDisableAll()
+                    else -> com.sismos.panama.data.models.AlertSettings.presetAll()
+                }
+                com.sismos.panama.data.models.AlertSettings.save(context, newSettings)
+            }
+
+            val testAlert = intent.getBooleanExtra("test_alert", false)
+            if (testAlert && context != null) {
+                com.sismos.panama.data.background.SeismicAlarmReceiver.sendTestNotification(
+                    context,
+                    com.sismos.panama.data.models.AlertSettings.load(context)
+                )
+            }
+
             if (minMag >= 0.0) {
                 viewModel.setMinMagnitudeFilter(minMag)
             }

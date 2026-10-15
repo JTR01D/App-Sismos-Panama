@@ -8,8 +8,6 @@
 
 Aplicación nativa para Android diseñada para el monitoreo, alerta temprana y divulgación geocientífica de eventos sísmicos **en tiempo real y con cobertura exclusiva para la República de Panamá**, integrando los datos oficiales de redes sísmicas de referencia (USGS y EMSC) y la cartografía estructural de fallas geológicas del Instituto de Geociencias (IGC-UP).
 
-> *"Monitor Sísmico y Tectónico de Panamá"*
-
 ---
 
 ## 🚀 Descarga Directa e Instalación

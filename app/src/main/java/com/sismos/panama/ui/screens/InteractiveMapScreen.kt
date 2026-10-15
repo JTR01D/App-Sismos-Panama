@@ -3,6 +3,12 @@ package com.sismos.panama.ui.screens
 import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -366,9 +372,14 @@ fun InteractiveMapScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
+            val latestQuake = remember(displayEarthquakes) {
+                displayEarthquakes.maxByOrNull { it.timeMillis }
+            }
+
             // Lienzo interactivo avanzado
             AdvancedTectonicMapCanvas(
                 earthquakes = displayEarthquakes,
+                latestEarthquakeId = latestQuake?.id,
                 selectedEarthquake = selectedEq,
                 selectedFault = selectedFault,
                 showFaults = showFaults,
@@ -396,9 +407,14 @@ fun InteractiveMapScreen(
             )
 
             // Banner flotante de Enfoque Automático en Enjambre
-            val swarmCount = remember(displayEarthquakes) {
-                displayEarthquakes.count { it.latitude in 7.0..8.2 && it.longitude in -82.0..-80.2 }
+            val swarmQuakes = remember(displayEarthquakes) {
+                displayEarthquakes.filter { it.latitude in 7.0..8.2 && it.longitude in -82.0..-80.2 }
             }
+            val latestSwarmQuake = remember(swarmQuakes, displayEarthquakes) {
+                swarmQuakes.maxByOrNull { it.timeMillis } ?: displayEarthquakes.maxByOrNull { it.timeMillis }
+            }
+            val swarmCount = swarmQuakes.size
+
             if (isSwarmFocused && swarmCount >= 5 && !showWaveSimulation) {
                 Surface(
                     modifier = Modifier
@@ -420,11 +436,27 @@ fun InteractiveMapScreen(
                                 .background(Color(0xFFFFB300))
                         )
                         Text(
-                            text = "⚡ Zoom enfocado en Enjambre Sísmico ($swarmCount sismos)",
+                            text = "⚡ Enjambre Azuero ($swarmCount) • Último: M ${String.format(java.util.Locale.US, "%.1f", latestSwarmQuake?.magnitude ?: 0.0)} (${latestSwarmQuake?.getTimeAgo() ?: ""})",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
+                        if (latestSwarmQuake != null) {
+                            TextButton(
+                                onClick = {
+                                    selectedEq = latestSwarmQuake
+                                },
+                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
+                                modifier = Modifier.height(26.dp)
+                            ) {
+                                Text(
+                                    text = "📍 Ver #1",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFFFFD700)
+                                )
+                            }
+                        }
                         TextButton(
                             onClick = {
                                 scale = 1f
@@ -545,6 +577,7 @@ fun InteractiveMapScreen(
 @Composable
 private fun AdvancedTectonicMapCanvas(
     earthquakes: List<Earthquake>,
+    latestEarthquakeId: String? = null,
     selectedEarthquake: Earthquake?,
     selectedFault: FaultLineInteractive?,
     showFaults: Boolean,
@@ -557,6 +590,16 @@ private fun AdvancedTectonicMapCanvas(
     onSelectEarthquake: (Earthquake) -> Unit,
     onSelectFault: (FaultLineInteractive) -> Unit
 ) {
+    val infiniteTransition = rememberInfiniteTransition(label = "beacon")
+    val beaconProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "beaconProgress"
+    )
     val minLon = -83.5
     val maxLon = -77.0
     val minLat = 6.8
@@ -966,17 +1009,36 @@ private fun AdvancedTectonicMapCanvas(
                     center = pos
                 )
 
-                // En sismos perceptibles (M ≥ 3.5) o seleccionados: dibujar etiqueta con el número de magnitud para claridad inmediata
-                if (eq.magnitude >= 3.5 || isSelected) {
+                val isLatest = eq.id == latestEarthquakeId
+
+                // Radar Beacon pulsante dorado para el sismo más reciente (#1)
+                if (isLatest) {
+                    val pulseRadius = baseRadius + (beaconProgress * 30f * scale.coerceIn(0.8f, 2.0f))
+                    val pulseAlpha = (1f - beaconProgress) * 0.9f
+                    drawCircle(
+                        color = Color(0xFFFFD700).copy(alpha = pulseAlpha),
+                        radius = pulseRadius,
+                        center = pos,
+                        style = Stroke(width = 2.5f * scale.coerceIn(0.8f, 1.8f))
+                    )
+                    drawCircle(
+                        color = Color(0xFFFFD700).copy(alpha = pulseAlpha * 0.25f),
+                        radius = pulseRadius,
+                        center = pos
+                    )
+                }
+
+                // En sismos perceptibles (M ≥ 3.5), seleccionados o más reciente: dibujar etiqueta con el número de magnitud para claridad inmediata
+                if (eq.magnitude >= 3.5 || isSelected || isLatest) {
                     val magText = String.format(java.util.Locale.US, "%.1f", eq.magnitude)
                     val tagBgPaint = Paint().apply {
                         color = android.graphics.Color.argb(240, 10, 16, 30)
                         style = Paint.Style.FILL
                     }
                     val tagBorderPaint = Paint().apply {
-                        color = magColor.toArgb()
+                        color = if (isLatest) android.graphics.Color.argb(255, 255, 215, 0) else magColor.toArgb()
                         style = Paint.Style.STROKE
-                        strokeWidth = if (eq.magnitude >= 5.0) 2.0f else 1.2f
+                        strokeWidth = if (isLatest) 2.2f else if (eq.magnitude >= 5.0) 2.0f else 1.2f
                     }
                     val tWidth = magLabelPaint.measureText(magText)
                     val tagRect = android.graphics.RectF(
@@ -988,6 +1050,31 @@ private fun AdvancedTectonicMapCanvas(
                     drawContext.canvas.nativeCanvas.drawRoundRect(tagRect, 6f, 6f, tagBgPaint)
                     drawContext.canvas.nativeCanvas.drawRoundRect(tagRect, 6f, 6f, tagBorderPaint)
                     drawContext.canvas.nativeCanvas.drawText(magText, pos.x, pos.y - baseRadius - 6f, magLabelPaint)
+                }
+
+                // Distintivo especial flotante en oro: "★ #1 RECIENTE"
+                if (isLatest) {
+                    val latestBadgeText = "★ #1 RECIENTE"
+                    val latestTextPaint = Paint().apply {
+                        color = android.graphics.Color.BLACK
+                        textSize = (9.5f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(8.5f)
+                        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                        textAlign = Paint.Align.CENTER
+                    }
+                    val lw = latestTextPaint.measureText(latestBadgeText)
+                    val topY = pos.y - baseRadius - 26f
+                    val lRect = android.graphics.RectF(
+                        pos.x - lw / 2f - 6f,
+                        topY - 16f,
+                        pos.x + lw / 2f + 6f,
+                        topY
+                    )
+                    val goldPaint = Paint().apply {
+                        color = android.graphics.Color.argb(255, 255, 215, 0)
+                        style = Paint.Style.FILL
+                    }
+                    drawContext.canvas.nativeCanvas.drawRoundRect(lRect, 4f, 4f, goldPaint)
+                    drawContext.canvas.nativeCanvas.drawText(latestBadgeText, pos.x, topY - 3.5f, latestTextPaint)
                 }
 
                 // Retícula de selección

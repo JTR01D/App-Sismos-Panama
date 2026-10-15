@@ -21,6 +21,7 @@ import com.sismos.panama.ui.screens.DashboardScreen
 import com.sismos.panama.ui.screens.DetailScreen
 import com.sismos.panama.ui.screens.FaultsScreen
 import com.sismos.panama.ui.screens.HomeScreen
+import com.sismos.panama.ui.screens.InteractiveMapScreen
 import com.sismos.panama.ui.theme.SismosPanamaTheme
 import com.sismos.panama.ui.viewmodel.SeismicViewModel
 
@@ -51,6 +52,7 @@ class MainActivity : ComponentActivity() {
                 "home" -> currentScreenState.value = Screen.Home
                 "dashboard" -> currentScreenState.value = Screen.Dashboard
                 "faults" -> currentScreenState.value = Screen.Faults
+                "map" -> currentScreenState.value = Screen.Map
                 "detail" -> {
                     val list = viewModel.uiState.value.filteredEarthquakes
                     if (list.isNotEmpty()) {
@@ -73,6 +75,7 @@ class MainActivity : ComponentActivity() {
         when (initialScreen?.lowercase()) {
             "dashboard" -> currentScreenState.value = Screen.Dashboard
             "faults" -> currentScreenState.value = Screen.Faults
+            "map" -> currentScreenState.value = Screen.Map
             else -> currentScreenState.value = Screen.Home
         }
 
@@ -105,6 +108,7 @@ class MainActivity : ComponentActivity() {
         when (intent.getStringExtra("screen")?.lowercase()) {
             "dashboard" -> currentScreenState.value = Screen.Dashboard
             "faults" -> currentScreenState.value = Screen.Faults
+            "map" -> currentScreenState.value = Screen.Map
             "home" -> currentScreenState.value = Screen.Home
         }
     }
@@ -127,6 +131,7 @@ sealed class Screen {
     data class Detail(val earthquake: Earthquake) : Screen()
     object Faults : Screen()
     object Dashboard : Screen()
+    object Map : Screen()
 }
 
 @Composable
@@ -146,6 +151,18 @@ fun SismosAppNavigation(
                 },
                 onNavigateToDashboard = {
                     screenState.value = Screen.Dashboard
+                },
+                onNavigateToMap = {
+                    screenState.value = Screen.Map
+                }
+            )
+        }
+        is Screen.Map -> {
+            InteractiveMapScreen(
+                viewModel = viewModel,
+                onBack = { screenState.value = Screen.Home },
+                onEarthquakeSelected = { eq ->
+                    screenState.value = Screen.Detail(eq)
                 }
             )
         }

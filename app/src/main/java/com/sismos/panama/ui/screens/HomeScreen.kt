@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
@@ -62,7 +63,8 @@ fun HomeScreen(
     viewModel: SeismicViewModel,
     onEarthquakeSelected: (Earthquake) -> Unit,
     onNavigateToFaults: () -> Unit,
-    onNavigateToDashboard: () -> Unit
+    onNavigateToDashboard: () -> Unit,
+    onNavigateToMap: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -73,7 +75,8 @@ fun HomeScreen(
                 isLoading = state.isLoading,
                 onRefresh = { viewModel.loadEarthquakes(isManualRefresh = true) },
                 onNavigateToFaults = onNavigateToFaults,
-                onNavigateToDashboard = onNavigateToDashboard
+                onNavigateToDashboard = onNavigateToDashboard,
+                onNavigateToMap = onNavigateToMap
             )
         }
     ) { padding ->
@@ -82,9 +85,10 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Live Status Banner Liquid Glass
+            // Live Status Banner Liquid Glass con acceso al Mapa y Dashboard
             LiveStatusBanner(
-                onOpenDashboard = onNavigateToDashboard
+                onOpenDashboard = onNavigateToDashboard,
+                onOpenMap = onNavigateToMap
             )
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -145,7 +149,8 @@ private fun HomeTopBar(
     isLoading: Boolean,
     onRefresh: () -> Unit,
     onNavigateToFaults: () -> Unit,
-    onNavigateToDashboard: () -> Unit
+    onNavigateToDashboard: () -> Unit,
+    onNavigateToMap: () -> Unit
 ) {
     val topBarBrush = Brush.verticalGradient(
         colors = listOf(
@@ -181,6 +186,22 @@ private fun HomeTopBar(
         }
 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Botón Mapa Interactivo Tectónico
+            IconButton(
+                onClick = onNavigateToMap,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color(0x2200E5FF))
+                    .border(0.8.dp, Color(0x6600E5FF), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Explore,
+                    contentDescription = "Mapa Tectónico Interactivo",
+                    tint = Color(0xFF00E5FF),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
             // Botón Dashboard Gráficas
             IconButton(
                 onClick = onNavigateToDashboard,
@@ -243,7 +264,8 @@ private fun HomeTopBar(
 
 @Composable
 private fun LiveStatusBanner(
-    onOpenDashboard: () -> Unit
+    onOpenDashboard: () -> Unit,
+    onOpenMap: () -> Unit
 ) {
     val bannerBrush = Brush.horizontalGradient(
         colors = listOf(
@@ -260,7 +282,7 @@ private fun LiveStatusBanner(
             .clip(RoundedCornerShape(12.dp))
             .background(bannerBrush)
             .border(1.dp, Color(0x4438BDF8), RoundedCornerShape(12.dp))
-            .clickable { onOpenDashboard() }
+            .clickable { onOpenMap() }
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Row(
@@ -285,12 +307,17 @@ private fun LiveStatusBanner(
                 )
             }
 
-            Text(
-                text = "Ver Gráficas ❯",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF93C5FD)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Explorar Mapa ❯",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF00E5FF)
+                )
+            }
         }
     }
 }

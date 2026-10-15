@@ -1,0 +1,11 @@
+# Forzar LF para scripts de shell en Linux / GitHub Actions
+gradlew text eol=lf
+*.sh text eol=lf
+
+# Forzar CRLF para scripts de Windows
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Archivos binarios
+*.jar binary
+*.png binary

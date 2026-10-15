@@ -65,7 +65,7 @@ fun HomeScreen(
         topBar = {
             HomeTopBar(
                 isLoading = state.isLoading,
-                onRefresh = { viewModel.loadEarthquakes() },
+                onRefresh = { viewModel.loadEarthquakes(isManualRefresh = true) },
                 onNavigateToFaults = onNavigateToFaults
             )
         }
@@ -207,7 +207,7 @@ private fun LiveStatusBanner() {
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = "EN TIEMPO REAL • FILTRADO EXCLUSIVO PARA PANAMÁ",
+            text = "EN VIVO IGC-UP • AUTO-REFRESCO CADA 20 SEG",
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,

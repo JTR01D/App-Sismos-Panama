@@ -37,9 +37,11 @@ class SeismicViewModel(
         startAutoRefresh()
     }
 
-    fun loadEarthquakes() {
+    fun loadEarthquakes(isManualRefresh: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            if (isManualRefresh || _uiState.value.earthquakes.isEmpty()) {
+                _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+            }
             val result = repository.fetchPanamaEarthquakes()
             if (result.isSuccess) {
                 val list = result.getOrNull() ?: emptyList()
@@ -56,7 +58,9 @@ class SeismicViewModel(
             } else {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = result.exceptionOrNull()?.localizedMessage ?: "Error al conectar con la red sísmica"
+                    errorMessage = if (_uiState.value.earthquakes.isEmpty()) {
+                        result.exceptionOrNull()?.localizedMessage ?: "Error al conectar con la red sísmica"
+                    } else null
                 )
             }
         }
@@ -100,8 +104,8 @@ class SeismicViewModel(
         autoRefreshJob?.cancel()
         autoRefreshJob = viewModelScope.launch {
             while (isActive) {
-                delay(60_000) // Actualizar cada 60 segundos
-                loadEarthquakes()
+                delay(20_000) // Consulta ultra-rápida cada 20 segundos
+                loadEarthquakes(isManualRefresh = false)
             }
         }
     }

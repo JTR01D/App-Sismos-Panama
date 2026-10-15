@@ -175,7 +175,8 @@ fun SismosAppNavigation(
         is Screen.Detail -> {
             DetailScreen(
                 earthquake = screen.earthquake,
-                onBack = { screenState.value = Screen.Home }
+                onBack = { screenState.value = Screen.Home },
+                onOpenMap = { screenState.value = Screen.Map }
             )
         }
         is Screen.Faults -> {

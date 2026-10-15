@@ -19,9 +19,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -419,13 +421,15 @@ fun InteractiveMapScreen(
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 10.dp),
+                        .padding(top = 10.dp, start = 12.dp, end = 12.dp),
                     shape = RoundedCornerShape(20.dp),
                     color = Color(0xF20B1324),
                     border = BorderStroke(1.2.dp, Color(0xFFFFB300))
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                            .horizontalScroll(rememberScrollState()),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -436,10 +440,11 @@ fun InteractiveMapScreen(
                                 .background(Color(0xFFFFB300))
                         )
                         Text(
-                            text = "⚡ Enjambre Azuero ($swarmCount) • Último: M ${String.format(java.util.Locale.US, "%.1f", latestSwarmQuake?.magnitude ?: 0.0)} (${latestSwarmQuake?.getTimeAgo() ?: ""})",
+                            text = "⚡ Enjambre Azuero ($swarmCount) • M ${String.format(java.util.Locale.US, "%.1f", latestSwarmQuake?.magnitude ?: 0.0)}",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color.White,
+                            maxLines = 1
                         )
                         if (latestSwarmQuake != null) {
                             TextButton(
@@ -463,11 +468,11 @@ fun InteractiveMapScreen(
                                 offset = Offset.Zero
                                 isSwarmFocused = false
                             },
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
                             modifier = Modifier.height(26.dp)
                         ) {
                             Text(
-                                text = "Ver todo Panamá",
+                                text = "Ver Panamá",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF38BDF8)
@@ -489,11 +494,15 @@ fun InteractiveMapScreen(
                 )
             }
 
-            // Leyenda de Magnitud Flotante (Esquina inferior izquierda)
+            // Leyenda de Magnitud Flotante (Esquina inferior izquierda, con margen para no chocar con controles de zoom)
             MapLegendBadge(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 16.dp, bottom = if (selectedEq != null || selectedFault != null) 180.dp else 16.dp)
+                    .padding(
+                        start = 12.dp,
+                        end = 72.dp,
+                        bottom = if (selectedEq != null || selectedFault != null) 180.dp else 16.dp
+                    )
             )
 
             // Controles flotantes de Zoom
@@ -1186,82 +1195,92 @@ private fun MapTopBar(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // Fila de Filtros y Capas Principales
-        Row(
+        // Fila de Filtros y Capas Principales con Scroll Horizontal para cualquier tamaño de pantalla
+        LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Filtro rápido de sismos para evitar saturación
-            FilterChip(
-                selected = minMagFilter == null && !showOnlySwarm,
-                onClick = {
-                    onSelectMinMag(null)
-                    if (showOnlySwarm) onToggleSwarm()
-                },
-                label = { Text("Todos ($totalCount)", fontSize = 11.sp) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0x333186FF),
-                    selectedLabelColor = Color(0xFF93C5FD),
-                    containerColor = Color(0x1AFFFFFF),
-                    labelColor = Color(0xFF94A3B8)
+            item {
+                FilterChip(
+                    selected = minMagFilter == null && !showOnlySwarm,
+                    onClick = {
+                        onSelectMinMag(null)
+                        if (showOnlySwarm) onToggleSwarm()
+                    },
+                    label = { Text("Todos ($totalCount)", fontSize = 11.sp, maxLines = 1) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0x333186FF),
+                        selectedLabelColor = Color(0xFF93C5FD),
+                        containerColor = Color(0x1AFFFFFF),
+                        labelColor = Color(0xFF94A3B8)
+                    )
                 )
-            )
+            }
 
-            FilterChip(
-                selected = minMagFilter == 4.0,
-                onClick = { onSelectMinMag(if (minMagFilter == 4.0) null else 4.0) },
-                label = { Text("M ≥ 4.0", fontSize = 11.sp) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0x33FF9800),
-                    selectedLabelColor = Color(0xFFFFB74D),
-                    containerColor = Color(0x1AFFFFFF),
-                    labelColor = Color(0xFF94A3B8)
+            item {
+                FilterChip(
+                    selected = minMagFilter == 4.0,
+                    onClick = { onSelectMinMag(if (minMagFilter == 4.0) null else 4.0) },
+                    label = { Text("M ≥ 4.0", fontSize = 11.sp, maxLines = 1) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0x33FF9800),
+                        selectedLabelColor = Color(0xFFFFB74D),
+                        containerColor = Color(0x1AFFFFFF),
+                        labelColor = Color(0xFF94A3B8)
+                    )
                 )
-            )
+            }
 
-            FilterChip(
-                selected = showOnlySwarm,
-                onClick = onToggleSwarm,
-                label = { Text("⚡ Enjambre Azuero", fontSize = 11.sp) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0x33FF9800),
-                    selectedLabelColor = Color(0xFFFFB74D),
-                    containerColor = Color(0x1AFFFFFF),
-                    labelColor = Color(0xFF94A3B8)
+            item {
+                FilterChip(
+                    selected = showOnlySwarm,
+                    onClick = onToggleSwarm,
+                    label = { Text("⚡ Enjambre Azuero", fontSize = 11.sp, maxLines = 1) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0x33FF9800),
+                        selectedLabelColor = Color(0xFFFFB74D),
+                        containerColor = Color(0x1AFFFFFF),
+                        labelColor = Color(0xFF94A3B8)
+                    )
                 )
-            )
+            }
 
-            FilterChip(
-                selected = showFaults,
-                onClick = onToggleFaults,
-                label = { Text("Fallas", fontSize = 11.sp) },
-                leadingIcon = {
-                    Icon(imageVector = Icons.Default.Timeline, contentDescription = null, modifier = Modifier.size(14.dp))
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0x3300E5FF),
-                    selectedLabelColor = Color(0xFF00E5FF),
-                    selectedLeadingIconColor = Color(0xFF00E5FF),
-                    containerColor = Color(0x1AFFFFFF),
-                    labelColor = Color(0xFF94A3B8)
+            item {
+                FilterChip(
+                    selected = showFaults,
+                    onClick = onToggleFaults,
+                    label = { Text("Fallas", fontSize = 11.sp, maxLines = 1) },
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Default.Timeline, contentDescription = null, modifier = Modifier.size(14.dp))
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0x3300E5FF),
+                        selectedLabelColor = Color(0xFF00E5FF),
+                        selectedLeadingIconColor = Color(0xFF00E5FF),
+                        containerColor = Color(0x1AFFFFFF),
+                        labelColor = Color(0xFF94A3B8)
+                    )
                 )
-            )
+            }
 
-            FilterChip(
-                selected = showWaveSimulation,
-                onClick = onToggleWaves,
-                label = { Text("Ondas P & S", fontSize = 11.sp) },
-                leadingIcon = {
-                    Icon(imageVector = Icons.Default.GraphicEq, contentDescription = null, modifier = Modifier.size(14.dp))
-                },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0x33FF5252),
-                    selectedLabelColor = Color(0xFFFF8A80),
-                    selectedLeadingIconColor = Color(0xFFFF8A80),
-                    containerColor = Color(0x1AFFFFFF),
-                    labelColor = Color(0xFF94A3B8)
+            item {
+                FilterChip(
+                    selected = showWaveSimulation,
+                    onClick = onToggleWaves,
+                    label = { Text("Ondas P & S", fontSize = 11.sp, maxLines = 1) },
+                    leadingIcon = {
+                        Icon(imageVector = Icons.Default.GraphicEq, contentDescription = null, modifier = Modifier.size(14.dp))
+                    },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = Color(0x33FF5252),
+                        selectedLabelColor = Color(0xFFFF8A80),
+                        selectedLeadingIconColor = Color(0xFFFF8A80),
+                        containerColor = Color(0x1AFFFFFF),
+                        labelColor = Color(0xFF94A3B8)
+                    )
                 )
-            )
+            }
         }
 
         // Carrusel Horizontal de Fallas Registradas para acceso interactivo directo
@@ -1333,7 +1352,7 @@ private fun MapLegendBadge(modifier: Modifier = Modifier) {
         border = BorderStroke(0.8.dp, Color(0x44FFFFFF))
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
@@ -1344,6 +1363,7 @@ private fun MapLegendBadge(modifier: Modifier = Modifier) {
                 fontFamily = FontFamily.Monospace
             )
             Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

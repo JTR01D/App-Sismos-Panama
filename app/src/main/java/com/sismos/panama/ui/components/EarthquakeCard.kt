@@ -69,7 +69,8 @@ fun EarthquakeCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.weight(1f, fill = false)
                 ) {
                     if (orderIndex == 0) {
                         Box(
@@ -83,7 +84,8 @@ fun EarthquakeCard(
                                 text = "⚡ #1 MÁS RECIENTE",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFFFD54F)
+                                color = Color(0xFFFFD54F),
+                                maxLines = 1
                             )
                         }
                     } else if (orderIndex > 0) {
@@ -105,20 +107,25 @@ fun EarthquakeCard(
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "Enjambre Azuero",
+                                text = "Enjambre",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFFFB74D)
+                                color = Color(0xFFFFB74D),
+                                maxLines = 1
                             )
                         }
                     }
                 }
 
+                Spacer(modifier = Modifier.width(6.dp))
+
                 Text(
                     text = citizenEffect,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFFCBD5E1)
+                    color = Color(0xFFCBD5E1),
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
 
@@ -171,15 +178,27 @@ fun EarthquakeCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             // Metadata con etiquetas acrílicas traslúcidas explicadas para no geólogos
+            val compactDepth = "${earthquake.depthKm.toInt()} km • ${
+                when {
+                    earthquake.depthKm < 20 -> "Superficial"
+                    earthquake.depthKm <= 70 -> "Intermedio"
+                    else -> "Profundo"
+                }
+            }"
+            val compactFault = earthquake.nearestFault
+                .replace("Sistema de Fallas ", "")
+                .replace("Falla de ", "")
+                .replace("Falla ", "")
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                AcrylicInfoChip(label = "Prof", value = depthLabel, modifier = Modifier.weight(1.1f))
+                AcrylicInfoChip(label = "Prof", value = compactDepth, modifier = Modifier.weight(1f))
                 AcrylicInfoChip(
                     label = "Falla",
-                    value = earthquake.nearestFault,
+                    value = compactFault,
                     modifier = Modifier.weight(1f)
                 )
             }

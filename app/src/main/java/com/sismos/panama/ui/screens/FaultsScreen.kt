@@ -412,7 +412,10 @@ private fun FaultStructuredCard(fault: FaultLine) {
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // FICHA TÉCNICA ESTRUCTURADA EN GRID (2x2)
+            // FICHA TÉCNICA ESTRUCTURADA EN GRID ADAPTABLE (2 columnas en Tablet, 1 columna en Teléfono)
+            val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+            val isTablet = screenWidth >= 600
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -422,37 +425,83 @@ private fun FaultStructuredCard(fault: FaultLine) {
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Fila 1: Mecanismo Tectónico
-                TectonicMetricRow(
-                    icon = Icons.Default.Tune,
-                    label = "Mecanismo Tectónico",
-                    value = fault.mechanism,
-                    accentColor = accentColor
-                )
+                if (isTablet) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            TectonicMetricRow(
+                                icon = Icons.Default.Tune,
+                                label = "Mecanismo Tectónico",
+                                value = fault.mechanism,
+                                accentColor = accentColor
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
+                            TectonicMetricRow(
+                                icon = Icons.Default.Speed,
+                                label = "Tasa de Desplazamiento (Slip Rate)",
+                                value = fault.slipRate,
+                                accentColor = accentColor
+                            )
+                        }
+                    }
 
-                // Fila 2: Tasa de Desplazamiento (Slip Rate)
-                TectonicMetricRow(
-                    icon = Icons.Default.Speed,
-                    label = "Tasa de Desplazamiento (Slip Rate)",
-                    value = fault.slipRate,
-                    accentColor = accentColor
-                )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            TectonicMetricRow(
+                                icon = Icons.Default.Timeline,
+                                label = "Periodo de Recurrencia Estimado",
+                                value = fault.recurrence,
+                                accentColor = accentColor
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
+                            TectonicMetricRow(
+                                icon = Icons.Default.LocationOn,
+                                label = "Ubicación Geográfica Representativa",
+                                value = "Lat: ${String.format(java.util.Locale.US, "%.2f° N", fault.representativeLat)} • Lon: ${String.format(java.util.Locale.US, "%.2f° O", -fault.representativeLon)}",
+                                accentColor = accentColor
+                            )
+                        }
+                    }
+                } else {
+                    // Fila 1: Mecanismo Tectónico
+                    TectonicMetricRow(
+                        icon = Icons.Default.Tune,
+                        label = "Mecanismo Tectónico",
+                        value = fault.mechanism,
+                        accentColor = accentColor
+                    )
 
-                // Fila 3: Periodo de Recurrencia
-                TectonicMetricRow(
-                    icon = Icons.Default.Timeline,
-                    label = "Periodo de Recurrencia Estimado",
-                    value = fault.recurrence,
-                    accentColor = accentColor
-                )
+                    // Fila 2: Tasa de Desplazamiento (Slip Rate)
+                    TectonicMetricRow(
+                        icon = Icons.Default.Speed,
+                        label = "Tasa de Desplazamiento (Slip Rate)",
+                        value = fault.slipRate,
+                        accentColor = accentColor
+                    )
 
-                // Fila 4: Coordenadas Tectónicas Representativas
-                TectonicMetricRow(
-                    icon = Icons.Default.LocationOn,
-                    label = "Ubicación Geográfica Representativa",
-                    value = "Lat: ${String.format(java.util.Locale.US, "%.2f° N", fault.representativeLat)} • Lon: ${String.format(java.util.Locale.US, "%.2f° O", -fault.representativeLon)}",
-                    accentColor = accentColor
-                )
+                    // Fila 3: Periodo de Recurrencia
+                    TectonicMetricRow(
+                        icon = Icons.Default.Timeline,
+                        label = "Periodo de Recurrencia Estimado",
+                        value = fault.recurrence,
+                        accentColor = accentColor
+                    )
+
+                    // Fila 4: Coordenadas Tectónicas Representativas
+                    TectonicMetricRow(
+                        icon = Icons.Default.LocationOn,
+                        label = "Ubicación Geográfica Representativa",
+                        value = "Lat: ${String.format(java.util.Locale.US, "%.2f° N", fault.representativeLat)} • Lon: ${String.format(java.util.Locale.US, "%.2f° O", -fault.representativeLon)}",
+                        accentColor = accentColor
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))

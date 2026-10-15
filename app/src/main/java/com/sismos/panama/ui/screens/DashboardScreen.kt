@@ -274,58 +274,110 @@ fun DashboardScreen(
                 totalQuakes = totalEvents
             )
 
-            // 3. Tarjetas KPI Reactivas
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                KpiGlassCard(
-                    title = "EVENTOS EN PERÍODO",
-                    value = "$totalEvents",
-                    subtitle = "Sismos registrados",
-                    icon = Icons.Default.Equalizer,
-                    accentColor = PrimaryBlue,
-                    modifier = Modifier.weight(1f)
-                )
-                KpiGlassCard(
-                    title = "MAGNITUD MÁXIMA",
-                    value = String.format(Locale.US, "%.1f Mw", maxMag),
-                    subtitle = when {
-                        maxMag >= 5.5 -> "Alerta Alta"
-                        maxMag >= 4.5 -> "Moderado Fuerte"
-                        maxMag >= 3.5 -> "Sacudida Ligera"
-                        else -> "Sismicidad Habitual"
-                    },
-                    icon = Icons.Default.LocalFireDepartment,
-                    accentColor = when {
-                        maxMag >= 5.0 -> MagRed
-                        maxMag >= 4.0 -> MagOrange
-                        else -> MagYellow
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            // 3. Tarjetas KPI Reactivas (Adaptable: 4 columnas en Tablet/Pantalla ancha, 2x2 en Teléfono)
+            val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+            val isTablet = screenWidth >= 600
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                KpiGlassCard(
-                    title = "PROFUNDIDAD MEDIA",
-                    value = String.format(Locale.US, "%.0f km", avgDepth),
-                    subtitle = "$shallowCount superficiales (<20km)",
-                    icon = Icons.Default.Speed,
-                    accentColor = MagGreen,
-                    modifier = Modifier.weight(1f)
-                )
-                KpiGlassCard(
-                    title = "ZONA MÁS ACTIVA",
-                    value = activeZoneData.first,
-                    subtitle = activeZoneData.second,
-                    icon = Icons.Default.LocationOn,
-                    accentColor = Color(0xFFA855F7),
-                    modifier = Modifier.weight(1f)
-                )
+            if (isTablet) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    KpiGlassCard(
+                        title = "EVENTOS EN PERÍODO",
+                        value = "$totalEvents",
+                        subtitle = "Sismos registrados",
+                        icon = Icons.Default.Equalizer,
+                        accentColor = PrimaryBlue,
+                        modifier = Modifier.weight(1f)
+                    )
+                    KpiGlassCard(
+                        title = "MAGNITUD MÁXIMA",
+                        value = String.format(Locale.US, "%.1f Mw", maxMag),
+                        subtitle = when {
+                            maxMag >= 5.5 -> "Alerta Alta"
+                            maxMag >= 4.5 -> "Moderado Fuerte"
+                            maxMag >= 3.5 -> "Sacudida Ligera"
+                            else -> "Sismicidad Habitual"
+                        },
+                        icon = Icons.Default.LocalFireDepartment,
+                        accentColor = when {
+                            maxMag >= 5.0 -> MagRed
+                            maxMag >= 4.0 -> MagOrange
+                            else -> MagYellow
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                    KpiGlassCard(
+                        title = "PROFUNDIDAD MEDIA",
+                        value = String.format(Locale.US, "%.0f km", avgDepth),
+                        subtitle = "$shallowCount superficiales (<20km)",
+                        icon = Icons.Default.Speed,
+                        accentColor = MagGreen,
+                        modifier = Modifier.weight(1f)
+                    )
+                    KpiGlassCard(
+                        title = "ZONA MÁS ACTIVA",
+                        value = activeZoneData.first,
+                        subtitle = activeZoneData.second,
+                        icon = Icons.Default.LocationOn,
+                        accentColor = Color(0xFFA855F7),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    KpiGlassCard(
+                        title = "EVENTOS EN PERÍODO",
+                        value = "$totalEvents",
+                        subtitle = "Sismos registrados",
+                        icon = Icons.Default.Equalizer,
+                        accentColor = PrimaryBlue,
+                        modifier = Modifier.weight(1f)
+                    )
+                    KpiGlassCard(
+                        title = "MAGNITUD MÁXIMA",
+                        value = String.format(Locale.US, "%.1f Mw", maxMag),
+                        subtitle = when {
+                            maxMag >= 5.5 -> "Alerta Alta"
+                            maxMag >= 4.5 -> "Moderado Fuerte"
+                            maxMag >= 3.5 -> "Sacudida Ligera"
+                            else -> "Sismicidad Habitual"
+                        },
+                        icon = Icons.Default.LocalFireDepartment,
+                        accentColor = when {
+                            maxMag >= 5.0 -> MagRed
+                            maxMag >= 4.0 -> MagOrange
+                            else -> MagYellow
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    KpiGlassCard(
+                        title = "PROFUNDIDAD MEDIA",
+                        value = String.format(Locale.US, "%.0f km", avgDepth),
+                        subtitle = "$shallowCount superficiales (<20km)",
+                        icon = Icons.Default.Speed,
+                        accentColor = MagGreen,
+                        modifier = Modifier.weight(1f)
+                    )
+                    KpiGlassCard(
+                        title = "ZONA MÁS ACTIVA",
+                        value = activeZoneData.first,
+                        subtitle = activeZoneData.second,
+                        icon = Icons.Default.LocationOn,
+                        accentColor = Color(0xFFA855F7),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
             // 4. Concentración Sísmica por Regiones (Modos En Vivo e Histórico)

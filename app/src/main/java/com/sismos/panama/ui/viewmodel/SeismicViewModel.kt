@@ -1,7 +1,10 @@
 package com.sismos.panama.ui.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.Context
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.sismos.panama.data.background.SeismicAlarmReceiver
 import com.sismos.panama.data.models.Earthquake
 import com.sismos.panama.data.repository.EarthquakeRepository
 import kotlinx.coroutines.Job
@@ -9,7 +12,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -24,13 +26,15 @@ data class SeismicUiState(
 )
 
 class SeismicViewModel(
-    private val repository: EarthquakeRepository = EarthquakeRepository()
-) : ViewModel() {
+    application: Application
+) : AndroidViewModel(application) {
 
+    private val repository = EarthquakeRepository()
     private val _uiState = MutableStateFlow(SeismicUiState())
     val uiState: StateFlow<SeismicUiState> = _uiState.asStateFlow()
 
     private var autoRefreshJob: Job? = null
+    private var previousTopEventId: String? = null
 
     init {
         loadEarthquakes()
@@ -45,6 +49,19 @@ class SeismicViewModel(
             val result = repository.fetchPanamaEarthquakes()
             if (result.isSuccess) {
                 val list = result.getOrNull() ?: emptyList()
+                if (list.isNotEmpty()) {
+                    val latest = list.first()
+                    // Si llega un sismo nuevo mientras la app está abierta, alertar inmediatamente
+                    if (previousTopEventId != null && previousTopEventId != latest.id && (latest.magnitude >= 3.0 || latest.isTsunamiWarning)) {
+                        val prefs = getApplication<Application>().getSharedPreferences("sismos_prefs", Context.MODE_PRIVATE)
+                        val lastNotified = prefs.getString("last_notified_event_id", null)
+                        if (lastNotified != latest.id) {
+                            SeismicAlarmReceiver.sendHighPriorityNotification(getApplication(), latest)
+                            prefs.edit().putString("last_notified_event_id", latest.id).apply()
+                        }
+                    }
+                    previousTopEventId = latest.id
+                }
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     earthquakes = list,
@@ -104,7 +121,7 @@ class SeismicViewModel(
         autoRefreshJob?.cancel()
         autoRefreshJob = viewModelScope.launch {
             while (isActive) {
-                delay(20_000) // Consulta ultra-rápida cada 20 segundos
+                delay(15_000) // Consulta ultra-rápida cada 15 segundos
                 loadEarthquakes(isManualRefresh = false)
             }
         }

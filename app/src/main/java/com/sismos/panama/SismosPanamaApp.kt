@@ -18,6 +18,8 @@ class SismosPanamaApp : Application() {
         super.onCreate()
         createNotificationChannel()
         setupBackgroundSeismicMonitoring()
+        // Iniciar inmediatamente monitoreo rápido de 2 minutos vía AlarmManager
+        com.sismos.panama.data.background.SeismicAlarmReceiver.scheduleNext(this, 3_000L)
     }
 
     private fun createNotificationChannel() {
@@ -29,6 +31,8 @@ class SismosPanamaApp : Application() {
             ).apply {
                 description = getString(R.string.channel_description)
                 enableVibration(true)
+                vibrationPattern = longArrayOf(0, 350, 150, 350, 150, 500)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
             val manager = getSystemService(NotificationManager::class.java)
             manager?.createNotificationChannel(channel)

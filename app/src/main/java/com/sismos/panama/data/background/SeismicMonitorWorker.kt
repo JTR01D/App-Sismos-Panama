@@ -29,6 +29,8 @@ class SeismicMonitorWorker(
                     checkAndNotifyNewEarthquake(earthquakes.first())
                 }
             }
+            // Asegurar que la alarma esté siempre activa
+            SeismicAlarmReceiver.scheduleNext(appContext, SeismicAlarmReceiver.INTERVAL_MS)
             Result.success()
         } catch (e: Exception) {
             Result.retry()
@@ -39,53 +41,10 @@ class SeismicMonitorWorker(
         val prefs = appContext.getSharedPreferences("sismos_prefs", Context.MODE_PRIVATE)
         val lastNotifiedId = prefs.getString("last_notified_event_id", null)
 
-        // Si es un evento nuevo y la magnitud es perceptible (M >= 3.5)
-        if (latest.id != lastNotifiedId && latest.magnitude >= 3.5) {
-            sendNotification(latest)
+        // Si es un evento nuevo y la magnitud es perceptible (M >= 3.0) o aviso tsunami
+        if (latest.id != lastNotifiedId && (latest.magnitude >= 3.0 || latest.isTsunamiWarning)) {
+            SeismicAlarmReceiver.sendHighPriorityNotification(appContext, latest)
             prefs.edit().putString("last_notified_event_id", latest.id).apply()
         }
-    }
-
-    private fun sendNotification(eq: com.sismos.panama.data.models.Earthquake) {
-        val notificationManager =
-            appContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        val channelId = "seismic_alerts_channel"
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                appContext.getString(R.string.channel_name),
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = appContext.getString(R.string.channel_description)
-                enableVibration(true)
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        val intent = Intent(appContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            appContext,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-        )
-
-        val title = "Alerta Sísmica Panamá: M${eq.magnitude} en ${eq.nearestCity}"
-        val content = "${eq.place} | Profundidad: ${eq.depthKm.toInt()} km | Falla: ${eq.nearestFault}"
-
-        val builder = NotificationCompat.Builder(appContext, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(title)
-            .setContentText(content)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(content))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-
-        notificationManager.notify(eq.id.hashCode(), builder.build())
     }
 }

@@ -156,13 +156,24 @@ fun DetailScreen(
                             )
                             Text(
                                 text = "Nivel: ${earthquake.alertLevel.label}",
-                                fontSize = 14.sp,
-                                color = PrimaryBlue,
-                                fontWeight = FontWeight.SemiBold
+                                fontSize = 13.sp,
+                                color = when {
+                                    earthquake.magnitude >= 6.0 -> HazardDestructive
+                                    earthquake.magnitude >= 5.0 -> HazardStrong
+                                    earthquake.magnitude >= 4.0 -> HazardModerate
+                                    earthquake.magnitude >= 3.0 -> HazardLight
+                                    else -> HazardInstrumental
+                                },
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Efecto: ${earthquake.alertLevel.hazardDescription}",
+                                fontSize = 12.sp,
+                                color = Color(0xFFCBD5E1)
                             )
                             Text(
                                 text = "${earthquake.getTimeAgo()} • ${earthquake.sourceName}",
-                                fontSize = 12.sp,
+                                fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                                 color = Color(0xFF94A3B8)
                             )

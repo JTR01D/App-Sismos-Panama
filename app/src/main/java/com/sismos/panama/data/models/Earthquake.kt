@@ -31,6 +31,7 @@ data class Earthquake(
             magnitude >= 6.0 -> AlertLevel.CRITICAL
             magnitude >= 5.0 -> AlertLevel.HIGH
             magnitude >= 4.0 -> AlertLevel.MODERATE
+            magnitude >= 3.0 -> AlertLevel.LIGHT
             else -> AlertLevel.LOW
         }
 
@@ -57,9 +58,10 @@ data class Earthquake(
     }
 }
 
-enum class AlertLevel(val label: String) {
-    LOW("Leve"),
-    MODERATE("Moderado"),
-    HIGH("Fuerte"),
-    CRITICAL("Severo")
+enum class AlertLevel(val label: String, val hazardDescription: String) {
+    LOW("Instrumental (M < 3.0)", "Imperceptible / Sin peligro"),
+    LIGHT("Leve (M 3.0 - 3.9)", "Sentido débilmente en reposo"),
+    MODERATE("Moderado (M 4.0 - 4.9)", "Sentido ampliamente / Sin daño"),
+    HIGH("Fuerte (M 5.0 - 5.9)", "Daño leve-moderado en estructuras"),
+    CRITICAL("Severo / Destructivo (M ≥ 6.0)", "Peligro severo / Alerta general")
 }

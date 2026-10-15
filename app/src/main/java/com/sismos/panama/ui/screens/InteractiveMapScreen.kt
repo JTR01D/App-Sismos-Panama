@@ -306,6 +306,7 @@ fun InteractiveMapScreen(
     // Canvas Pan & Zoom
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    var isSwarmFocused by remember { mutableStateOf(false) }
 
     // Simulación de ondas en tiempo real
     LaunchedEffect(showWaveSimulation, selectedEq) {
@@ -355,6 +356,7 @@ fun InteractiveMapScreen(
                     selectedEq = null
                     showOnlySwarm = false
                     minMagFilter = null
+                    isSwarmFocused = false
                 }
             )
         }
@@ -378,6 +380,11 @@ fun InteractiveMapScreen(
                     scale = (scale * zoom).coerceIn(0.7f, 6.0f)
                     offset += pan
                 },
+                onAutoZoomSwarm = { targetScale, targetOffset ->
+                    scale = targetScale
+                    offset = targetOffset
+                    isSwarmFocused = true
+                },
                 onSelectEarthquake = { eq ->
                     selectedEq = eq
                     selectedFault = null // Priorizar sismo
@@ -387,6 +394,56 @@ fun InteractiveMapScreen(
                     selectedEq = null // Priorizar falla
                 }
             )
+
+            // Banner flotante de Enfoque Automático en Enjambre
+            val swarmCount = remember(displayEarthquakes) {
+                displayEarthquakes.count { it.latitude in 7.0..8.2 && it.longitude in -82.0..-80.2 }
+            }
+            if (isSwarmFocused && swarmCount >= 5 && !showWaveSimulation) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 10.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = Color(0xF20B1324),
+                    border = BorderStroke(1.2.dp, Color(0xFFFFB300))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFFB300))
+                        )
+                        Text(
+                            text = "⚡ Zoom enfocado en Enjambre Sísmico ($swarmCount sismos)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        TextButton(
+                            onClick = {
+                                scale = 1f
+                                offset = Offset.Zero
+                                isSwarmFocused = false
+                            },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                            modifier = Modifier.height(26.dp)
+                        ) {
+                            Text(
+                                text = "Ver todo Panamá",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF38BDF8)
+                            )
+                        }
+                    }
+                }
+            }
 
             // Indicador de Onda Sísmica activa en la parte superior
             if (showWaveSimulation && selectedEq != null) {
@@ -496,6 +553,7 @@ private fun AdvancedTectonicMapCanvas(
     scale: Float,
     offset: Offset,
     onTransform: (Offset, Float) -> Unit,
+    onAutoZoomSwarm: ((Float, Offset) -> Unit)? = null,
     onSelectEarthquake: (Earthquake) -> Unit,
     onSelectFault: (FaultLineInteractive) -> Unit
 ) {
@@ -508,6 +566,37 @@ private fun AdvancedTectonicMapCanvas(
     val deltaLat = (maxLat - minLat).toFloat()
 
     var canvasSize by remember { mutableStateOf(Size.Zero) }
+    var hasAutoZoomedToSwarm by remember { mutableStateOf(false) }
+
+    LaunchedEffect(canvasSize, earthquakes) {
+        if (canvasSize.width > 0f && !hasAutoZoomedToSwarm && earthquakes.isNotEmpty()) {
+            val swarmQuakes = earthquakes.filter { it.latitude in 7.0..8.2 && it.longitude in -82.0..-80.2 }
+            if (swarmQuakes.size >= 5) {
+                val swarmLat = swarmQuakes.map { it.latitude }.average()
+                val swarmLon = swarmQuakes.map { it.longitude }.average()
+
+                val paddingX = 20f
+                val usableWidth = canvasSize.width - (paddingX * 2f)
+                val pxPerDegree = usableWidth / deltaLon
+                val mapHeight = deltaLat * pxPerDegree
+
+                val startX = paddingX
+                val startY = (canvasSize.height - mapHeight) / 2f - 35f
+
+                val rawX = startX + ((swarmLon - minLon).toFloat() * pxPerDegree)
+                val rawY = startY + ((maxLat - swarmLat).toFloat() * pxPerDegree)
+
+                val centerX = canvasSize.width / 2f
+                val centerY = canvasSize.height / 2f
+
+                val swarmScale = 2.45f
+                val targetOffset = Offset((centerX - rawX) * swarmScale, (centerY - rawY) * swarmScale)
+
+                hasAutoZoomedToSwarm = true
+                onAutoZoomSwarm?.invoke(swarmScale, targetOffset)
+            }
+        }
+    }
 
     // Proyección Equirectangular 1:1
     fun project(lat: Double, lon: Double, size: Size): Offset {
@@ -824,13 +913,14 @@ private fun AdvancedTectonicMapCanvas(
                 val isSelected = selectedEarthquake?.id == eq.id
 
                 val magColor = when {
-                    eq.magnitude >= 5.0 -> Color(0xFFFF3366)
-                    eq.magnitude >= 4.0 -> Color(0xFFFF9800)
-                    eq.magnitude >= 3.0 -> Color(0xFFFFD600)
-                    else -> Color(0xFF00E676)
+                    eq.magnitude >= 6.0 -> Color(0xFFFF1744) // Severo / Destructivo (Rojo Carmesí)
+                    eq.magnitude >= 5.0 -> Color(0xFFFF6D00) // Fuerte / Daño estructural (Naranja Fuego)
+                    eq.magnitude >= 4.0 -> Color(0xFFFFD600) // Moderado / Sentido ampliamente (Ámbar Dorado)
+                    eq.magnitude >= 3.0 -> Color(0xFF00E5FF) // Leve / Sentido débilmente (Cian Eléctrico)
+                    else -> Color(0xFF00E676)                // Instrumental / Imperceptible (Verde Esmeralda)
                 }
 
-                val baseRadius = (eq.magnitude.toFloat() * 2.4f).coerceIn(6.5f, 20f) * scale.coerceIn(0.8f, 2.2f)
+                val baseRadius = (eq.magnitude.toFloat() * 2.5f).coerceIn(6.5f, 22f) * scale.coerceIn(0.8f, 2.2f)
 
                 // 1. Anillo oscuro exterior para separar ópticamente sismos encimados
                 drawCircle(
@@ -839,14 +929,30 @@ private fun AdvancedTectonicMapCanvas(
                     center = pos
                 )
 
-                // 2. Halo de disipación de energía
+                // 2. Halo de disipación de energía sismológica
+                val haloMultiplier = when {
+                    eq.magnitude >= 6.0 -> 3.2f
+                    eq.magnitude >= 5.0 -> 2.2f
+                    eq.magnitude >= 4.0 -> 1.7f
+                    else -> 1.4f
+                }
                 drawCircle(
-                    color = magColor.copy(alpha = if (isSelected) 0.65f else 0.35f),
-                    radius = baseRadius * (if (isSelected) 2.4f else 1.6f),
+                    color = magColor.copy(alpha = if (isSelected) 0.75f else if (eq.magnitude >= 6.0) 0.55f else 0.35f),
+                    radius = baseRadius * (if (isSelected) 2.5f else haloMultiplier),
                     center = pos
                 )
 
-                // 3. Núcleo con color de magnitud
+                // Para eventos destructivos M >= 6.0: Doble anillo de advertencia general
+                if (eq.magnitude >= 6.0) {
+                    drawCircle(
+                        color = Color(0xFFFF1744),
+                        radius = baseRadius * 2.2f,
+                        center = pos,
+                        style = Stroke(width = 2.2f * scale.coerceIn(0.8f, 2f))
+                    )
+                }
+
+                // 3. Núcleo con color de categoría destructiva
                 drawCircle(
                     color = magColor,
                     radius = baseRadius,
@@ -855,22 +961,22 @@ private fun AdvancedTectonicMapCanvas(
 
                 // 4. Centro brillante de ruptura
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.75f),
-                    radius = (baseRadius * 0.35f).coerceAtLeast(2f),
+                    color = Color.White.copy(alpha = 0.85f),
+                    radius = (baseRadius * 0.35f).coerceAtLeast(2.2f),
                     center = pos
                 )
 
-                // En sismos mayores (M ≥ 3.8) o seleccionados: dibujar etiqueta con el número de magnitud para claridad inmediata
-                if (eq.magnitude >= 3.8 || isSelected) {
+                // En sismos perceptibles (M ≥ 3.5) o seleccionados: dibujar etiqueta con el número de magnitud para claridad inmediata
+                if (eq.magnitude >= 3.5 || isSelected) {
                     val magText = String.format(java.util.Locale.US, "%.1f", eq.magnitude)
                     val tagBgPaint = Paint().apply {
-                        color = android.graphics.Color.argb(235, 10, 16, 30)
+                        color = android.graphics.Color.argb(240, 10, 16, 30)
                         style = Paint.Style.FILL
                     }
                     val tagBorderPaint = Paint().apply {
                         color = magColor.toArgb()
                         style = Paint.Style.STROKE
-                        strokeWidth = 1.4f
+                        strokeWidth = if (eq.magnitude >= 5.0) 2.0f else 1.2f
                     }
                     val tWidth = magLabelPaint.measureText(magText)
                     val tagRect = android.graphics.RectF(
@@ -1133,19 +1239,34 @@ private fun MapTopBar(
 
 @Composable
 private fun MapLegendBadge(modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xDD0D1320))
-            .border(0.8.dp, Color(0x44FFFFFF), RoundedCornerShape(12.dp))
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xF20B1220),
+        border = BorderStroke(0.8.dp, Color(0x44FFFFFF))
     ) {
-        LegendItem(Color(0xFF00E676), "<3.0")
-        LegendItem(Color(0xFFFFEB3B), "3.0+")
-        LegendItem(Color(0xFFFF9800), "4.0+")
-        LegendItem(Color(0xFFFF5252), "5.0+")
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = "ESCALA DE PELIGRO DESTRUCTIVO",
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF94A3B8),
+                fontFamily = FontFamily.Monospace
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LegendItem(Color(0xFF00E676), "<3.0 Instrumental")
+                LegendItem(Color(0xFF00E5FF), "3.0-3.9 Leve")
+                LegendItem(Color(0xFFFFD600), "4.0-4.9 Moderado")
+                LegendItem(Color(0xFFFF6D00), "5.0-5.9 Fuerte")
+                LegendItem(Color(0xFFFF1744), "≥6.0 Destructivo")
+            }
+        }
     }
 }
 
@@ -1153,7 +1274,7 @@ private fun MapLegendBadge(modifier: Modifier = Modifier) {
 private fun LegendItem(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
-        Text(text = label, fontSize = 10.sp, color = Color(0xFFCBD5E1), fontFamily = FontFamily.Monospace)
+        Text(text = label, fontSize = 10.sp, color = Color(0xFFE2E8F0), fontFamily = FontFamily.Monospace)
     }
 }
 

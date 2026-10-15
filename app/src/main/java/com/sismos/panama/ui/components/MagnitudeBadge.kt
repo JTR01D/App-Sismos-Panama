@@ -18,10 +18,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.sismos.panama.ui.theme.MagGreen
-import com.sismos.panama.ui.theme.MagOrange
-import com.sismos.panama.ui.theme.MagRed
-import com.sismos.panama.ui.theme.MagYellow
+import com.sismos.panama.ui.theme.HazardDestructive
+import com.sismos.panama.ui.theme.HazardInstrumental
+import com.sismos.panama.ui.theme.HazardLight
+import com.sismos.panama.ui.theme.HazardModerate
+import com.sismos.panama.ui.theme.HazardStrong
 import java.util.Locale
 
 @Composable
@@ -31,10 +32,11 @@ fun MagnitudeBadge(
     size: Dp = 56.dp
 ) {
     val mainColor = when {
-        magnitude >= 6.0 -> MagRed
-        magnitude >= 5.0 -> MagOrange
-        magnitude >= 4.0 -> MagYellow
-        else -> MagGreen
+        magnitude >= 6.0 -> HazardDestructive
+        magnitude >= 5.0 -> HazardStrong
+        magnitude >= 4.0 -> HazardModerate
+        magnitude >= 3.0 -> HazardLight
+        else -> HazardInstrumental
     }
 
     val glowHaloBrush = Brush.radialGradient(
@@ -52,7 +54,7 @@ fun MagnitudeBadge(
         )
     )
 
-    val textColor = if (magnitude in 4.0..4.9) Color(0xFF0F172A) else Color.White
+    val textColor = if (magnitude in 3.0..4.9) Color(0xFF0F172A) else Color.White
 
     Box(
         modifier = modifier

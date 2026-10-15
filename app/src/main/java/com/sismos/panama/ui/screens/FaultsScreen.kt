@@ -90,6 +90,10 @@ fun FaultsScreen(
             items(PanamaFaultsCatalog.faults, key = { it.id }) { fault ->
                 FaultGlassCard(fault = fault)
             }
+
+            item {
+                Spacer(modifier = Modifier.height(32.dp))
+            }
         }
     }
 }

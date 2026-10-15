@@ -58,16 +58,23 @@ fun EarthquakeCard(
 
                     Spacer(modifier = Modifier.width(14.dp))
 
-                    Column {
+                    val cleanPlace = earthquake.place
+                        .replace(Regex("^Localizado en Panamá a\\s*", RegexOption.IGNORE_CASE), "A ")
+                        .replace(Regex("(\\d+)(km)", RegexOption.IGNORE_CASE), "$1 km")
+                    val sourceTag = if (earthquake.sourceName.contains("IGC", ignoreCase = true)) "IGC-UP" else "USGS"
+
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = earthquake.place,
+                            text = cleanPlace,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color.White,
+                            maxLines = 2,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Text(
-                            text = "${earthquake.getTimeAgo()} • ${earthquake.sourceName.take(30)}",
+                            text = "${earthquake.getTimeAgo()} • $sourceTag",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color(0xFF94A3B8)
                         )
@@ -82,15 +89,20 @@ fun EarthquakeCard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Metadata con etiquetas acrílicas traslúcidas
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                AcrylicInfoChip(label = "Profundidad", value = "${earthquake.depthKm.toInt()} km")
-                AcrylicInfoChip(label = "Falla", value = earthquake.nearestFault.take(18) + if (earthquake.nearestFault.length > 18) "..." else "")
+                AcrylicInfoChip(label = "Prof", value = "${earthquake.depthKm.toInt()} km")
+                AcrylicInfoChip(
+                    label = "Falla",
+                    value = earthquake.nearestFault,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
             }
 
             if (earthquake.isTsunamiWarning) {
@@ -129,7 +141,7 @@ fun AcrylicInfoChip(label: String, value: String, modifier: Modifier = Modifier)
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(Color(0x330F172A))
-            .border(0.8.dp, Color(0x33FFFFFF), RoundedCornerShape(8.dp))
+            .border(0.8.dp, Color(0x3394A3B8), RoundedCornerShape(8.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -143,7 +155,9 @@ fun AcrylicInfoChip(label: String, value: String, modifier: Modifier = Modifier)
                 text = value,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFFE2E8F0)
+                color = Color(0xFFE2E8F0),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
         }
     }

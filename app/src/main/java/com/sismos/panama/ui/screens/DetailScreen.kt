@@ -174,7 +174,7 @@ fun DetailScreen(
 
                     DetailRow("Fecha y Hora (Panamá)", earthquake.getFormattedTime())
                     DetailRow("Profundidad Hipocentral", "${earthquake.depthKm.toInt()} km (${if (earthquake.depthKm < 25) "Somero" else "Intermedio"})")
-                    DetailRow("Coordenadas Epicentro", "${String.format("%.3f", earthquake.latitude)}° N, ${String.format("%.3f", earthquake.longitude)}° O")
+                    DetailRow("Coordenadas Epicentro", "${String.format(java.util.Locale.US, "%.3f", earthquake.latitude)}° N, ${String.format(java.util.Locale.US, "%.3f", earthquake.longitude)}° O")
                     DetailRow("Ciudad más Cercana", "${earthquake.nearestCity} (~${earthquake.distanceToNearestCityKm} km)")
                     DetailRow("Fuente de Registro", earthquake.sourceName)
                 }
@@ -236,6 +236,8 @@ fun DetailScreen(
                     Text("Compartir", color = Color.White)
                 }
             }
+
+            Spacer(modifier = Modifier.height(36.dp))
         }
     }
 }

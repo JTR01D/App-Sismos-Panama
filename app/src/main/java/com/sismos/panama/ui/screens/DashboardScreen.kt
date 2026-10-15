@@ -144,9 +144,9 @@ fun DashboardScreen(
                     modifier = Modifier.weight(1f)
                 )
                 KpiGlassCard(
-                    title = "PUNTO RADICAL CRÍTICO",
-                    value = "8.0°N 82.8°O",
-                    subtitle = "Burica (Radio 100km)",
+                    title = "ZONA MÁS ACTIVA",
+                    value = "Burica",
+                    subtitle = "8.0°N 82.8°O (ZFP)",
                     icon = Icons.Default.LocationOn,
                     accentColor = Color(0xFFA855F7),
                     modifier = Modifier.weight(1f)
@@ -204,6 +204,8 @@ fun DashboardScreen(
                     MagnitudeBarRow("M ≥ 5.0 (Fuertes)", m5Plus, totalEvents, MagRed)
                 }
             }
+
+            Spacer(modifier = Modifier.height(48.dp))
         }
     }
 }

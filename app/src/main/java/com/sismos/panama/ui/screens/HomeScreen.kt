@@ -271,37 +271,67 @@ private fun HomeTopBar(
         )
     )
 
+    val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
+    val isTablet = screenWidth >= 600
+
+    val notifIcon = when {
+        alertSettings.isCompletelyDisabled() -> Icons.Default.NotificationsOff
+        alertSettings.soundEnabled && alertSettings.vibrateEnabled -> Icons.Default.NotificationsActive
+        alertSettings.vibrateEnabled -> Icons.Default.Vibration
+        alertSettings.soundEnabled -> Icons.Default.VolumeUp
+        else -> Icons.Default.Notifications
+    }
+    val notifTint = when {
+        alertSettings.isCompletelyDisabled() -> Color(0xFFEF4444)
+        alertSettings.soundEnabled && alertSettings.vibrateEnabled -> Color(0xFF00E5FF)
+        alertSettings.vibrateEnabled -> Color(0xFFF59E0B)
+        alertSettings.soundEnabled -> Color(0xFF38BDF8)
+        else -> Color(0xFFA78BFA)
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .background(topBarBrush)
             .statusBarsPadding()
-            .border(width = 0.8.dp, brush = Brush.verticalGradient(listOf(Color(0x33FFFFFF), Color.Transparent)), shape = androidx.compose.ui.graphics.RectangleShape)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .border(
+                width = 0.8.dp,
+                brush = Brush.verticalGradient(listOf(Color(0x33FFFFFF), Color.Transparent)),
+                shape = androidx.compose.ui.graphics.RectangleShape
+            )
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
+        Column(modifier = Modifier.weight(1f, fill = false)) {
             Text(
                 text = "SISMOS PANAMÁ",
-                fontSize = 20.sp,
+                fontSize = if (isTablet) 20.sp else 18.sp,
                 fontWeight = FontWeight.ExtraBold,
                 fontFamily = FontFamily.SansSerif,
                 color = Color.White,
-                letterSpacing = (-0.5).sp
+                letterSpacing = (-0.4).sp,
+                maxLines = 1
             )
             Text(
                 text = "Red Sismológica Oficial en Vivo",
-                fontSize = 11.sp,
-                color = Color(0xFF94A3B8)
+                fontSize = if (isTablet) 11.sp else 10.sp,
+                color = Color(0xFF94A3B8),
+                maxLines = 1
             )
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(if (isTablet) 8.dp else 5.dp)
+        ) {
             // Botón Mapa Interactivo Tectónico
             IconButton(
                 onClick = onNavigateToMap,
                 modifier = Modifier
+                    .size(if (isTablet) 38.dp else 34.dp)
                     .clip(CircleShape)
                     .background(Color(0x2200E5FF))
                     .border(0.8.dp, Color(0x6600E5FF), CircleShape)
@@ -310,7 +340,7 @@ private fun HomeTopBar(
                     imageVector = Icons.Default.Explore,
                     contentDescription = "Mapa Tectónico Interactivo",
                     tint = Color(0xFF00E5FF),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(if (isTablet) 20.dp else 17.dp)
                 )
             }
 
@@ -318,6 +348,7 @@ private fun HomeTopBar(
             IconButton(
                 onClick = onNavigateToDashboard,
                 modifier = Modifier
+                    .size(if (isTablet) 38.dp else 34.dp)
                     .clip(CircleShape)
                     .background(Color(0x223186FF))
                     .border(0.8.dp, Color(0x553186FF), CircleShape)
@@ -326,7 +357,7 @@ private fun HomeTopBar(
                     imageVector = Icons.Default.Equalizer,
                     contentDescription = "Dashboard",
                     tint = PrimaryBlue,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(if (isTablet) 20.dp else 17.dp)
                 )
             }
 
@@ -334,6 +365,7 @@ private fun HomeTopBar(
             IconButton(
                 onClick = onNavigateToFaults,
                 modifier = Modifier
+                    .size(if (isTablet) 38.dp else 34.dp)
                     .clip(CircleShape)
                     .background(Color(0x1AFFFFFF))
                     .border(0.8.dp, Color(0x33FFFFFF), CircleShape)
@@ -342,29 +374,15 @@ private fun HomeTopBar(
                     imageVector = Icons.Default.Layers,
                     contentDescription = "Fallas Geológicas",
                     tint = Color(0xFFCBD5E1),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(if (isTablet) 20.dp else 17.dp)
                 )
             }
 
             // Botón Alertas y Notificaciones (Campana Dinámica)
-            val notifIcon = when {
-                alertSettings.isCompletelyDisabled() -> Icons.Default.NotificationsOff
-                alertSettings.soundEnabled && alertSettings.vibrateEnabled -> Icons.Default.NotificationsActive
-                alertSettings.vibrateEnabled -> Icons.Default.Vibration
-                alertSettings.soundEnabled -> Icons.Default.VolumeUp
-                else -> Icons.Default.Notifications
-            }
-            val notifTint = when {
-                alertSettings.isCompletelyDisabled() -> Color(0xFFEF4444)
-                alertSettings.soundEnabled && alertSettings.vibrateEnabled -> Color(0xFF00E5FF)
-                alertSettings.vibrateEnabled -> Color(0xFFF59E0B)
-                alertSettings.soundEnabled -> Color(0xFF38BDF8)
-                else -> Color(0xFFA78BFA)
-            }
-
             IconButton(
                 onClick = onOpenNotificationSettings,
                 modifier = Modifier
+                    .size(if (isTablet) 38.dp else 34.dp)
                     .clip(CircleShape)
                     .background(notifTint.copy(alpha = 0.2f))
                     .border(0.8.dp, notifTint.copy(alpha = 0.6f), CircleShape)
@@ -373,23 +391,7 @@ private fun HomeTopBar(
                     imageVector = notifIcon,
                     contentDescription = "Configurar Alertas Sísmicas",
                     tint = notifTint,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            // Botón Acerca de
-            IconButton(
-                onClick = onNavigateToAbout,
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(Color(0x228B5CF6))
-                    .border(0.8.dp, Color(0x558B5CF6), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = "Acerca de",
-                    tint = Color(0xFFA78BFA),
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(if (isTablet) 20.dp else 17.dp)
                 )
             }
 
@@ -398,13 +400,14 @@ private fun HomeTopBar(
                 onClick = onRefresh,
                 enabled = !isLoading,
                 modifier = Modifier
+                    .size(if (isTablet) 38.dp else 34.dp)
                     .clip(CircleShape)
                     .background(Color(0x1AFFFFFF))
                     .border(0.8.dp, Color(0x33FFFFFF), CircleShape)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
+                        modifier = Modifier.size(if (isTablet) 18.dp else 15.dp),
                         color = PrimaryBlue,
                         strokeWidth = 2.dp
                     )
@@ -413,6 +416,25 @@ private fun HomeTopBar(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Actualizar",
                         tint = Color.White,
+                        modifier = Modifier.size(if (isTablet) 20.dp else 17.dp)
+                    )
+                }
+            }
+
+            // En tablets mostramos también Acerca de directo
+            if (isTablet) {
+                IconButton(
+                    onClick = onNavigateToAbout,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x228B5CF6))
+                        .border(0.8.dp, Color(0x558B5CF6), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "Acerca de",
+                        tint = Color(0xFFA78BFA),
                         modifier = Modifier.size(20.dp)
                     )
                 }

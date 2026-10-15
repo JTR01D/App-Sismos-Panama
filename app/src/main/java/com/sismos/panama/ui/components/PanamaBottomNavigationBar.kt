@@ -117,7 +117,7 @@ fun PanamaBottomNavigationBar(
                             ) {
                                 when (item) {
                                     BottomNavItem.HOME -> onNavigate(Screen.Home)
-                                    BottomNavItem.MAP -> onNavigate(Screen.Map)
+                                    BottomNavItem.MAP -> onNavigate(Screen.Map())
                                     BottomNavItem.DASHBOARD -> onNavigate(Screen.Dashboard)
                                     BottomNavItem.FAULTS -> onNavigate(Screen.Faults)
                                 }

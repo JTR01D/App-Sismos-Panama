@@ -62,12 +62,13 @@ private fun calcDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double)
 fun DetailScreen(
     earthquake: Earthquake,
     onBack: () -> Unit,
-    onOpenMap: () -> Unit = {}
+    onOpenMap: () -> Unit = {},
+    initialSimulating: Boolean = false
 ) {
     val context = LocalContext.current
 
     // Estado del simulador de ondas
-    var isSimulating by remember { mutableStateOf(false) }
+    var isSimulating by remember { mutableStateOf(initialSimulating) }
     var elapsedSeconds by remember { mutableStateOf(0f) }
 
     // Ciudades clave y distancias calculadas

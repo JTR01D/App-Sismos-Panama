@@ -290,7 +290,8 @@ val InteractivePanamaFaults = listOf(
 fun InteractiveMapScreen(
     viewModel: SeismicViewModel,
     onBack: () -> Unit,
-    onEarthquakeSelected: (Earthquake) -> Unit
+    onEarthquakeSelected: (Earthquake) -> Unit,
+    initialWaveSimulation: Boolean = false
 ) {
     val state by viewModel.uiState.collectAsState()
     val allEarthquakes = state.filteredEarthquakes
@@ -311,8 +312,14 @@ fun InteractiveMapScreen(
     var selectedEq by remember { mutableStateOf<Earthquake?>(null) }
     var selectedFault by remember { mutableStateOf<FaultLineInteractive?>(null) }
     var showFaults by remember { mutableStateOf(true) }
-    var showWaveSimulation by remember { mutableStateOf(false) }
+    var showWaveSimulation by remember { mutableStateOf(initialWaveSimulation) }
     var simulationTimeSeconds by remember { mutableStateOf(0f) }
+
+    LaunchedEffect(initialWaveSimulation, displayEarthquakes) {
+        if (initialWaveSimulation && selectedEq == null && displayEarthquakes.isNotEmpty()) {
+            selectedEq = displayEarthquakes.first()
+        }
+    }
 
     // Canvas Pan & Zoom
     var scale by remember { mutableStateOf(1f) }

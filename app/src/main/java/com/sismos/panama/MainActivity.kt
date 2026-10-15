@@ -46,14 +46,7 @@ class MainActivity : ComponentActivity() {
         }
         askNotificationPermission()
 
-        val initialScreen = intent?.getStringExtra("screen")
-        when (initialScreen?.lowercase()) {
-            "dashboard" -> currentScreenState.value = Screen.Dashboard
-            "faults" -> currentScreenState.value = Screen.Faults
-            "map" -> currentScreenState.value = Screen.Map
-            "about" -> currentScreenState.value = Screen.About
-            else -> currentScreenState.value = Screen.Home
-        }
+        handleScreenIntent(intent)
 
         setContent {
             SismosPanamaTheme {
@@ -90,12 +83,38 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        when (intent.getStringExtra("screen")?.lowercase()) {
+        handleScreenIntent(intent)
+    }
+
+    private fun handleScreenIntent(intent: Intent?) {
+        val target = intent?.getStringExtra("screen")?.lowercase() ?: return
+        val simulate = intent.getBooleanExtra("simulate", false)
+        when (target) {
             "dashboard" -> currentScreenState.value = Screen.Dashboard
             "faults" -> currentScreenState.value = Screen.Faults
-            "map" -> currentScreenState.value = Screen.Map
+            "map" -> currentScreenState.value = Screen.Map(initialWaveSimulation = simulate)
             "about" -> currentScreenState.value = Screen.About
             "home" -> currentScreenState.value = Screen.Home
+            "detail" -> {
+                val eq = viewModel.uiState.value.earthquakes.firstOrNull() ?: Earthquake(
+                    id = "demo_panama_chiriqui",
+                    magnitude = 6.2,
+                    place = "Golfo de Chiriquí, Panamá",
+                    timeMillis = System.currentTimeMillis() - 1000 * 60 * 25,
+                    latitude = 7.95,
+                    longitude = -82.65,
+                    depthKm = 12.0,
+                    nearestCity = "David, Chiriquí",
+                    distanceToNearestCityKm = 48,
+                    nearestFault = "Zona de Fractura de Panamá (ZFP)",
+                    faultMechanism = "Rumbo lateral derecho / Subducción",
+                    panamaRegion = "Pacífico Occidental / Chiriquí",
+                    isTsunamiWarning = false,
+                    feltReports = 240,
+                    officialUrl = "https://earthquake.usgs.gov/"
+                )
+                currentScreenState.value = Screen.Detail(eq, autoSimulate = simulate)
+            }
         }
     }
 
@@ -129,10 +148,10 @@ class MainActivity : ComponentActivity() {
 
 sealed class Screen {
     object Home : Screen()
-    data class Detail(val earthquake: Earthquake) : Screen()
+    data class Detail(val earthquake: Earthquake, val autoSimulate: Boolean = false) : Screen()
     object Faults : Screen()
     object Dashboard : Screen()
-    object Map : Screen()
+    data class Map(val initialWaveSimulation: Boolean = false) : Screen()
     object About : Screen()
 }
 
@@ -155,7 +174,7 @@ fun SismosAppNavigation(
                     screenState.value = Screen.Dashboard
                 },
                 onNavigateToMap = {
-                    screenState.value = Screen.Map
+                    screenState.value = Screen.Map()
                 },
                 onNavigateToAbout = {
                     screenState.value = Screen.About
@@ -170,6 +189,7 @@ fun SismosAppNavigation(
         is Screen.Map -> {
             InteractiveMapScreen(
                 viewModel = viewModel,
+                initialWaveSimulation = screen.initialWaveSimulation,
                 onBack = { screenState.value = Screen.Home },
                 onEarthquakeSelected = { eq ->
                     screenState.value = Screen.Detail(eq)
@@ -188,8 +208,9 @@ fun SismosAppNavigation(
         is Screen.Detail -> {
             DetailScreen(
                 earthquake = screen.earthquake,
+                initialSimulating = screen.autoSimulate,
                 onBack = { screenState.value = Screen.Home },
-                onOpenMap = { screenState.value = Screen.Map }
+                onOpenMap = { screenState.value = Screen.Map(initialWaveSimulation = true) }
             )
         }
         is Screen.Faults -> {

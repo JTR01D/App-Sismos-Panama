@@ -674,7 +674,7 @@ private fun AboutCreditsCard(context: Context) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "Desarrollado con pasión para Panamá por",
+                text = "Creado y Desarrollado Exclusivamente por",
                 fontSize = 12.sp,
                 color = Color(0xFF94A3B8)
             )
@@ -682,11 +682,19 @@ private fun AboutCreditsCard(context: Context) {
             Spacer(modifier = Modifier.height(4.dp))
 
             Text(
-                text = "JTR01D & Equipo Sismos Panamá",
-                fontSize = 15.sp,
+                text = "JTR01D",
+                fontSize = 18.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color(0xFF60A5FA),
-                fontFamily = FontFamily.SansSerif
+                fontFamily = FontFamily.SansSerif,
+                letterSpacing = 1.sp
+            )
+
+            Text(
+                text = "Desarrollador Único del Proyecto",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF38BDF8)
             )
 
             Spacer(modifier = Modifier.height(6.dp))

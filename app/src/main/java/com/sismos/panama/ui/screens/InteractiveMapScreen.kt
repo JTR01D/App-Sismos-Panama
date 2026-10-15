@@ -9,10 +9,13 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -494,8 +497,11 @@ fun InteractiveMapScreen(
                 )
             }
 
-            // Leyenda de Magnitud Flotante (Esquina inferior izquierda, con margen para no chocar con controles de zoom)
-            MapLegendBadge(
+            // Leyenda de Magnitud Flotante (oculta automáticamente durante simulación de ondas para máxima visibilidad geográfica)
+            AnimatedVisibility(
+                visible = !showWaveSimulation,
+                enter = fadeIn(),
+                exit = fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(
@@ -503,7 +509,9 @@ fun InteractiveMapScreen(
                         end = 72.dp,
                         bottom = if (selectedEq != null || selectedFault != null) 180.dp else 16.dp
                     )
-            )
+            ) {
+                MapLegendBadge()
+            }
 
             // Controles flotantes de Zoom
             FloatingZoomControls(
@@ -1190,9 +1198,9 @@ private fun MapTopBar(
                         letterSpacing = (-0.3).sp
                     )
                     Text(
-                        text = "Mostrando $earthquakeCount de $totalCount sismos • Toca fallas o sismos",
+                        text = if (showWaveSimulation) "Simulación de ondas en tiempo real • Máxima visibilidad" else "Mostrando $earthquakeCount de $totalCount sismos • Toca fallas o sismos",
                         fontSize = 11.sp,
-                        color = Color(0xFF94A3B8)
+                        color = if (showWaveSimulation) Color(0xFF60A5FA) else Color(0xFF94A3B8)
                     )
                 }
             }
@@ -1212,148 +1220,157 @@ private fun MapTopBar(
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // Fila de Filtros y Capas Principales con Scroll Horizontal para cualquier tamaño de pantalla
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // Fila de Filtros y Carrusel de Fallas (se ocultan suavemente durante la simulación de ondas para no restar espacio al mapa)
+        AnimatedVisibility(
+            visible = !showWaveSimulation,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut()
         ) {
-            // Filtro rápido de sismos para evitar saturación
-            item {
-                FilterChip(
-                    selected = minMagFilter == null && !showOnlySwarm,
-                    onClick = {
-                        onSelectMinMag(null)
-                        if (showOnlySwarm) onToggleSwarm()
-                    },
-                    label = { Text("Todos ($totalCount)", fontSize = 11.sp, maxLines = 1) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0x333186FF),
-                        selectedLabelColor = Color(0xFF93C5FD),
-                        containerColor = Color(0x1AFFFFFF),
-                        labelColor = Color(0xFF94A3B8)
-                    )
-                )
-            }
+            Column {
+                Spacer(modifier = Modifier.height(6.dp))
 
-            item {
-                FilterChip(
-                    selected = minMagFilter == 4.0,
-                    onClick = { onSelectMinMag(if (minMagFilter == 4.0) null else 4.0) },
-                    label = { Text("M ≥ 4.0", fontSize = 11.sp, maxLines = 1) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0x33FF9800),
-                        selectedLabelColor = Color(0xFFFFB74D),
-                        containerColor = Color(0x1AFFFFFF),
-                        labelColor = Color(0xFF94A3B8)
-                    )
-                )
-            }
-
-            item {
-                FilterChip(
-                    selected = showOnlySwarm,
-                    onClick = onToggleSwarm,
-                    label = { Text("⚡ Enjambre Azuero", fontSize = 11.sp, maxLines = 1) },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0x33FF9800),
-                        selectedLabelColor = Color(0xFFFFB74D),
-                        containerColor = Color(0x1AFFFFFF),
-                        labelColor = Color(0xFF94A3B8)
-                    )
-                )
-            }
-
-            item {
-                FilterChip(
-                    selected = showFaults,
-                    onClick = onToggleFaults,
-                    label = { Text("Fallas", fontSize = 11.sp, maxLines = 1) },
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.Timeline, contentDescription = null, modifier = Modifier.size(14.dp))
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0x3300E5FF),
-                        selectedLabelColor = Color(0xFF00E5FF),
-                        selectedLeadingIconColor = Color(0xFF00E5FF),
-                        containerColor = Color(0x1AFFFFFF),
-                        labelColor = Color(0xFF94A3B8)
-                    )
-                )
-            }
-
-            item {
-                FilterChip(
-                    selected = showWaveSimulation,
-                    onClick = onToggleWaves,
-                    label = { Text("Ondas P & S", fontSize = 11.sp, maxLines = 1) },
-                    leadingIcon = {
-                        Icon(imageVector = Icons.Default.GraphicEq, contentDescription = null, modifier = Modifier.size(14.dp))
-                    },
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0x33FF5252),
-                        selectedLabelColor = Color(0xFFFF8A80),
-                        selectedLeadingIconColor = Color(0xFFFF8A80),
-                        containerColor = Color(0x1AFFFFFF),
-                        labelColor = Color(0xFF94A3B8)
-                    )
-                )
-            }
-        }
-
-        // Carrusel Horizontal de Fallas Registradas para acceso interactivo directo
-        if (showFaults) {
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 2.dp)
-            ) {
-                Text(
-                    text = "FALLAS REGISTRADAS (TOCA PARA INSPECCIONAR):",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B),
-                    letterSpacing = 0.4.sp
-                )
-            }
-            Spacer(modifier = Modifier.height(3.dp))
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                items(InteractivePanamaFaults) { fault ->
-                    val isSelected = selectedFault?.id == fault.id
-                    Surface(
-                        onClick = {
-                            if (isSelected) onSelectFault(null) else onSelectFault(fault)
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) fault.color.copy(alpha = 0.25f) else Color(0x18FFFFFF),
-                        border = BorderStroke(
-                            width = if (isSelected) 1.5.dp else 0.8.dp,
-                            color = if (isSelected) fault.color else Color(0x28FFFFFF)
+                // Fila de Filtros y Capas Principales con Scroll Horizontal para cualquier tamaño de pantalla
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Filtro rápido de sismos para evitar saturación
+                    item {
+                        FilterChip(
+                            selected = minMagFilter == null && !showOnlySwarm,
+                            onClick = {
+                                onSelectMinMag(null)
+                                if (showOnlySwarm) onToggleSwarm()
+                            },
+                            label = { Text("Todos ($totalCount)", fontSize = 11.sp, maxLines = 1) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0x333186FF),
+                                selectedLabelColor = Color(0xFF93C5FD),
+                                containerColor = Color(0x1AFFFFFF),
+                                labelColor = Color(0xFF94A3B8)
+                            )
                         )
+                    }
+
+                    item {
+                        FilterChip(
+                            selected = minMagFilter == 4.0,
+                            onClick = { onSelectMinMag(if (minMagFilter == 4.0) null else 4.0) },
+                            label = { Text("M ≥ 4.0", fontSize = 11.sp, maxLines = 1) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0x33FF9800),
+                                selectedLabelColor = Color(0xFFFFB74D),
+                                containerColor = Color(0x1AFFFFFF),
+                                labelColor = Color(0xFF94A3B8)
+                            )
+                        )
+                    }
+
+                    item {
+                        FilterChip(
+                            selected = showOnlySwarm,
+                            onClick = onToggleSwarm,
+                            label = { Text("⚡ Enjambre Azuero", fontSize = 11.sp, maxLines = 1) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0x33FF9800),
+                                selectedLabelColor = Color(0xFFFFB74D),
+                                containerColor = Color(0x1AFFFFFF),
+                                labelColor = Color(0xFF94A3B8)
+                            )
+                        )
+                    }
+
+                    item {
+                        FilterChip(
+                            selected = showFaults,
+                            onClick = onToggleFaults,
+                            label = { Text("Fallas", fontSize = 11.sp, maxLines = 1) },
+                            leadingIcon = {
+                                Icon(imageVector = Icons.Default.Timeline, contentDescription = null, modifier = Modifier.size(14.dp))
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0x3300E5FF),
+                                selectedLabelColor = Color(0xFF00E5FF),
+                                selectedLeadingIconColor = Color(0xFF00E5FF),
+                                containerColor = Color(0x1AFFFFFF),
+                                labelColor = Color(0xFF94A3B8)
+                            )
+                        )
+                    }
+
+                    item {
+                        FilterChip(
+                            selected = showWaveSimulation,
+                            onClick = onToggleWaves,
+                            label = { Text("Ondas P & S", fontSize = 11.sp, maxLines = 1) },
+                            leadingIcon = {
+                                Icon(imageVector = Icons.Default.GraphicEq, contentDescription = null, modifier = Modifier.size(14.dp))
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color(0x33FF5252),
+                                selectedLabelColor = Color(0xFFFF8A80),
+                                selectedLeadingIconColor = Color(0xFFFF8A80),
+                                containerColor = Color(0x1AFFFFFF),
+                                labelColor = Color(0xFF94A3B8)
+                            )
+                        )
+                    }
+                }
+
+                // Carrusel Horizontal de Fallas Registradas para acceso interactivo directo
+                if (showFaults) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 2.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(7.dp)
-                                    .clip(CircleShape)
-                                    .background(fault.color)
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = fault.shortBadge,
-                                fontSize = 10.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) Color.White else Color(0xFFCBD5E1)
-                            )
+                        Text(
+                            text = "FALLAS REGISTRADAS (TOCA PARA INSPECCIONAR):",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF64748B),
+                            letterSpacing = 0.4.sp
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(3.dp))
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        items(InteractivePanamaFaults) { fault ->
+                            val isSelected = selectedFault?.id == fault.id
+                            Surface(
+                                onClick = {
+                                    if (isSelected) onSelectFault(null) else onSelectFault(fault)
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) fault.color.copy(alpha = 0.25f) else Color(0x18FFFFFF),
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.5.dp else 0.8.dp,
+                                    color = if (isSelected) fault.color else Color(0x28FFFFFF)
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(fault.color)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = fault.shortBadge,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color.White else Color(0xFFCBD5E1)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -1623,96 +1640,167 @@ private fun SelectedEarthquakeCard(
 ) {
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 20.dp
+        cornerRadius = if (isSimulatingWaves) 16.dp else 20.dp
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
+        if (isSimulatingWaves) {
+            // Modo compacto durante propagación de ondas: Máxima visibilidad del mapa
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.weight(1f)
                 ) {
-                    MagnitudeBadge(magnitude = earthquake.magnitude, size = 48.dp)
+                    MagnitudeBadge(magnitude = earthquake.magnitude, size = 36.dp)
+                    Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "M ${earthquake.magnitude} Mw • ${earthquake.panamaRegion}",
-                            fontSize = 15.sp,
+                            text = "M ${earthquake.magnitude} Mw • ${earthquake.place}",
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "${earthquake.place} (${earthquake.depthKm.toInt()} km)",
-                            fontSize = 12.sp,
+                            text = "Profundidad: ${earthquake.depthKm.toInt()} km • ${earthquake.panamaRegion}",
+                            fontSize = 11.sp,
                             color = Color(0xFF94A3B8)
                         )
                     }
                 }
 
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.size(24.dp)
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        tint = Color(0xFF94A3B8)
-                    )
+                    Button(
+                        onClick = onToggleWaveSim,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF5252)),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Stop,
+                            contentDescription = null,
+                            modifier = Modifier.size(15.dp),
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "Detener", fontSize = 11.sp, color = Color.White)
+                    }
+
+                    IconButton(
+                        onClick = onViewDetail,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x333186FF))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = "Detalles",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
-
-            Text(
-                text = "Falla asociada: ${earthquake.nearestFault} (${earthquake.faultMechanism})",
-                fontSize = 11.sp,
-                fontFamily = FontFamily.Monospace,
-                color = Color(0xFF93C5FD)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+        } else {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Botón Simular Onda
-                Button(
-                    onClick = onToggleWaveSim,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isSimulatingWaves) Color(0xFFFF5252) else Color(0x333186FF)
-                    ),
-                    modifier = Modifier.weight(1f)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        imageVector = if (isSimulatingWaves) Icons.Default.Stop else Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = Color.White
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = if (isSimulatingWaves) "Detener Onda" else "Simular Ondas",
-                        fontSize = 12.sp,
-                        color = Color.White
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        MagnitudeBadge(magnitude = earthquake.magnitude, size = 48.dp)
+                        Column {
+                            Text(
+                                text = "M ${earthquake.magnitude} Mw • ${earthquake.panamaRegion}",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "${earthquake.place} (${earthquake.depthKm.toInt()} km)",
+                                fontSize = 12.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            tint = Color(0xFF94A3B8)
+                        )
+                    }
                 }
 
-                // Botón Ver Detalle
-                Button(
-                    onClick = onViewDetail,
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                    modifier = Modifier.weight(1f)
+                Text(
+                    text = "Falla asociada: ${earthquake.nearestFault} (${earthquake.faultMechanism})",
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color(0xFF93C5FD)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(text = "Ver Análisis", fontSize = 12.sp, color = Color.White)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = Color.White
-                    )
+                    // Botón Simular Onda
+                    Button(
+                        onClick = onToggleWaveSim,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0x333186FF)
+                        ),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Simular Ondas",
+                            fontSize = 12.sp,
+                            color = Color.White
+                        )
+                    }
+
+                    // Botón Ver Detalle
+                    Button(
+                        onClick = onViewDetail,
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(text = "Ver Análisis", fontSize = 12.sp, color = Color.White)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color.White
+                        )
+                    }
                 }
             }
         }

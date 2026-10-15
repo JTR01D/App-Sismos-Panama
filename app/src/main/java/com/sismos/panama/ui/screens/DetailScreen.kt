@@ -3,8 +3,11 @@ package com.sismos.panama.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -138,55 +141,82 @@ fun DetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header Magnitud y Lugar en GlassCard
+            // Header Magnitud y Lugar en GlassCard (se compacta inteligentemente al simular)
             GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 20.dp) {
-                Column(modifier = Modifier.padding(20.dp)) {
+                if (isSimulating) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        MagnitudeBadge(magnitude = earthquake.magnitude, size = 68.dp)
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
+                        MagnitudeBadge(magnitude = earthquake.magnitude, size = 44.dp)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Magnitud ${earthquake.magnitude} Mw",
-                                fontSize = 20.sp,
+                                text = "M ${earthquake.magnitude} Mw • ${earthquake.place}",
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
-                                text = "Nivel: ${earthquake.alertLevel.label}",
-                                fontSize = 13.sp,
-                                color = when {
-                                    earthquake.magnitude >= 6.0 -> HazardDestructive
-                                    earthquake.magnitude >= 5.0 -> HazardStrong
-                                    earthquake.magnitude >= 4.0 -> HazardModerate
-                                    earthquake.magnitude >= 3.0 -> HazardLight
-                                    else -> HazardInstrumental
-                                },
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Efecto: ${earthquake.alertLevel.hazardDescription}",
-                                fontSize = 12.sp,
-                                color = Color(0xFFCBD5E1)
-                            )
-                            Text(
-                                text = "${earthquake.getTimeAgo()} • ${earthquake.sourceName}",
+                                text = "Profundidad: ${earthquake.depthKm.toInt()} km • ${earthquake.panamaRegion}",
                                 fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
                                 color = Color(0xFF94A3B8)
                             )
                         }
                     }
+                } else {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            MagnitudeBadge(magnitude = earthquake.magnitude, size = 68.dp)
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = "Magnitud ${earthquake.magnitude} Mw",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = "Nivel: ${earthquake.alertLevel.label}",
+                                    fontSize = 13.sp,
+                                    color = when {
+                                        earthquake.magnitude >= 6.0 -> HazardDestructive
+                                        earthquake.magnitude >= 5.0 -> HazardStrong
+                                        earthquake.magnitude >= 4.0 -> HazardModerate
+                                        earthquake.magnitude >= 3.0 -> HazardLight
+                                        else -> HazardInstrumental
+                                    },
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Efecto: ${earthquake.alertLevel.hazardDescription}",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFFCBD5E1)
+                                )
+                                Text(
+                                    text = "${earthquake.getTimeAgo()} • ${earthquake.sourceName}",
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF94A3B8)
+                                )
+                            }
+                        }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text(
-                        text = earthquake.place,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color.White
-                    )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            text = earthquake.place,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
 
@@ -516,95 +546,110 @@ fun DetailScreen(
                         }
                     }
 
-                    // Botón para ver en el mapa nacional completo
-                    OutlinedButton(
-                        onClick = onOpenMap,
-                        modifier = Modifier.fillMaxWidth(),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x553186FF))
+                    // Botón para ver en el mapa nacional completo (oculto durante simulación para no saturar)
+                    AnimatedVisibility(
+                        visible = !isSimulating,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
                     ) {
-                        Icon(imageVector = Icons.Default.Explore, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Ver en Mapa Tectónico Nacional", color = Color(0xFF00E5FF), fontSize = 12.sp)
+                        OutlinedButton(
+                            onClick = onOpenMap,
+                            modifier = Modifier.fillMaxWidth(),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x553186FF))
+                        ) {
+                            Icon(imageVector = Icons.Default.Explore, contentDescription = null, tint = Color(0xFF00E5FF), modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Ver en Mapa Tectónico Nacional", color = Color(0xFF00E5FF), fontSize = 12.sp)
+                        }
                     }
                 }
             }
 
-            // Parámetros Físicos en GlassCard
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "PARÁMETROS FÍSICOS Y LOCALIZACIÓN",
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF93C5FD)
-                    )
-
-                    DetailRow("Fecha y Hora (Panamá)", earthquake.getFormattedTime())
-                    DetailRow("Profundidad Hipocentral", "${earthquake.depthKm.toInt()} km (${if (earthquake.depthKm < 25) "Somero" else "Intermedio"})")
-                    DetailRow("Coordenadas Epicentro", "${String.format(java.util.Locale.US, "%.3f", earthquake.latitude)}° N, ${String.format(java.util.Locale.US, "%.3f", earthquake.longitude)}° O")
-                    DetailRow("Ciudad más Cercana", "${earthquake.nearestCity} (~${earthquake.distanceToNearestCityKm} km)")
-                    DetailRow("Fuente de Registro", earthquake.sourceName)
-                }
-            }
-
-            // Geodinámica y Fallas en GlassCard
-            GlassCard(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Text(
-                        text = "CONTEXTO GEODINÁMICO EN PANAMÁ",
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF93C5FD)
-                    )
-
-                    DetailRow("Zona Sismotectónica", earthquake.panamaRegion)
-                    DetailRow("Falla Activa Cercana", earthquake.nearestFault)
-                    DetailRow("Mecanismo Focal", earthquake.faultMechanism)
-                }
-            }
-
-            // Acciones: Ver en Navegador / Compartir
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            // Información estática (parámetros, contexto de fallas y acciones) oculta automáticamente durante la simulación de ondas
+            AnimatedVisibility(
+                visible = !isSimulating,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
             ) {
-                Button(
-                    onClick = {
-                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(earthquake.officialUrl))
-                        context.startActivity(browserIntent)
-                    },
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
-                ) {
-                    Icon(imageVector = Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Ver Oficial")
-                }
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Parámetros Físicos en GlassCard
+                    GlassCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = "PARÁMETROS FÍSICOS Y LOCALIZACIÓN",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF93C5FD)
+                            )
 
-                OutlinedButton(
-                    onClick = {
-                        val shareText = "Sismo en Panamá: M${earthquake.magnitude} en ${earthquake.place} a ${earthquake.getFormattedTime()}. Fuente: Red Sísmica Panamá"
-                        val sendIntent = Intent().apply {
-                            action = Intent.ACTION_SEND
-                            putExtra(Intent.EXTRA_TEXT, shareText)
-                            type = "text/plain"
+                            DetailRow("Fecha y Hora (Panamá)", earthquake.getFormattedTime())
+                            DetailRow("Profundidad Hipocentral", "${earthquake.depthKm.toInt()} km (${if (earthquake.depthKm < 25) "Somero" else "Intermedio"})")
+                            DetailRow("Coordenadas Epicentro", "${String.format(java.util.Locale.US, "%.3f", earthquake.latitude)}° N, ${String.format(java.util.Locale.US, "%.3f", earthquake.longitude)}° O")
+                            DetailRow("Ciudad más Cercana", "${earthquake.nearestCity} (~${earthquake.distanceToNearestCityKm} km)")
+                            DetailRow("Fuente de Registro", earthquake.sourceName)
                         }
-                        context.startActivity(Intent.createChooser(sendIntent, "Compartir sismo"))
-                    },
-                    modifier = Modifier.weight(1f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, StrokeDark)
-                ) {
-                    Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Compartir", color = Color.White)
+                    }
+
+                    // Geodinámica y Fallas en GlassCard
+                    GlassCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = "CONTEXTO GEODINÁMICO EN PANAMÁ",
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF93C5FD)
+                            )
+
+                            DetailRow("Zona Sismotectónica", earthquake.panamaRegion)
+                            DetailRow("Falla Activa Cercana", earthquake.nearestFault)
+                            DetailRow("Mecanismo Focal", earthquake.faultMechanism)
+                        }
+                    }
+
+                    // Acciones: Ver en Navegador / Compartir
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(earthquake.officialUrl))
+                                context.startActivity(browserIntent)
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                        ) {
+                            Icon(imageVector = Icons.Default.OpenInBrowser, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Ver Oficial")
+                        }
+
+                        OutlinedButton(
+                            onClick = {
+                                val shareText = "Sismo en Panamá: M${earthquake.magnitude} en ${earthquake.place} a ${earthquake.getFormattedTime()}. Fuente: Red Sísmica Panamá"
+                                val sendIntent = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    putExtra(Intent.EXTRA_TEXT, shareText)
+                                    type = "text/plain"
+                                }
+                                context.startActivity(Intent.createChooser(sendIntent, "Compartir sismo"))
+                            },
+                            modifier = Modifier.weight(1f),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, StrokeDark)
+                        ) {
+                            Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Compartir", color = Color.White)
+                        }
+                    }
                 }
             }
 

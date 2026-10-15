@@ -926,7 +926,7 @@ private fun AdvancedTectonicMapCanvas(
                 }
             }
 
-            // 9. Simulación de Ondas Sísmicas P y S
+            // 9. Simulación de Ondas Sísmicas P y S con física realista de atenuación geométrica
             if (showWaveSimulation && selectedEarthquake != null) {
                 val epi = project(selectedEarthquake.latitude, selectedEarthquake.longitude, size)
                 val paddingX = 20f
@@ -934,18 +934,37 @@ private fun AdvancedTectonicMapCanvas(
                 val pxPerDegree = usableWidth / deltaLon
                 val pxPerKm = (pxPerDegree / 110.5f) * scale
 
-                val radiusP = simulationSeconds * 6.0f * pxPerKm
-                val radiusS = simulationSeconds * 3.5f * pxPerKm
+                val distKmP = simulationSeconds * 6.0f
+                val distKmS = simulationSeconds * 3.5f
 
-                // Onda P
-                if (radiusP > 5f) {
-                    drawCircle(color = Color(0x3300E5FF), radius = radiusP, center = epi, style = Stroke(width = 3.5f))
-                    drawCircle(color = Color(0x1100E5FF), radius = radiusP, center = epi)
+                val radiusP = distKmP * pxPerKm
+                val radiusS = distKmS * pxPerKm
+
+                val mag = selectedEarthquake.magnitude.toFloat().coerceAtLeast(2.5f)
+                // Alcance físico según magnitud (los sismos mayores cubren más territorio antes de disiparse)
+                val maxReachKm = (90f * 10.0.pow(((mag - 3.0) / 2.25)).toFloat()).coerceIn(70f, 1300f)
+
+                val attenP = ((1f - (distKmP / maxReachKm)).coerceIn(0f, 1f)).pow(1.3f)
+                val attenS = ((1f - (distKmS / maxReachKm)).coerceIn(0f, 1f)).pow(1.1f)
+
+                val magScale = ((mag - 2.5f) / 3.0f).coerceIn(0.5f, 2.2f)
+                val strokeP = (3.2f * magScale * attenP * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(0.6f)
+                val strokeS = (4.8f * magScale * attenS * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(0.8f)
+
+                // Onda P (Cyan / Compresiva) - se atenúa progresivamente
+                if (attenP > 0.015f && radiusP > 4f) {
+                    val alphaStroke = (0.65f * attenP * magScale.coerceAtMost(1.2f)).coerceIn(0f, 0.85f)
+                    val alphaFill = (0.12f * attenP).coerceIn(0f, 0.22f)
+                    drawCircle(color = Color(0xFF00E5FF).copy(alpha = alphaStroke), radius = radiusP, center = epi, style = Stroke(width = strokeP))
+                    drawCircle(color = Color(0xFF00E5FF).copy(alpha = alphaFill), radius = radiusP, center = epi)
                 }
-                // Onda S
-                if (radiusS > 5f) {
-                    drawCircle(color = Color(0x88FF5252), radius = radiusS, center = epi, style = Stroke(width = 4.5f))
-                    drawCircle(color = Color(0x22FF5252), radius = radiusS, center = epi)
+
+                // Onda S (Roja / Corte) - más destructiva y pierde energía con la distancia
+                if (attenS > 0.015f && radiusS > 4f) {
+                    val alphaStroke = (0.85f * attenS * magScale.coerceAtMost(1.3f)).coerceIn(0f, 0.95f)
+                    val alphaFill = (0.18f * attenS).coerceIn(0f, 0.32f)
+                    drawCircle(color = Color(0xFFFF5252).copy(alpha = alphaStroke), radius = radiusS, center = epi, style = Stroke(width = strokeS))
+                    drawCircle(color = Color(0xFFFF5252).copy(alpha = alphaFill), radius = radiusS, center = epi)
                 }
             }
 
@@ -1520,6 +1539,8 @@ private fun WaveSimulationHeader(
 ) {
     val distP = (elapsedSeconds * 6.0f).toInt()
     val distS = (elapsedSeconds * 3.5f).toInt()
+    val mag = earthquake.magnitude.toFloat().coerceAtLeast(2.5f)
+    val maxReachKm = (90f * 10.0.pow(((mag - 3.0) / 2.25)).toFloat()).coerceIn(70f, 1300f).toInt()
 
     Row(
         modifier = modifier
@@ -1532,15 +1553,15 @@ private fun WaveSimulationHeader(
     ) {
         Column {
             Text(
-                text = "PROPAGACIÓN DE ONDAS EN VIVO • ${elapsedSeconds.toInt()}s",
+                text = "PROPAGACIÓN SÍSMICA CON ATENUACIÓN • ${elapsedSeconds.toInt()}s",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = FontFamily.Monospace,
                 color = Color(0xFF60A5FA)
             )
             Text(
-                text = "Onda P: ${distP} km (6 km/s) • Onda S: ${distS} km (3.5 km/s)",
-                fontSize = 12.sp,
+                text = "Onda P: ${distP} km • Onda S: ${distS} km • Alcance M ${earthquake.magnitude}: ~${maxReachKm} km",
+                fontSize = 11.sp,
                 color = Color.White
             )
         }

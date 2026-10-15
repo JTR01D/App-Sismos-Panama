@@ -286,39 +286,59 @@ fun DetailScreen(
                                 )
                             }
 
-                            // 2. Ondas en expansión
+                            // 2. Ondas en expansión con física de atenuación geométrica y escala por magnitud
                             if (isSimulating && elapsedSeconds > 0) {
                                 val distP_km = elapsedSeconds * 6.0f
                                 val distS_km = elapsedSeconds * 3.5f
 
+                                val mag = earthquake.magnitude.toFloat().coerceAtLeast(2.5f)
+                                // Alcance máximo perceptible según la magnitud (escala logarítmica sismológica)
+                                val maxReachKm = (90f * 10.0.pow(((mag - 3.0) / 2.25)).toFloat()).coerceIn(70f, 1300f)
+
                                 val radP_px = distP_km * pxPerKm
                                 val radS_px = distS_km * pxPerKm
 
-                                // Onda P (Cyan / Compresiva)
-                                drawCircle(
-                                    color = Color(0x3300E5FF),
-                                    radius = radP_px,
-                                    center = center,
-                                    style = Stroke(width = 3.5f)
-                                )
-                                drawCircle(
-                                    color = Color(0x1100E5FF),
-                                    radius = radP_px,
-                                    center = center
-                                )
+                                // Factor de atenuación geométrica (1 - r/R_max) decrece con la distancia
+                                val attenP = ((1f - (distP_km / maxReachKm)).coerceIn(0f, 1f)).pow(1.3f)
+                                val attenS = ((1f - (distS_km / maxReachKm)).coerceIn(0f, 1f)).pow(1.1f)
 
-                                // Onda S (Roja / Destructiva)
-                                drawCircle(
-                                    color = Color(0x88FF5252),
-                                    radius = radS_px,
-                                    center = center,
-                                    style = Stroke(width = 4.5f)
-                                )
-                                drawCircle(
-                                    color = Color(0x22FF5252),
-                                    radius = radS_px,
-                                    center = center
-                                )
+                                val magMultiplier = ((mag - 2.5f) / 3.0f).coerceIn(0.5f, 2.2f)
+                                val strokeP = (3.2f * magMultiplier * attenP).coerceAtLeast(0.6f)
+                                val strokeS = (4.8f * magMultiplier * attenS).coerceAtLeast(0.8f)
+
+                                // Onda P (Cyan / Compresiva) - se atenúa a medida que viaja
+                                if (attenP > 0.015f && radP_px > 3f) {
+                                    val alphaStroke = (0.70f * attenP * magMultiplier.coerceAtMost(1.2f)).coerceIn(0f, 0.85f)
+                                    val alphaFill = (0.14f * attenP).coerceIn(0f, 0.25f)
+                                    drawCircle(
+                                        color = Color(0xFF00E5FF).copy(alpha = alphaStroke),
+                                        radius = radP_px,
+                                        center = center,
+                                        style = Stroke(width = strokeP)
+                                    )
+                                    drawCircle(
+                                        color = Color(0xFF00E5FF).copy(alpha = alphaFill),
+                                        radius = radP_px,
+                                        center = center
+                                    )
+                                }
+
+                                // Onda S (Roja / Corte y Sacudida destructiva) - pierde fuerza con la distancia
+                                if (attenS > 0.015f && radS_px > 3f) {
+                                    val alphaStroke = (0.88f * attenS * magMultiplier.coerceAtMost(1.3f)).coerceIn(0f, 0.95f)
+                                    val alphaFill = (0.20f * attenS).coerceIn(0f, 0.35f)
+                                    drawCircle(
+                                        color = Color(0xFFFF5252).copy(alpha = alphaStroke),
+                                        radius = radS_px,
+                                        center = center,
+                                        style = Stroke(width = strokeS)
+                                    )
+                                    drawCircle(
+                                        color = Color(0xFFFF5252).copy(alpha = alphaFill),
+                                        radius = radS_px,
+                                        center = center
+                                    )
+                                }
                             }
 
                             // 3. Ciudades proyectadas relativamente
@@ -331,9 +351,17 @@ fun DetailScreen(
                                 val reachedByS = isSimulating && (elapsedSeconds * 3.5f >= c.distanceKm)
                                 val reachedByP = isSimulating && (elapsedSeconds * 6.0f >= c.distanceKm)
 
+                                val mag = earthquake.magnitude.toFloat().coerceAtLeast(2.5f)
+                                val maxReachKm = (90f * 10.0.pow(((mag - 3.0) / 2.25)).toFloat()).coerceIn(70f, 1300f)
+                                val hypDist = sqrt(c.distanceKm.pow(2) + earthquake.depthKm.pow(2)).coerceAtLeast(10.0)
+                                val estimatedMMI = (1.45 * earthquake.magnitude - 3.15 * log10(hypDist) + 3.0).coerceIn(1.0, 10.0)
+
                                 val dotColor = when {
-                                    reachedByS -> Color(0xFFFF5252)
-                                    reachedByP -> Color(0xFFFFEB3B)
+                                    reachedByS && c.distanceKm > maxReachKm -> Color(0xFF64748B) // Onda disipada
+                                    reachedByS && estimatedMMI >= 5.5 -> Color(0xFFFF5252) // Fuerte
+                                    reachedByS && estimatedMMI >= 4.0 -> Color(0xFFFBBF24) // Moderado
+                                    reachedByS -> Color(0xFF38BDF8) // Leve
+                                    reachedByP -> Color(0xFF00E5FF) // Arribó onda P
                                     else -> Color(0xFF64748B)
                                 }
 
@@ -386,9 +414,28 @@ fun DetailScreen(
                         }
                     }
 
+                    // Badge explicativo de Atenuación Física
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color(0x1538BDF8))
+                            .border(0.8.dp, Color(0x3338BDF8), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val mag = earthquake.magnitude.toFloat().coerceAtLeast(2.5f)
+                        val maxReach = (90f * 10.0.pow(((mag - 3.0) / 2.25)).toFloat()).coerceIn(70f, 1300f).toInt()
+                        Text(
+                            text = "Atenuación física activa: la energía decrece con la distancia. Alcance perceptible estimado para M ${earthquake.magnitude}: ~${maxReach} km.",
+                            fontSize = 11.sp,
+                            color = Color(0xFF7DD3FC)
+                        )
+                    }
+
                     // Tiempos estimados de arribo a ciudades
                     Text(
-                        text = "TIEMPOS DE ARRIBO ESTIMADOS A CIUDADES",
+                        text = "IMPACTO Y ARRIBO ESTIMADO POR CIUDAD",
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
@@ -396,9 +443,37 @@ fun DetailScreen(
                     )
 
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        cities.take(4).forEach { city ->
+                        cities.take(5).forEach { city ->
                             val reachedP = isSimulating && (elapsedSeconds >= city.timeP)
                             val reachedS = isSimulating && (elapsedSeconds >= city.timeS)
+
+                            val mag = earthquake.magnitude.toFloat().coerceAtLeast(2.5f)
+                            val maxReachKm = (90f * 10.0.pow(((mag - 3.0) / 2.25)).toFloat()).coerceIn(70f, 1300f)
+                            val hypDist = sqrt(city.distanceKm.pow(2) + earthquake.depthKm.pow(2)).coerceAtLeast(10.0)
+                            val estimatedMMI = (1.45 * earthquake.magnitude - 3.15 * log10(hypDist) + 3.0).coerceIn(1.0, 10.0)
+
+                            val (statusText, statusColor) = when {
+                                reachedS && city.distanceKm > maxReachKm -> {
+                                    "Onda disipada (< I)" to Color(0xFF64748B)
+                                }
+                                reachedS -> {
+                                    when {
+                                        estimatedMMI >= 5.5 -> "🚨 ¡Sacudida Fuerte! (VI+)" to Color(0xFFFF5252)
+                                        estimatedMMI >= 4.0 -> "⚠️ Sacudida Moderada (IV-V)" to Color(0xFFFBBF24)
+                                        estimatedMMI >= 2.5 -> "🔔 Sacudida Leve (III)" to Color(0xFF38BDF8)
+                                        else -> "⚡ Instrumental (I-II)" to Color(0xFF94A3B8)
+                                    }
+                                }
+                                reachedP -> {
+                                    val remToS = (city.timeS - elapsedSeconds.toDouble()).coerceAtLeast(0.0).toInt()
+                                    "⚡ Onda P (Onda S en ${remToS}s)" to Color(0xFF00E5FF)
+                                }
+                                isSimulating -> {
+                                    val remP = (city.timeP - elapsedSeconds.toDouble()).coerceAtLeast(0.0).toInt()
+                                    "Llega en ${remP}s" to Color(0xFF60A5FA)
+                                }
+                                else -> "En reposo" to Color(0xFF64748B)
+                            }
 
                             Row(
                                 modifier = Modifier
@@ -409,7 +484,7 @@ fun DetailScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = city.name,
                                         fontSize = 12.sp,
@@ -417,49 +492,25 @@ fun DetailScreen(
                                         color = Color.White
                                     )
                                     Text(
-                                        text = "Distancia: ${city.distanceKm.toInt()} km",
+                                        text = "${city.distanceKm.toInt()} km • P: ${city.timeP.toInt()}s • S: ${city.timeS.toInt()}s",
                                         fontSize = 10.sp,
                                         color = Color(0xFF94A3B8)
                                     )
                                 }
 
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(statusColor.copy(alpha = 0.2f))
+                                        .border(0.8.dp, statusColor.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
                                 ) {
                                     Text(
-                                        text = "P: ${city.timeP.toInt()}s • S: ${city.timeS.toInt()}s",
-                                        fontSize = 11.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = Color(0xFF60A5FA)
+                                        text = statusText,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = statusColor
                                     )
-
-                                    val statusText = when {
-                                        reachedS -> "⚠️ Onda S arribó"
-                                        reachedP -> "⚡ Onda P arribó"
-                                        isSimulating -> "${(city.timeP - elapsedSeconds).toInt()}s"
-                                        else -> "En reposo"
-                                    }
-                                    val statusColor = when {
-                                        reachedS -> Color(0xFFFF5252)
-                                        reachedP -> Color(0xFFFFEB3B)
-                                        else -> Color(0xFF64748B)
-                                    }
-
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(statusColor.copy(alpha = 0.2f))
-                                            .border(0.8.dp, statusColor.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = statusText,
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = statusColor
-                                        )
-                                    }
                                 }
                             }
                         }

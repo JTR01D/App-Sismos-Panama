@@ -430,11 +430,32 @@ fun InteractiveMapScreen(
                     .padding(16.dp)
             ) {
                 selectedFault?.let { fault ->
-                    val faultQuakesCount = allEarthquakes.count { it.nearestFault.contains(fault.shortBadge, ignoreCase = true) || it.nearestFault.contains(fault.id, ignoreCase = true) }
+                    val faultQuakes = allEarthquakes.filter { eq ->
+                        when (fault.id) {
+                            "sona_tonosi" -> eq.nearestFault.contains("Soná", ignoreCase = true) ||
+                                    eq.nearestFault.contains("Tonosí", ignoreCase = true) ||
+                                    (eq.latitude in 7.0..8.2 && eq.longitude in -82.0..-80.2)
+                            "zfp" -> eq.nearestFault.contains("Fractura", ignoreCase = true) ||
+                                    eq.nearestFault.contains("ZFP", ignoreCase = true)
+                            "burica" -> eq.nearestFault.contains("Burica", ignoreCase = true) ||
+                                    eq.nearestFault.contains("Armuelles", ignoreCase = true)
+                            "pedro_miguel" -> eq.nearestFault.contains("Pedro Miguel", ignoreCase = true)
+                            "limon" -> eq.nearestFault.contains("Limón", ignoreCase = true) ||
+                                    eq.nearestFault.contains("Limon", ignoreCase = true)
+                            "cdnp" -> eq.nearestFault.contains("CDNP", ignoreCase = true) ||
+                                    eq.nearestFault.contains("Caribe", ignoreCase = true)
+                            "chucunaque" -> eq.nearestFault.contains("Chucunaque", ignoreCase = true) ||
+                                    eq.nearestFault.contains("Darién", ignoreCase = true)
+                            else -> false
+                        }
+                    }
                     SelectedFaultCard(
                         fault = fault,
-                        associatedQuakesCount = faultQuakesCount,
-                        onDismiss = { selectedFault = null }
+                        associatedQuakesCount = faultQuakes.size,
+                        onDismiss = { selectedFault = null },
+                        onFilterFaultQuakes = {
+                            showOnlySwarm = fault.id == "sona_tonosi"
+                        }
                     )
                 }
             }
@@ -1140,7 +1161,8 @@ private fun LegendItem(color: Color, label: String) {
 private fun SelectedFaultCard(
     fault: FaultLineInteractive,
     associatedQuakesCount: Int,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onFilterFaultQuakes: () -> Unit = {}
 ) {
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
@@ -1200,7 +1222,18 @@ private fun SelectedFaultCard(
                 Text(text = "Mecanismo: ${fault.mechanism}", fontSize = 12.sp, color = Color(0xFFCBD5E1))
                 Text(text = "Tasa de desplazamiento: ${fault.slipRate}", fontSize = 12.sp, color = Color(0xFF93C5FD), fontFamily = FontFamily.Monospace)
                 Text(text = "Período de recurrencia: ${fault.recurrence}", fontSize = 12.sp, color = Color(0xFFFFB74D))
-                Text(text = "Sismos activos asociados: $associatedQuakesCount registrados", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = fault.color)
+
+                val statusText = if (associatedQuakesCount > 0) {
+                    "Sismos activos asociados: $associatedQuakesCount registrados${if (fault.id == "sona_tonosi") " (Enjambre activo en curso)" else ""}"
+                } else {
+                    "Sismos activos asociados: 0 registrados en las últimas 48h (Sin actividad reciente)"
+                }
+                Text(
+                    text = statusText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (associatedQuakesCount > 0) fault.color else Color(0xFF94A3B8)
+                )
             }
 
             Text(
@@ -1216,6 +1249,27 @@ private fun SelectedFaultCard(
                 fontFamily = FontFamily.Monospace,
                 color = Color(0xFF94A3B8)
             )
+
+            if (associatedQuakesCount > 0) {
+                Button(
+                    onClick = onFilterFaultQuakes,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = fault.color.copy(alpha = 0.25f),
+                        contentColor = Color.White
+                    ),
+                    border = BorderStroke(1.dp, fault.color),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(38.dp)
+                ) {
+                    Text(
+                        text = "⚡ Ver los $associatedQuakesCount sismos de esta falla",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }

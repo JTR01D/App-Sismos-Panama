@@ -60,7 +60,10 @@ app/src/main/
 │       ├── screens/
 │       │   ├── HomeScreen.kt            // Pantalla principal con feed y filtros
 │       │   ├── DetailScreen.kt          // Detalle físico, geodinámico y enlace oficial
-│       │   └── FaultsScreen.kt          // Catálogo educativo de fallas de Panamá
+│       │   ├── FaultsScreen.kt          // Catálogo educativo de fallas de Panamá
+│       │   ├── DashboardScreen.kt       // Estadísticas sismológicas, enjambres y gráficos
+│       │   ├── InteractiveMapScreen.kt  // Mapa sismotectónico con Leaflet y fallas
+│       │   └── AboutScreen.kt           // Acerca de la app, autoría e información del desarrollador
 │       ├── theme/
 │       │   ├── Color.kt
 │       │   ├── Theme.kt
@@ -81,10 +84,9 @@ app/src/main/
 ## 🚀 Cómo abrir y compilar en Android Studio
 
 1. **Abrir el Proyecto**:
+   * Clona o descarga este repositorio de GitHub.
    * Inicia **Android Studio**.
-   * Selecciona **File > Open...** (o *Open* en la pantalla de bienvenida).
-   * Navega hasta la carpeta del proyecto:
-   * Abre la carpeta raiz del proyecto.
+   * Selecciona **File > Open...** y abre la carpeta raíz del proyecto.
    * Haz clic en **OK**.
 
 2. **Sincronizar Gradle**:

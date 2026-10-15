@@ -1,16 +1,21 @@
 package com.sismos.panama.ui.screens
 
+import android.graphics.Paint
+import android.graphics.Typeface
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -27,7 +32,6 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,7 +44,7 @@ import com.sismos.panama.ui.viewmodel.SeismicViewModel
 import kotlinx.coroutines.delay
 import kotlin.math.*
 
-// Coordenadas geográficas oficiales de la costa de Panamá (Polígono GeoJSON de alta precisión)
+// Contorno Nacional Oficial de la República de Panamá (52 puntos georreferenciados)
 val OfficialPanamaCoast = listOf(
     Pair(7.2238, -77.8816),
     Pair(7.5123, -78.2149),
@@ -96,7 +100,7 @@ val OfficialPanamaCoast = listOf(
     Pair(7.2238, -77.8816)
 )
 
-// Isla de Coiba (Área clave del enjambre sísmico en el Golfo de Montijo / Pacífico)
+// Isla de Coiba (Epicentro del enjambre sísmico del Pacífico)
 val CoibaIsland = listOf(
     Pair(7.62, -81.75),
     Pair(7.58, -81.65),
@@ -114,111 +118,161 @@ val LasPerlasIslands = listOf(
     Pair(8.32, -79.16)
 )
 
-// Fallas tectónicas activas
-data class FaultLineGeo(
+// Lago Gatún / Canal de Panamá (Hito geográfico principal)
+val GatunLakePolygon = listOf(
+    Pair(9.12, -79.92),
+    Pair(9.20, -79.85),
+    Pair(9.22, -79.76),
+    Pair(9.14, -79.72),
+    Pair(9.08, -79.82)
+)
+
+// Límites provinciales internos simplificados para dar contexto geográfico real
+val ProvinceBorders = listOf(
+    // Chiriquí - Bocas del Toro / Veraguas
+    listOf(Pair(8.45, -82.90), Pair(8.75, -82.40), Pair(8.85, -81.85)),
+    // Veraguas - Azuero (Herrera / Los Santos)
+    listOf(Pair(8.15, -81.00), Pair(7.85, -80.90), Pair(7.25, -80.85)),
+    // Coclé - Panamá Oeste
+    listOf(Pair(8.30, -80.15), Pair(8.70, -80.10), Pair(9.00, -80.20)),
+    // Cuenca del Canal (Panamá - Colón)
+    listOf(Pair(8.95, -79.55), Pair(9.10, -79.70), Pair(9.35, -79.90)),
+    // Panamá - Darién
+    listOf(Pair(8.45, -78.50), Pair(8.90, -78.30), Pair(9.20, -78.00))
+)
+
+// Rótulos provinciales en el mapa
+data class ProvinceLabel(val name: String, val lat: Double, val lon: Double)
+
+val PanamaProvinceLabels = listOf(
+    ProvinceLabel("CHIRIQUÍ", 8.45, -82.55),
+    ProvinceLabel("BOCAS DEL TORO", 9.30, -82.45),
+    ProvinceLabel("VERAGUAS", 8.25, -81.30),
+    ProvinceLabel("AZUERO", 7.65, -80.45),
+    ProvinceLabel("COCLÉ", 8.55, -80.45),
+    ProvinceLabel("COLÓN", 9.25, -79.80),
+    ProvinceLabel("PANAMÁ", 9.15, -79.25),
+    ProvinceLabel("DARIÉN", 8.20, -77.90)
+)
+
+// Modelo interactivo de Fallas Geológicas con ficha técnica completa
+data class FaultLineInteractive(
+    val id: String,
     val name: String,
+    val shortBadge: String,
+    val region: String,
+    val mechanism: String,
+    val slipRate: String,
+    val recurrence: String,
+    val description: String,
+    val historicalEvents: String,
     val points: List<Pair<Double, Double>>,
     val color: Color,
-    val strokeWidth: Float = 3f,
+    val labelAnchor: Pair<Double, Double>,
+    val strokeWidth: Float = 3.6f,
     val isDashed: Boolean = false
 )
 
-val PanamaActiveFaults = listOf(
-    // Zona de Fractura de Panamá (ZFP - Pacífico sur)
-    FaultLineGeo(
-        name = "Z.F. Panamá (ZFP)",
-        points = listOf(
-            Pair(6.0, -82.60),
-            Pair(7.0, -82.72),
-            Pair(7.8, -82.84),
-            Pair(8.25, -82.95)
-        ),
+val InteractivePanamaFaults = listOf(
+    FaultLineInteractive(
+        id = "zfp",
+        name = "Zona de Fractura de Panamá (ZFP)",
+        shortBadge = "Z.F. Panamá (ZFP)",
+        region = "Golfo de Chiriquí / Burica (Pacífico Sur)",
+        mechanism = "Rumbo dextral (falla transformante oceánica entre Cocos y Nazca)",
+        slipRate = ">40 mm/año (la estructura más rápida y activa del istmo)",
+        recurrence = "5 a 15 años (M ≥ 6.0) / 25 a 40 años (M ≥ 7.0)",
+        description = "Límite tectónico principal que concentra más del 65% de la sismicidad registrada en Panamá. Conecta el centro de expansión de Galápagos con la fosa mesoamericana.",
+        historicalEvents = "1934 (Mw 7.4), 1979 (Mw 6.6), 2002 (Mw 6.4), 2021 (Mw 6.8)",
+        points = listOf(Pair(5.8, -82.60), Pair(6.8, -82.72), Pair(7.7, -82.84), Pair(8.25, -82.95)),
         color = Color(0xFFFF5252),
-        strokeWidth = 3.8f
+        labelAnchor = Pair(6.7, -82.55)
     ),
-    // Sistema Burica
-    FaultLineGeo(
-        name = "Falla Burica",
-        points = listOf(
-            Pair(8.0, -83.02),
-            Pair(8.28, -82.92),
-            Pair(8.55, -82.78)
-        ),
+    FaultLineInteractive(
+        id = "burica",
+        name = "Sistema de Fallas de Burica / Puerto Armuelles",
+        shortBadge = "Falla de Burica",
+        region = "Península de Burica (Chiriquí)",
+        mechanism = "Transpresiva y rumbo cortical con levantamiento",
+        slipRate = "~20-30 mm/año",
+        recurrence = "Enjambres frecuentes y sismos constantes",
+        description = "Transfiere los esfuerzos de cizallamiento oceánicos de la ZFP hacia la corteza continental de Chiriquí, generando continuos microsismos y enjambres.",
+        historicalEvents = "Enjambres de Melliza y Puerto Armuelles (2002, 2019, 2024)",
+        points = listOf(Pair(7.95, -83.02), Pair(8.25, -82.92), Pair(8.55, -82.78)),
         color = Color(0xFFFF9800),
-        strokeWidth = 3.2f
+        labelAnchor = Pair(8.40, -83.15)
     ),
-    // Falla Soná - Tonosí
-    FaultLineGeo(
-        name = "Falla Soná-Tonosí",
-        points = listOf(
-            Pair(7.95, -81.42),
-            Pair(7.65, -81.02),
-            Pair(7.42, -80.62),
-            Pair(7.15, -80.25)
-        ),
+    FaultLineInteractive(
+        id = "sona_tonosi",
+        name = "Sistema de Fallas Soná-Tonosí",
+        shortBadge = "Falla Soná-Tonosí",
+        region = "Golfo de Montijo / Península de Azuero",
+        mechanism = "Rumbo sinestral con componente transpresivo cortical",
+        slipRate = "1.0 - 2.5 mm/año",
+        recurrence = "70 a 150 años (M > 6.5)",
+        description = "Estructura continental diagonal que atraviesa desde el Golfo de Montijo hasta la costa sur de Tonosí. Es el origen del enjambre sísmico activo actual.",
+        historicalEvents = "1913 (Ms 6.9 Tonosí), 2026 (Enjambre Golfo de Montijo/Coiba Mw 5.0+)",
+        points = listOf(Pair(7.95, -81.42), Pair(7.65, -81.02), Pair(7.42, -80.62), Pair(7.15, -80.25)),
         color = Color(0xFFFFEB3B),
-        strokeWidth = 3.5f
+        labelAnchor = Pair(7.75, -80.85)
     ),
-    // Falla Pedro Miguel (Canal)
-    FaultLineGeo(
-        name = "Falla Pedro Miguel",
-        points = listOf(
-            Pair(8.88, -79.62),
-            Pair(9.03, -79.60),
-            Pair(9.18, -79.58)
-        ),
+    FaultLineInteractive(
+        id = "pedro_miguel",
+        name = "Falla de Pedro Miguel (Canal de Panamá)",
+        shortBadge = "Falla Pedro Miguel",
+        region = "Cuenca del Canal / Panamá Metro",
+        mechanism = "Rumbo lateral izquierdo cortical (sinestral)",
+        slipRate = "1.6 - 2.1 mm/año",
+        recurrence = "300 a 500 años (ruptura superficial)",
+        description = "Cruza directamente las esclusas y obras del Canal de Panamá (Corte Culebra). Es una de las fallas más estudiadas por su cercanía a la infraestructura metropolitana.",
+        historicalEvents = "2 de mayo de 1621 (Destrucción de Panamá Viejo, Mw ~6.9)",
+        points = listOf(Pair(8.88, -79.62), Pair(9.03, -79.60), Pair(9.18, -79.58)),
         color = Color(0xFF00E5FF),
-        strokeWidth = 2.8f
+        labelAnchor = Pair(9.05, -79.40)
     ),
-    // Falla Limón (Colón)
-    FaultLineGeo(
-        name = "Falla Limón",
-        points = listOf(
-            Pair(9.18, -79.88),
-            Pair(9.35, -79.84),
-            Pair(9.46, -79.78)
-        ),
+    FaultLineInteractive(
+        id = "limon",
+        name = "Falla de Limón (Colón)",
+        shortBadge = "Falla de Limón",
+        region = "Colón / Margen Norte del Canal",
+        mechanism = "Rumbo transtensivo cortical",
+        slipRate = "~1.0 mm/año",
+        recurrence = "400 a 700 años",
+        description = "Se extiende desde el Lago Gatún hacia la Bahía de Manzanillo en Colón, conectando con el sistema del Caribe.",
+        historicalEvents = "Actividad paleosísmica cuaternaria confirmada en Lago Gatún",
+        points = listOf(Pair(9.18, -79.88), Pair(9.35, -79.84), Pair(9.46, -79.78)),
         color = Color(0xFF00E5FF),
-        strokeWidth = 2.8f
+        labelAnchor = Pair(9.38, -80.05)
     ),
-    // Cinturón Deformado del Norte (CDNP - Margen Caribe)
-    FaultLineGeo(
-        name = "Cinturón Deformado Norte (CDNP)",
-        points = listOf(
-            Pair(9.65, -82.60),
-            Pair(9.40, -81.50),
-            Pair(9.25, -80.50),
-            Pair(9.45, -79.50),
-            Pair(9.65, -78.50)
-        ),
+    FaultLineInteractive(
+        id = "cdnp",
+        name = "Cinturón Deformado del Norte de Panamá (CDNP)",
+        shortBadge = "CDNP (Frente Caribe)",
+        region = "Margen Submarino Caribe (Bocas del Toro hasta San Blas)",
+        mechanism = "Cabalgamiento inverso y sobrecorrimiento submarino",
+        slipRate = "6 a 12 mm/año",
+        recurrence = "200 a 450 años (grandes rupturas con tsunami)",
+        description = "Zona de colisión activa donde el istmo de Panamá cabalga sobre la placa del Caribe. Históricamente causante de los terremotos y tsunamis más destructivos del Caribe.",
+        historicalEvents = "1882 (Mw 7.9 San Blas con tsunami en Colón), 1991 (Mw 7.7 Bocas del Toro)",
+        points = listOf(Pair(9.85, -82.80), Pair(9.65, -81.50), Pair(9.50, -80.50), Pair(9.65, -79.50), Pair(9.80, -78.50)),
         color = Color(0xFFFF3366),
-        strokeWidth = 4.0f,
+        labelAnchor = Pair(9.80, -80.50),
         isDashed = true
     ),
-    // Falla Chucunaque (Darién)
-    FaultLineGeo(
-        name = "Falla Chucunaque",
-        points = listOf(
-            Pair(8.05, -78.10),
-            Pair(8.40, -77.80),
-            Pair(8.85, -77.50)
-        ),
+    FaultLineInteractive(
+        id = "chucunaque",
+        name = "Falla de Chucunaque / Sansón (Darién)",
+        shortBadge = "Falla Chucunaque",
+        region = "Cuenca del Río Chucunaque (Darién)",
+        mechanism = "Rumbo con componente transpresivo cortical",
+        slipRate = "~1.5 - 3.0 mm/año",
+        recurrence = "Indeterminada / Sismicidad difusa profunda",
+        description = "Estructura longitudinal que recorre el eje central del Darién hacia Colombia, absorbiendo la compresión del Bloque Norandino.",
+        historicalEvents = "Sismicidad cortical moderada registrada por la red IGC",
+        points = listOf(Pair(8.05, -78.10), Pair(8.40, -77.80), Pair(8.85, -77.50)),
         color = Color(0xFFB388FF),
-        strokeWidth = 2.8f
+        labelAnchor = Pair(8.55, -77.55)
     )
-)
-
-data class CityLabel(val name: String, val lat: Double, val lon: Double)
-
-val PanamaKeyCities = listOf(
-    CityLabel("David", 8.427, -82.431),
-    CityLabel("Santiago", 8.100, -80.983),
-    CityLabel("Chitré", 7.962, -80.428),
-    CityLabel("Penonomé", 8.519, -80.357),
-    CityLabel("Panamá", 8.982, -79.520),
-    CityLabel("Colón", 9.359, -79.901),
-    CityLabel("Bocas del Toro", 9.340, -82.240),
-    CityLabel("Yaviza (Darién)", 8.158, -77.692)
 )
 
 @Composable
@@ -228,18 +282,32 @@ fun InteractiveMapScreen(
     onEarthquakeSelected: (Earthquake) -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
-    val earthquakes = state.filteredEarthquakes
+    val allEarthquakes = state.filteredEarthquakes
 
+    // Filtro interactivo de magnitud en mapa
+    var minMagFilter by remember { mutableStateOf<Double?>(null) }
+    var showOnlySwarm by remember { mutableStateOf(false) }
+
+    val displayEarthquakes = remember(allEarthquakes, minMagFilter, showOnlySwarm) {
+        allEarthquakes.filter { eq ->
+            val passesMag = minMagFilter == null || eq.magnitude >= minMagFilter!!
+            val passesSwarm = !showOnlySwarm || (eq.latitude in 7.0..8.2 && eq.longitude in -82.0..-80.2)
+            passesMag && passesSwarm
+        }
+    }
+
+    // Selecciones interactivas
     var selectedEq by remember { mutableStateOf<Earthquake?>(null) }
+    var selectedFault by remember { mutableStateOf<FaultLineInteractive?>(null) }
     var showFaults by remember { mutableStateOf(true) }
     var showWaveSimulation by remember { mutableStateOf(false) }
     var simulationTimeSeconds by remember { mutableStateOf(0f) }
 
-    // Estado del Canvas (Pan & Zoom)
+    // Canvas Pan & Zoom
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
-    // Loop de propagación de ondas
+    // Simulación de ondas en tiempo real
     LaunchedEffect(showWaveSimulation, selectedEq) {
         if (showWaveSimulation && selectedEq != null) {
             simulationTimeSeconds = 0f
@@ -253,31 +321,40 @@ fun InteractiveMapScreen(
         }
     }
 
-    // Auto-seleccionar primer sismo
-    LaunchedEffect(earthquakes) {
-        if (selectedEq == null && earthquakes.isNotEmpty()) {
-            selectedEq = earthquakes.first()
-        }
-    }
-
     Scaffold(
         containerColor = Color(0xFF070B13),
         topBar = {
             MapTopBar(
                 onBack = onBack,
-                earthquakeCount = earthquakes.size,
+                earthquakeCount = displayEarthquakes.size,
+                totalCount = allEarthquakes.size,
+                minMagFilter = minMagFilter,
+                onSelectMinMag = { minMagFilter = it },
+                showOnlySwarm = showOnlySwarm,
+                onToggleSwarm = { showOnlySwarm = !showOnlySwarm },
                 showFaults = showFaults,
                 onToggleFaults = { showFaults = !showFaults },
+                selectedFault = selectedFault,
+                onSelectFault = { fault ->
+                    selectedFault = fault
+                    if (fault != null) {
+                        selectedEq = null
+                    }
+                },
                 showWaveSimulation = showWaveSimulation,
                 onToggleWaves = {
                     showWaveSimulation = !showWaveSimulation
-                    if (showWaveSimulation && selectedEq == null && earthquakes.isNotEmpty()) {
-                        selectedEq = earthquakes.first()
+                    if (showWaveSimulation && selectedEq == null && displayEarthquakes.isNotEmpty()) {
+                        selectedEq = displayEarthquakes.first()
                     }
                 },
                 onResetView = {
                     scale = 1f
                     offset = Offset.Zero
+                    selectedFault = null
+                    selectedEq = null
+                    showOnlySwarm = false
+                    minMagFilter = null
                 }
             )
         }
@@ -287,10 +364,11 @@ fun InteractiveMapScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Mapa Tectónico Vectorial con Proporción Geográfica Real 1:1
-            RealTectonicMapCanvas(
-                earthquakes = earthquakes,
+            // Lienzo interactivo avanzado
+            AdvancedTectonicMapCanvas(
+                earthquakes = displayEarthquakes,
                 selectedEarthquake = selectedEq,
+                selectedFault = selectedFault,
                 showFaults = showFaults,
                 showWaveSimulation = showWaveSimulation,
                 simulationSeconds = simulationTimeSeconds,
@@ -302,10 +380,15 @@ fun InteractiveMapScreen(
                 },
                 onSelectEarthquake = { eq ->
                     selectedEq = eq
+                    selectedFault = null // Priorizar sismo
+                },
+                onSelectFault = { fault ->
+                    selectedFault = fault
+                    selectedEq = null // Priorizar falla
                 }
             )
 
-            // Indicador de Onda Sísmica activa
+            // Indicador de Onda Sísmica activa en la parte superior
             if (showWaveSimulation && selectedEq != null) {
                 WaveSimulationHeader(
                     earthquake = selectedEq!!,
@@ -313,9 +396,16 @@ fun InteractiveMapScreen(
                     onStop = { showWaveSimulation = false },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 12.dp)
+                        .padding(top = 10.dp)
                 )
             }
+
+            // Leyenda de Magnitud Flotante (Esquina inferior izquierda)
+            MapLegendBadge(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 16.dp, bottom = if (selectedEq != null || selectedFault != null) 180.dp else 16.dp)
+            )
 
             // Controles flotantes de Zoom
             FloatingZoomControls(
@@ -330,9 +420,28 @@ fun InteractiveMapScreen(
                     .padding(end = 16.dp)
             )
 
-            // Tarjeta inferior flotante del sismo seleccionado
+            // Tarjeta inferior interactiva: Falla seleccionada
             AnimatedVisibility(
-                visible = selectedEq != null,
+                visible = selectedFault != null,
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+            ) {
+                selectedFault?.let { fault ->
+                    val faultQuakesCount = allEarthquakes.count { it.nearestFault.contains(fault.shortBadge, ignoreCase = true) || it.nearestFault.contains(fault.id, ignoreCase = true) }
+                    SelectedFaultCard(
+                        fault = fault,
+                        associatedQuakesCount = faultQuakesCount,
+                        onDismiss = { selectedFault = null }
+                    )
+                }
+            }
+
+            // Tarjeta inferior interactiva: Sismo seleccionado
+            AnimatedVisibility(
+                visible = selectedEq != null && selectedFault == null,
                 enter = slideInVertically { it } + fadeIn(),
                 exit = slideOutVertically { it } + fadeOut(),
                 modifier = Modifier
@@ -356,39 +465,38 @@ fun InteractiveMapScreen(
 }
 
 @Composable
-private fun RealTectonicMapCanvas(
+private fun AdvancedTectonicMapCanvas(
     earthquakes: List<Earthquake>,
     selectedEarthquake: Earthquake?,
+    selectedFault: FaultLineInteractive?,
     showFaults: Boolean,
     showWaveSimulation: Boolean,
     simulationSeconds: Float,
     scale: Float,
     offset: Offset,
     onTransform: (Offset, Float) -> Unit,
-    onSelectEarthquake: (Earthquake) -> Unit
+    onSelectEarthquake: (Earthquake) -> Unit,
+    onSelectFault: (FaultLineInteractive) -> Unit
 ) {
-    // Límites geográficos reales de Panamá con margen oceánico
     val minLon = -83.5
     val maxLon = -77.0
     val minLat = 6.8
     val maxLat = 10.0
 
-    val deltaLon = (maxLon - minLon).toFloat() // 6.5 grados
-    val deltaLat = (maxLat - minLat).toFloat() // 3.2 grados
+    val deltaLon = (maxLon - minLon).toFloat()
+    val deltaLat = (maxLat - minLat).toFloat()
 
     var canvasSize by remember { mutableStateOf(Size.Zero) }
 
-    // Proyección con Proporción 1:1 Estricta (Equirectangular a 8.5°N de latitud)
+    // Proyección Equirectangular 1:1
     fun project(lat: Double, lon: Double, size: Size): Offset {
         val paddingX = 20f
         val usableWidth = size.width - (paddingX * 2f)
-
-        // Factor de escala idéntico para X y Y para preservar la forma real de Panamá
         val pxPerDegree = usableWidth / deltaLon
         val mapHeight = deltaLat * pxPerDegree
 
         val startX = paddingX
-        val startY = (size.height - mapHeight) / 2f - 40f
+        val startY = (size.height - mapHeight) / 2f - 35f
 
         val rawX = startX + ((lon - minLon).toFloat() * pxPerDegree)
         val rawY = startY + ((maxLat - lat).toFloat() * pxPerDegree)
@@ -401,48 +509,88 @@ private fun RealTectonicMapCanvas(
         return Offset(finalX, finalY)
     }
 
+    // Distancia punto a segmento para selección táctil de fallas
+    fun distToSegment(p: Offset, v: Offset, w: Offset): Float {
+        val l2 = (v.x - w.x).pow(2) + (v.y - w.y).pow(2)
+        if (l2 == 0f) return sqrt((p.x - v.x).pow(2) + (p.y - v.y).pow(2))
+        val t = (((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2).coerceIn(0f, 1f)
+        val proj = Offset(v.x + t * (w.x - v.x), v.y + t * (w.y - v.y))
+        return sqrt((p.x - proj.x).pow(2) + (p.y - proj.y).pow(2))
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    onTransform(pan, zoom)
-                }
-            }
             .pointerInput(earthquakes, scale, offset, canvasSize) {
                 detectTapGestures { tapOffset ->
                     if (canvasSize.width <= 0f) return@detectTapGestures
-                    var closestEq: Earthquake? = null
-                    var minDistance = 55f
 
+                    // 1. Prioridad: Detectar si tocó algún sismo directamente
+                    var touchedEq: Earthquake? = null
+                    var minEqDist = 65f
                     for (eq in earthquakes) {
                         val pt = project(eq.latitude, eq.longitude, canvasSize)
                         val dist = sqrt((pt.x - tapOffset.x).pow(2) + (pt.y - tapOffset.y).pow(2))
-                        if (dist < minDistance) {
-                            minDistance = dist
-                            closestEq = eq
+                        if (dist < minEqDist) {
+                            minEqDist = dist
+                            touchedEq = eq
                         }
                     }
-                    if (closestEq != null) {
-                        onSelectEarthquake(closestEq)
+                    if (touchedEq != null) {
+                        onSelectEarthquake(touchedEq)
+                        return@detectTapGestures
                     }
+
+                    // 2. Detectar si tocó alguna etiqueta de falla
+                    for (fault in InteractivePanamaFaults) {
+                        val labelPt = project(fault.labelAnchor.first, fault.labelAnchor.second, canvasSize)
+                        val distLabel = sqrt((labelPt.x - tapOffset.x).pow(2) + (labelPt.y - tapOffset.y).pow(2))
+                        if (distLabel < 95f) {
+                            onSelectFault(fault)
+                            return@detectTapGestures
+                        }
+                    }
+
+                    // 3. Detectar si tocó alguna línea de falla geológica
+                    var touchedFault: FaultLineInteractive? = null
+                    var minFaultDist = 55f
+                    for (fault in InteractivePanamaFaults) {
+                        for (i in 0 until fault.points.lastIndex) {
+                            val p1 = project(fault.points[i].first, fault.points[i].second, canvasSize)
+                            val p2 = project(fault.points[i + 1].first, fault.points[i + 1].second, canvasSize)
+                            val d = distToSegment(tapOffset, p1, p2)
+                            if (d < minFaultDist) {
+                                minFaultDist = d
+                                touchedFault = fault
+                            }
+                        }
+                    }
+
+                    if (touchedFault != null) {
+                        onSelectFault(touchedFault)
+                    }
+                }
+            }
+            .pointerInput(Unit) {
+                detectTransformGestures { _, pan, zoom, _ ->
+                    onTransform(pan, zoom)
                 }
             }
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             canvasSize = size
 
-            // 1. Fondo Oceánico Profundo
+            // 1. Fondo oceánico profundo
             drawRect(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF070B13), Color(0xFF0A101D), Color(0xFF05080E))
+                    colors = listOf(Color(0xFF060A12), Color(0xFF090E1A), Color(0xFF04070D))
                 )
             )
 
-            // Cuadrícula sutil batimétrica / coordenadas
+            // Cuadrícula batimétrica
             drawGeographicGrid(this, size, scale, offset)
 
-            // 2. Trazo Continental del Istmo de Panamá
+            // 2. Masa Continental del Istmo de Panamá
             val panamaPath = Path()
             OfficialPanamaCoast.forEachIndexed { i, pt ->
                 val p = project(pt.first, pt.second, size)
@@ -450,23 +598,23 @@ private fun RealTectonicMapCanvas(
             }
             panamaPath.close()
 
-            // Masa continental sólida acrílica
+            // Relleno sólido acrílico
             drawPath(
                 path = panamaPath,
                 brush = Brush.linearGradient(
-                    colors = listOf(Color(0xFF131D2E), Color(0xFF18253A)),
+                    colors = listOf(Color(0xFF131D2E), Color(0xFF19263B)),
                     start = Offset.Zero,
                     end = Offset(size.width, size.height)
                 )
             )
-            // Litoral con resplandor cian/azul nítido
+            // Litoral con borde brillante
             drawPath(
                 path = panamaPath,
                 color = Color(0xFF38BDF8),
-                style = Stroke(width = 2.2f * scale.coerceIn(0.8f, 2.2f))
+                style = Stroke(width = 2.2f * scale.coerceIn(0.8f, 2.0f))
             )
 
-            // 3. Isla de Coiba (Epicentro histórico y enjambres)
+            // 3. Isla de Coiba y Las Perlas
             val coibaPath = Path()
             CoibaIsland.forEachIndexed { i, pt ->
                 val p = project(pt.first, pt.second, size)
@@ -476,7 +624,6 @@ private fun RealTectonicMapCanvas(
             drawPath(path = coibaPath, color = Color(0xFF131D2E))
             drawPath(path = coibaPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.8f * scale))
 
-            // 4. Archipiélago de Las Perlas
             val perlasPath = Path()
             LasPerlasIslands.forEachIndexed { i, pt ->
                 val p = project(pt.first, pt.second, size)
@@ -486,19 +633,81 @@ private fun RealTectonicMapCanvas(
             drawPath(path = perlasPath, color = Color(0xFF131D2E))
             drawPath(path = perlasPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.5f * scale))
 
-            // 5. Ciudades de Referencia Nacional
-            PanamaKeyCities.forEach { city ->
-                val pos = project(city.lat, city.lon, size)
-                drawCircle(
-                    color = Color(0x9994A3B8),
-                    radius = 3.5f * scale.coerceIn(0.8f, 1.8f),
-                    center = pos
+            // 4. Lago Gatún / Canal de Panamá
+            val gatunPath = Path()
+            GatunLakePolygon.forEachIndexed { i, pt ->
+                val p = project(pt.first, pt.second, size)
+                if (i == 0) gatunPath.moveTo(p.x, p.y) else gatunPath.lineTo(p.x, p.y)
+            }
+            gatunPath.close()
+            drawPath(path = gatunPath, color = Color(0xFF0B121E))
+            drawPath(path = gatunPath, color = Color(0x6600E5FF), style = Stroke(width = 1.2f * scale))
+
+            // 5. Límites Provinciales Internos
+            ProvinceBorders.forEach { borderLine ->
+                val bPath = Path()
+                borderLine.forEachIndexed { idx, pt ->
+                    val p = project(pt.first, pt.second, size)
+                    if (idx == 0) bPath.moveTo(p.x, p.y) else bPath.lineTo(p.x, p.y)
+                }
+                drawPath(
+                    path = bPath,
+                    color = Color(0x3394A3B8),
+                    style = Stroke(
+                        width = 1.2f * scale.coerceIn(0.8f, 1.8f),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
+                    )
                 )
             }
 
-            // 6. Fallas Tectónicas Activas
+            // 6. Rótulos Provinciales
+            val provTextPaint = Paint().apply {
+                color = android.graphics.Color.argb(90, 148, 163, 184)
+                textSize = (12f * scale.coerceIn(0.8f, 2.0f)).coerceAtLeast(10f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+                letterSpacing = 0.15f
+            }
+            PanamaProvinceLabels.forEach { prov ->
+                val pos = project(prov.lat, prov.lon, size)
+                drawContext.canvas.nativeCanvas.drawText(prov.name, pos.x, pos.y, provTextPaint)
+            }
+
+            // 7. Enjambre Sísmico Activo (Azuero - Coiba): Área Resaltada
+            val clusterQuakes = earthquakes.filter { it.latitude in 7.0..8.2 && it.longitude in -82.0..-80.2 }
+            if (clusterQuakes.size >= 5) {
+                val centerPt = project(7.55, -81.0, size)
+                drawCircle(
+                    color = Color(0x18FF9800),
+                    radius = 95f * scale.coerceIn(0.8f, 2.2f),
+                    center = centerPt
+                )
+                drawCircle(
+                    color = Color(0x44FF9800),
+                    radius = 95f * scale.coerceIn(0.8f, 2.2f),
+                    center = centerPt,
+                    style = Stroke(width = 1.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f))
+                )
+
+                // Rótulo del enjambre
+                val swarmTextPaint = Paint().apply {
+                    color = android.graphics.Color.argb(220, 255, 183, 77)
+                    textSize = (11f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(10f)
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    textAlign = Paint.Align.CENTER
+                }
+                drawContext.canvas.nativeCanvas.drawText(
+                    "⚡ ENJAMBRE SÍSMICO ACTIVO (${clusterQuakes.size})",
+                    centerPt.x,
+                    centerPt.y + (115f * scale.coerceIn(0.8f, 2.2f)),
+                    swarmTextPaint
+                )
+            }
+
+            // 8. Fallas Tectónicas Activas con Rótulos Interactivos
             if (showFaults) {
-                PanamaActiveFaults.forEach { fault ->
+                InteractivePanamaFaults.forEach { fault ->
+                    val isFaultSelected = selectedFault?.id == fault.id
                     val path = Path()
                     fault.points.forEachIndexed { idx, pt ->
                         val p = project(pt.first, pt.second, size)
@@ -508,22 +717,54 @@ private fun RealTectonicMapCanvas(
                     // Resplandor
                     drawPath(
                         path = path,
-                        color = fault.color.copy(alpha = 0.28f),
-                        style = Stroke(width = fault.strokeWidth * 3.2f * scale.coerceIn(0.8f, 2f))
+                        color = if (isFaultSelected) Color.White.copy(alpha = 0.5f) else fault.color.copy(alpha = 0.28f),
+                        style = Stroke(width = (if (isFaultSelected) 10f else 6f) * scale.coerceIn(0.8f, 2f))
                     )
                     // Trazo principal
                     drawPath(
                         path = path,
                         color = fault.color,
                         style = Stroke(
-                            width = fault.strokeWidth * scale.coerceIn(0.8f, 2f),
+                            width = (fault.strokeWidth * (if (isFaultSelected) 1.5f else 1.0f)) * scale.coerceIn(0.8f, 2f),
                             pathEffect = if (fault.isDashed) PathEffect.dashPathEffect(floatArrayOf(14f, 10f), 0f) else null
                         )
                     )
+
+                    // Rótulo / Etiqueta Interactiva sobre el mapa
+                    val badgePos = project(fault.labelAnchor.first, fault.labelAnchor.second, size)
+
+                    // Fondo de la etiqueta
+                    val badgePaint = Paint().apply {
+                        color = if (isFaultSelected) android.graphics.Color.argb(240, 30, 41, 59) else android.graphics.Color.argb(200, 15, 23, 42)
+                        style = Paint.Style.FILL
+                    }
+                    val badgeStroke = Paint().apply {
+                        color = if (isFaultSelected) android.graphics.Color.WHITE else fault.color.toArgb()
+                        style = Paint.Style.STROKE
+                        strokeWidth = if (isFaultSelected) 2.5f else 1.2f
+                    }
+                    val badgeText = Paint().apply {
+                        color = if (isFaultSelected) android.graphics.Color.WHITE else fault.color.toArgb()
+                        textSize = (11f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(10f)
+                        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                        textAlign = Paint.Align.CENTER
+                    }
+
+                    val textWidth = badgeText.measureText(fault.shortBadge)
+                    val badgeRect = android.graphics.RectF(
+                        badgePos.x - textWidth / 2f - 14f,
+                        badgePos.y - 18f,
+                        badgePos.x + textWidth / 2f + 14f,
+                        badgePos.y + 10f
+                    )
+
+                    drawContext.canvas.nativeCanvas.drawRoundRect(badgeRect, 10f, 10f, badgePaint)
+                    drawContext.canvas.nativeCanvas.drawRoundRect(badgeRect, 10f, 10f, badgeStroke)
+                    drawContext.canvas.nativeCanvas.drawText(fault.shortBadge, badgePos.x, badgePos.y - 1f, badgeText)
                 }
             }
 
-            // 7. Simulación de Ondas Sísmicas P y S
+            // 9. Simulación de Ondas Sísmicas P y S
             if (showWaveSimulation && selectedEarthquake != null) {
                 val epi = project(selectedEarthquake.latitude, selectedEarthquake.longitude, size)
                 val paddingX = 20f
@@ -534,71 +775,93 @@ private fun RealTectonicMapCanvas(
                 val radiusP = simulationSeconds * 6.0f * pxPerKm
                 val radiusS = simulationSeconds * 3.5f * pxPerKm
 
-                // Onda P (Cyan / Compresiva)
+                // Onda P
                 if (radiusP > 5f) {
-                    drawCircle(
-                        color = Color(0x3300E5FF),
-                        radius = radiusP,
-                        center = epi,
-                        style = Stroke(width = 3.5f)
-                    )
-                    drawCircle(
-                        color = Color(0x1100E5FF),
-                        radius = radiusP,
-                        center = epi
-                    )
+                    drawCircle(color = Color(0x3300E5FF), radius = radiusP, center = epi, style = Stroke(width = 3.5f))
+                    drawCircle(color = Color(0x1100E5FF), radius = radiusP, center = epi)
                 }
-
-                // Onda S (Rojo / Destructiva)
+                // Onda S
                 if (radiusS > 5f) {
-                    drawCircle(
-                        color = Color(0x88FF5252),
-                        radius = radiusS,
-                        center = epi,
-                        style = Stroke(width = 4.5f)
-                    )
-                    drawCircle(
-                        color = Color(0x22FF5252),
-                        radius = radiusS,
-                        center = epi
-                    )
+                    drawCircle(color = Color(0x88FF5252), radius = radiusS, center = epi, style = Stroke(width = 4.5f))
+                    drawCircle(color = Color(0x22FF5252), radius = radiusS, center = epi)
                 }
             }
 
-            // 8. Epicentros / Sismos
-            earthquakes.forEach { eq ->
+            // 10. Epicentros / Sismos con Rótulos y Claridad
+            // Ordenar por magnitud ascendente: sismos grandes sobre sismos pequeños
+            val sortedEarthquakes = earthquakes.sortedBy { it.magnitude }
+
+            val magLabelPaint = Paint().apply {
+                color = android.graphics.Color.WHITE
+                textSize = (12f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(10f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+            }
+
+            sortedEarthquakes.forEach { eq ->
                 val pos = project(eq.latitude, eq.longitude, size)
                 val isSelected = selectedEarthquake?.id == eq.id
 
                 val magColor = when {
-                    eq.magnitude >= 5.0 -> Color(0xFFFF5252)
+                    eq.magnitude >= 5.0 -> Color(0xFFFF3366)
                     eq.magnitude >= 4.0 -> Color(0xFFFF9800)
-                    eq.magnitude >= 3.0 -> Color(0xFFFFEB3B)
+                    eq.magnitude >= 3.0 -> Color(0xFFFFD600)
                     else -> Color(0xFF00E676)
                 }
 
-                val baseRadius = (eq.magnitude.toFloat() * 2.2f).coerceIn(5f, 16f) * scale.coerceIn(0.8f, 2.2f)
+                val baseRadius = (eq.magnitude.toFloat() * 2.4f).coerceIn(6.5f, 20f) * scale.coerceIn(0.8f, 2.2f)
 
-                // Halo exterior
+                // 1. Anillo oscuro exterior para separar ópticamente sismos encimados
                 drawCircle(
-                    color = magColor.copy(alpha = if (isSelected) 0.55f else 0.28f),
-                    radius = baseRadius * (if (isSelected) 2.2f else 1.6f),
+                    color = Color(0xF0080E1C),
+                    radius = baseRadius + 2.5f,
                     center = pos
                 )
 
-                // Núcleo
+                // 2. Halo de disipación de energía
+                drawCircle(
+                    color = magColor.copy(alpha = if (isSelected) 0.65f else 0.35f),
+                    radius = baseRadius * (if (isSelected) 2.4f else 1.6f),
+                    center = pos
+                )
+
+                // 3. Núcleo con color de magnitud
                 drawCircle(
                     color = magColor,
                     radius = baseRadius,
                     center = pos
                 )
 
-                // Centro blanco
+                // 4. Centro brillante de ruptura
                 drawCircle(
-                    color = Color.White,
-                    radius = baseRadius * 0.4f,
+                    color = Color.White.copy(alpha = 0.75f),
+                    radius = (baseRadius * 0.35f).coerceAtLeast(2f),
                     center = pos
                 )
+
+                // En sismos mayores (M ≥ 3.8) o seleccionados: dibujar etiqueta con el número de magnitud para claridad inmediata
+                if (eq.magnitude >= 3.8 || isSelected) {
+                    val magText = String.format(java.util.Locale.US, "%.1f", eq.magnitude)
+                    val tagBgPaint = Paint().apply {
+                        color = android.graphics.Color.argb(235, 10, 16, 30)
+                        style = Paint.Style.FILL
+                    }
+                    val tagBorderPaint = Paint().apply {
+                        color = magColor.toArgb()
+                        style = Paint.Style.STROKE
+                        strokeWidth = 1.4f
+                    }
+                    val tWidth = magLabelPaint.measureText(magText)
+                    val tagRect = android.graphics.RectF(
+                        pos.x - tWidth / 2f - 7f,
+                        pos.y - baseRadius - 22f,
+                        pos.x + tWidth / 2f + 7f,
+                        pos.y - baseRadius - 2f
+                    )
+                    drawContext.canvas.nativeCanvas.drawRoundRect(tagRect, 6f, 6f, tagBgPaint)
+                    drawContext.canvas.nativeCanvas.drawRoundRect(tagRect, 6f, 6f, tagBorderPaint)
+                    drawContext.canvas.nativeCanvas.drawText(magText, pos.x, pos.y - baseRadius - 6f, magLabelPaint)
+                }
 
                 // Retícula de selección
                 if (isSelected) {
@@ -606,7 +869,7 @@ private fun RealTectonicMapCanvas(
                         color = Color.White,
                         radius = baseRadius * 2.8f,
                         center = pos,
-                        style = Stroke(width = 2.2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f)))
+                        style = Stroke(width = 2.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f)))
                     )
                 }
             }
@@ -620,7 +883,7 @@ private fun drawGeographicGrid(
     scale: Float,
     offset: Offset
 ) {
-    val gridColor = Color(0x10FFFFFF)
+    val gridColor = Color(0x0CFFFFFF)
     val step = 110f * scale.coerceIn(0.8f, 2f)
     var x = (offset.x % step)
     while (x < size.width) {
@@ -642,8 +905,15 @@ private fun drawGeographicGrid(
 private fun MapTopBar(
     onBack: () -> Unit,
     earthquakeCount: Int,
+    totalCount: Int,
+    minMagFilter: Double?,
+    onSelectMinMag: (Double?) -> Unit,
+    showOnlySwarm: Boolean,
+    onToggleSwarm: () -> Unit,
     showFaults: Boolean,
     onToggleFaults: () -> Unit,
+    selectedFault: FaultLineInteractive?,
+    onSelectFault: (FaultLineInteractive?) -> Unit,
     showWaveSimulation: Boolean,
     onToggleWaves: () -> Unit,
     onResetView: () -> Unit
@@ -678,7 +948,7 @@ private fun MapTopBar(
                         letterSpacing = (-0.3).sp
                     )
                     Text(
-                        text = "$earthquakeCount sismos activos • Geometría Nacional 1:1",
+                        text = "Mostrando $earthquakeCount de $totalCount sismos • Toca fallas o sismos",
                         fontSize = 11.sp,
                         color = Color(0xFF94A3B8)
                     )
@@ -702,26 +972,62 @@ private fun MapTopBar(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // Fila de Capas / Toggles
+        // Fila de Filtros y Capas Principales
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            // Filtro rápido de sismos para evitar saturación
             FilterChip(
-                selected = showFaults,
-                onClick = onToggleFaults,
-                label = { Text("Fallas Geológicas", fontSize = 11.sp) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Timeline,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
-                    )
+                selected = minMagFilter == null && !showOnlySwarm,
+                onClick = {
+                    onSelectMinMag(null)
+                    if (showOnlySwarm) onToggleSwarm()
                 },
+                label = { Text("Todos ($totalCount)", fontSize = 11.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0x333186FF),
+                    selectedLabelColor = Color(0xFF93C5FD),
+                    containerColor = Color(0x1AFFFFFF),
+                    labelColor = Color(0xFF94A3B8)
+                )
+            )
+
+            FilterChip(
+                selected = minMagFilter == 4.0,
+                onClick = { onSelectMinMag(if (minMagFilter == 4.0) null else 4.0) },
+                label = { Text("M ≥ 4.0", fontSize = 11.sp) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = Color(0x33FF9800),
                     selectedLabelColor = Color(0xFFFFB74D),
-                    selectedLeadingIconColor = Color(0xFFFFB74D),
+                    containerColor = Color(0x1AFFFFFF),
+                    labelColor = Color(0xFF94A3B8)
+                )
+            )
+
+            FilterChip(
+                selected = showOnlySwarm,
+                onClick = onToggleSwarm,
+                label = { Text("⚡ Enjambre Azuero", fontSize = 11.sp) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0x33FF9800),
+                    selectedLabelColor = Color(0xFFFFB74D),
+                    containerColor = Color(0x1AFFFFFF),
+                    labelColor = Color(0xFF94A3B8)
+                )
+            )
+
+            FilterChip(
+                selected = showFaults,
+                onClick = onToggleFaults,
+                label = { Text("Fallas", fontSize = 11.sp) },
+                leadingIcon = {
+                    Icon(imageVector = Icons.Default.Timeline, contentDescription = null, modifier = Modifier.size(14.dp))
+                },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = Color(0x3300E5FF),
+                    selectedLabelColor = Color(0xFF00E5FF),
+                    selectedLeadingIconColor = Color(0xFF00E5FF),
                     containerColor = Color(0x1AFFFFFF),
                     labelColor = Color(0xFF94A3B8)
                 )
@@ -732,19 +1038,183 @@ private fun MapTopBar(
                 onClick = onToggleWaves,
                 label = { Text("Ondas P & S", fontSize = 11.sp) },
                 leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.GraphicEq,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
-                    )
+                    Icon(imageVector = Icons.Default.GraphicEq, contentDescription = null, modifier = Modifier.size(14.dp))
                 },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0x333186FF),
-                    selectedLabelColor = Color(0xFF93C5FD),
-                    selectedLeadingIconColor = Color(0xFF93C5FD),
+                    selectedContainerColor = Color(0x33FF5252),
+                    selectedLabelColor = Color(0xFFFF8A80),
+                    selectedLeadingIconColor = Color(0xFFFF8A80),
                     containerColor = Color(0x1AFFFFFF),
                     labelColor = Color(0xFF94A3B8)
                 )
+            )
+        }
+
+        // Carrusel Horizontal de Fallas Registradas para acceso interactivo directo
+        if (showFaults) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp)
+            ) {
+                Text(
+                    text = "FALLAS REGISTRADAS (TOCA PARA INSPECCIONAR):",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF64748B),
+                    letterSpacing = 0.4.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(3.dp))
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                items(InteractivePanamaFaults) { fault ->
+                    val isSelected = selectedFault?.id == fault.id
+                    Surface(
+                        onClick = {
+                            if (isSelected) onSelectFault(null) else onSelectFault(fault)
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isSelected) fault.color.copy(alpha = 0.25f) else Color(0x18FFFFFF),
+                        border = BorderStroke(
+                            width = if (isSelected) 1.5.dp else 0.8.dp,
+                            color = if (isSelected) fault.color else Color(0x28FFFFFF)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(fault.color)
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = fault.shortBadge,
+                                fontSize = 10.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else Color(0xFFCBD5E1)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapLegendBadge(modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xDD0D1320))
+            .border(0.8.dp, Color(0x44FFFFFF), RoundedCornerShape(12.dp))
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LegendItem(Color(0xFF00E676), "<3.0")
+        LegendItem(Color(0xFFFFEB3B), "3.0+")
+        LegendItem(Color(0xFFFF9800), "4.0+")
+        LegendItem(Color(0xFFFF5252), "5.0+")
+    }
+}
+
+@Composable
+private fun LegendItem(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
+        Text(text = label, fontSize = 10.sp, color = Color(0xFFCBD5E1), fontFamily = FontFamily.Monospace)
+    }
+}
+
+@Composable
+private fun SelectedFaultCard(
+    fault: FaultLineInteractive,
+    associatedQuakesCount: Int,
+    onDismiss: () -> Unit
+) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 20.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(14.dp)
+                            .clip(CircleShape)
+                            .background(fault.color)
+                    )
+                    Column {
+                        Text(
+                            text = fault.name,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        Text(
+                            text = fault.region,
+                            fontSize = 12.sp,
+                            color = Color(0xFF94A3B8)
+                        )
+                    }
+                }
+
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Cerrar", tint = Color(0xFF94A3B8))
+                }
+            }
+
+            // Datos de Geociencia de la Falla
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0x18FFFFFF))
+                    .padding(10.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(text = "Mecanismo: ${fault.mechanism}", fontSize = 12.sp, color = Color(0xFFCBD5E1))
+                Text(text = "Tasa de desplazamiento: ${fault.slipRate}", fontSize = 12.sp, color = Color(0xFF93C5FD), fontFamily = FontFamily.Monospace)
+                Text(text = "Período de recurrencia: ${fault.recurrence}", fontSize = 12.sp, color = Color(0xFFFFB74D))
+                Text(text = "Sismos activos asociados: $associatedQuakesCount registrados", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = fault.color)
+            }
+
+            Text(
+                text = fault.description,
+                fontSize = 12.sp,
+                color = Color(0xFFE2E8F0),
+                lineHeight = 16.sp
+            )
+
+            Text(
+                text = "Historial: ${fault.historicalEvents}",
+                fontSize = 11.sp,
+                fontFamily = FontFamily.Monospace,
+                color = Color(0xFF94A3B8)
             )
         }
     }

@@ -1,32 +1,94 @@
-name: Compilar APK Android Sismos Panama
+name: Compilar y Publicar APK Sismos Panama
 
 on:
   push:
     branches: [ main, master ]
+  pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
 
 jobs:
   build:
+    name: Build Android APK
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout del repositorio
-      uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Configurar Java 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-    - name: Dar permisos de ejecución a Gradle Wrapper
-      run: chmod +x gradlew || true
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
 
-    - name: Compilar APK Debug
-      run: ./gradlew assembleDebug --stacktrace
+      - name: Build Debug APK
+        run: |
+          set -o pipefail
+          gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build_output.log || (echo "=== GRADLE FAILED ==="; tail -n 80 build_output.log; exit 1)
 
-    - name: Subir APK como Artefacto descargable
-      uses: actions/upload-artifact@v4
-      with:
-        name: sismos-panama-apk
-        path: app/build/outputs/apk/debug/app-debug.apk
+      - name: Upload Build Log on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-failure-log
+          path: build_output.log
+
+      - name: Prepare APK for Release
+        run: |
+          mkdir -p release_assets
+          ls -la app/build/outputs/apk/debug/ || ls -la app/build/outputs/apk/ || true
+          cp app/build/outputs/apk/debug/*.apk release_assets/SismosPanama.apk
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SismosPanama-APK
+          path: release_assets/SismosPanama.apk
+          retention-days: 7
+
+      - name: Update 'latest' Git Tag
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -fa latest -m "Release build ${{ github.sha }}"
+          git push origin latest --force
+
+      - name: Publish GitHub Release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Sismos Panamá - Última Versión (Release)"
+          body: |
+            ## 🇵🇦 Sismos Panamá (APK Oficial)
+            
+            Descarga directa y pública del instalador para Android (no requiere cuenta de GitHub):
+            
+            - 📲 **Descargar APK**: [SismosPanama.apk](https://github.com/${{ github.repository }}/releases/download/latest/SismosPanama.apk)
+            - ⚡ **Monitoreo**: USGS & EMSC en tiempo real para la República de Panamá
+            - 🌋 **Geodinámica**: Catálogo tectónico de fallas y zonas sismogénicas
+            - 🔔 **Alertas**: Notificaciones sísmicas con sonido y vibración configurables
+            - 💎 **Diseño**: Liquid Glass & Jetpack Compose Material 3
+          files: release_assets/SismosPanama.apk
+          make_latest: true
+
+      - name: Delete Old Workflow Runs
+        uses: Mattraks/delete-workflow-runs@v2
+        continue-on-error: true
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: 0

@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">Sismos Panamá</string>
+    <string name="app_subtitle">Red Sísmica en Tiempo Real</string>
+    <string name="source_igc_up">Instituto de Geociencias (IGC-UP)</string>
+    <string name="source_usgs">USGS Earthquake Hazards</string>
+    <string name="filter_all">Todos</string>
+    <string name="filter_m3">M ≥ 3.0</string>
+    <string name="filter_m4">M ≥ 4.0</string>
+    <string name="filter_m5">M ≥ 5.0</string>
+    <string name="channel_name">Alertas Sísmicas de Panamá</string>
+    <string name="channel_description">Notificaciones en tiempo real para sismos detectados en Panamá</string>
+</resources>

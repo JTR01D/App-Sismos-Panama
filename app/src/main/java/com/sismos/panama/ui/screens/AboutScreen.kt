@@ -673,74 +673,158 @@ private fun AboutCreditsCard(context: Context) {
             modifier = Modifier.padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = "Creado y Desarrollado Exclusivamente por",
-                fontSize = 12.sp,
-                color = Color(0xFF94A3B8)
-            )
+            // Tarjeta de Desarrollador estilo Liquid Glass (similar a WhatsApp Sticker Maker)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFF0F1724))
+                    .border(0.8.dp, Color(0x333186FF), RoundedCornerShape(14.dp))
+                    .clickable {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/JTR01D"))
+                            context.startActivity(intent)
+                        } catch (_: Exception) {}
+                    }
+                    .padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x223186FF))
+                        .border(1.dp, Color(0x553186FF), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Color(0xFF60A5FA),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-            Text(
-                text = "JTR01D",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF60A5FA),
-                fontFamily = FontFamily.SansSerif,
-                letterSpacing = 1.sp
-            )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "DESARROLLADOR ÚNICO",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF94A3B8),
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        text = "JTR01D",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF60A5FA),
+                        fontFamily = FontFamily.SansSerif,
+                        letterSpacing = 0.5.sp
+                    )
+                    Text(
+                        text = "github.com/JTR01D",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF38BDF8)
+                    )
+                }
 
-            Text(
-                text = "Desarrollador Único del Proyecto",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF38BDF8)
-            )
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "\"Monitor Sísmico y Tectónico de Panamá\"",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                color = Color(0xFFFFD600)
-            )
+                // Insignia GitHub interactiva
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color(0x2238BDF8),
+                    border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0x6638BDF8))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Code,
+                            contentDescription = null,
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "GitHub",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF38BDF8)
+                        )
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Botón Compartir Aplicación
-            Button(
-                onClick = {
-                    try {
-                        val shareIntent = Intent().apply {
-                            action = Intent.ACTION_SEND
-                            putExtra(
-                                Intent.EXTRA_TEXT,
-                                "Descarga Sismos Panamá: Monitor sísmico en tiempo real, explorador de fallas tectónicas y alertas tempranas para Panamá."
-                            )
-                            type = "text/plain"
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "Compartir Sismos Panamá"))
-                    } catch (_: Exception) {}
-                },
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
-                border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0x553186FF))
+            // Botones de Acción (GitHub del Proyecto + Compartir App)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Share,
-                    contentDescription = null,
-                    tint = Color(0xFF38BDF8),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Compartir Aplicación",
-                    color = Color.White,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Button(
+                    onClick = {
+                        try {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/JTR01D/App-Sismos-Panama"))
+                            context.startActivity(intent)
+                        } catch (_: Exception) {}
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                    border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0x553186FF))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Code,
+                        contentDescription = null,
+                        tint = Color(0xFF60A5FA),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Repositorio",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Button(
+                    onClick = {
+                        try {
+                            val shareIntent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "Descarga Sismos Panamá por JTR01D: Monitor sísmico en tiempo real, explorador de fallas tectónicas y alertas tempranas para Panamá: https://github.com/JTR01D/App-Sismos-Panama"
+                                )
+                                type = "text/plain"
+                            }
+                            context.startActivity(Intent.createChooser(shareIntent, "Compartir Sismos Panamá"))
+                        } catch (_: Exception) {}
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1E293B)),
+                    border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0x5500E5FF))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Share,
+                        contentDescription = null,
+                        tint = Color(0xFF00E5FF),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Compartir",
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

@@ -7,8 +7,10 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
 import android.media.RingtoneManager
 import android.os.Build
+import android.graphics.Color
 import androidx.core.app.NotificationCompat
 import com.sismos.panama.MainActivity
 import com.sismos.panama.R
@@ -77,11 +79,27 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    alarmManager.setAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        triggerAtMillis,
-                        pendingIntent
-                    )
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        if (alarmManager.canScheduleExactAlarms()) {
+                            alarmManager.setExactAndAllowWhileIdle(
+                                AlarmManager.RTC_WAKEUP,
+                                triggerAtMillis,
+                                pendingIntent
+                            )
+                        } else {
+                            alarmManager.setAndAllowWhileIdle(
+                                AlarmManager.RTC_WAKEUP,
+                                triggerAtMillis,
+                                pendingIntent
+                            )
+                        }
+                    } else {
+                        alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.RTC_WAKEUP,
+                            triggerAtMillis,
+                            pendingIntent
+                        )
+                    }
                 } else {
                     alarmManager.set(
                         AlarmManager.RTC_WAKEUP,
@@ -98,7 +116,14 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
 
             val channelId = "seismic_alerts_channel"
 
+            val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val audioAttributes = AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .build()
+
                 val channel = NotificationChannel(
                     channelId,
                     context.getString(R.string.channel_name),
@@ -108,6 +133,9 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
                     enableVibration(true)
                     vibrationPattern = longArrayOf(0, 350, 150, 350, 150, 500)
                     lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                    setSound(soundUri, audioAttributes)
+                    enableLights(true)
+                    lightColor = Color.RED
                 }
                 notificationManager.createNotificationChannel(channel)
             }
@@ -122,8 +150,6 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
                 launchIntent,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
-
-            val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
             val title = "⚡ ALERTA SÍSMICA PANAMÁ: M${String.format(java.util.Locale.US, "%.1f", eq.magnitude)}"
             val content = "${eq.place} | Prof: ${eq.depthKm.toInt()} km • ${eq.nearestFault}"

@@ -140,9 +140,9 @@ fun AcrylicInfoChip(label: String, value: String, modifier: Modifier = Modifier)
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0x330F172A))
-            .border(0.8.dp, Color(0x3394A3B8), RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .background(Color(0xFF141F30))
+            .border(0.8.dp, Color(0x3393C5FD), RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 5.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(

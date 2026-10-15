@@ -91,15 +91,15 @@ fun RegionGlassChip(
     val bgBrush = if (isSelected) {
         Brush.verticalGradient(
             listOf(
-                Color(0x553186FF),
-                Color(0x221E3A8A)
+                Color(0xFF1E3A8A),
+                Color(0xFF172554)
             )
         )
     } else {
         Brush.verticalGradient(
             listOf(
-                Color(0x1F253A5A),
-                Color(0x120B1320)
+                Color(0xFF162133),
+                Color(0xFF0F1624)
             )
         )
     }

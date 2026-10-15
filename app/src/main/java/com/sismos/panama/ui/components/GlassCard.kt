@@ -17,47 +17,41 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Contenedor estilizado con efecto Liquid Glass / Acrylic moderno:
- * Gradiente traslúcido, borde sutil reflectante y sombra suave.
+ * Base sólida oscura de alta fidelidad, gradiente de brillo superior,
+ * y borde biselado reflectante sin artefactos de renderizado.
  */
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = 20.dp,
+    cornerRadius: Dp = 18.dp,
     borderWidth: Dp = 1.dp,
-    glowColor: Color = Color(0xFF3186FF).copy(alpha = 0.08f),
+    glowColor: Color = Color(0xFF3186FF),
     content: @Composable BoxScope.() -> Unit
 ) {
     val glassShape = RoundedCornerShape(cornerRadius)
 
     val glassBackgroundBrush = Brush.verticalGradient(
         colors = listOf(
-            Color(0x2E253A5A), // Superficie acrílica traslúcida superior
-            Color(0x1C121D2F), // Base ahumada oscura
-            Color(0x280B1320)
+            Color(0xFF162133), // Superficie azul noche suave y reflectante
+            Color(0xFF111827), // Transición ahumada
+            Color(0xFF0D1320)  // Base profunda de alto contraste
         )
     )
 
     val glassBorderBrush = Brush.verticalGradient(
         colors = listOf(
-            Color(0x55FFFFFF), // Reflejo de luz en el borde superior
-            Color(0x18FFFFFF),
-            Color(0x0A3186FF),
-            Color(0x283186FF)  // Sutil halo azul inferior
+            Color(0x6693C5FD), // Reflejo de luz en el borde superior (cristal pulido)
+            Color(0x223B82F6),
+            Color(0x101E3A8A),
+            Color(0x333186FF)  // Sutil halo azul inferior
         )
     )
 
     Box(
         modifier = modifier
-            .shadow(
-                elevation = 8.dp,
-                shape = glassShape,
-                ambientColor = glowColor,
-                spotColor = Color(0xFF3186FF)
-            )
             .clip(glassShape)
             .background(glassBackgroundBrush)
             .border(borderWidth, glassBorderBrush, glassShape)
-            .padding(1.dp)
     ) {
         content()
     }

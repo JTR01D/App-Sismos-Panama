@@ -148,8 +148,8 @@ private fun HomeTopBar(
 ) {
     val topBarBrush = Brush.verticalGradient(
         colors = listOf(
-            Color(0xEE141C2B),
-            Color(0xCC0D121B)
+            Color(0xFF131B2A),
+            Color(0xFF0D121B)
         )
     )
 
@@ -245,9 +245,9 @@ private fun LiveStatusBanner(
 ) {
     val bannerBrush = Brush.horizontalGradient(
         colors = listOf(
-            Color(0x401E3A8A),
-            Color(0x200B1320),
-            Color(0x301E3A8A)
+            Color(0xFF172554),
+            Color(0xFF0F172A),
+            Color(0xFF1E3A8A)
         )
     )
 
@@ -255,10 +255,9 @@ private fun LiveStatusBanner(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .shadow(4.dp, RoundedCornerShape(12.dp), ambientColor = Color(0xFF3186FF))
             .clip(RoundedCornerShape(12.dp))
             .background(bannerBrush)
-            .border(1.dp, Color(0x3338BDF8), RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0x4438BDF8), RoundedCornerShape(12.dp))
             .clickable { onOpenDashboard() }
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
@@ -288,7 +287,7 @@ private fun LiveStatusBanner(
                 text = "Ver Gráficas ❯",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = PrimaryBlue
+                color = Color(0xFF93C5FD)
             )
         }
     }
@@ -314,8 +313,8 @@ private fun MagnitudeFilterRow(
     ) {
         filters.forEach { (label, value) ->
             val isSelected = selectedMinMag == value
-            val chipBg = if (isSelected) PrimaryBlue else Color(0x221E293B)
-            val chipBorder = if (isSelected) PrimaryBlue else Color(0x33FFFFFF)
+            val chipBg = if (isSelected) PrimaryBlue else Color(0xFF141F30)
+            val chipBorder = if (isSelected) PrimaryBlue else Color(0x3338BDF8)
             val chipTextColor = if (isSelected) Color.White else Color(0xFF94A3B8)
 
             Box(

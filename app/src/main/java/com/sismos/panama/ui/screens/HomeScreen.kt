@@ -1,6 +1,8 @@
 package com.sismos.panama.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Warning
@@ -37,6 +40,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -49,14 +54,14 @@ import com.sismos.panama.ui.theme.BgDark
 import com.sismos.panama.ui.theme.MagGreen
 import com.sismos.panama.ui.theme.PrimaryBlue
 import com.sismos.panama.ui.theme.StrokeDark
-import com.sismos.panama.ui.theme.SurfaceDark
 import com.sismos.panama.ui.viewmodel.SeismicViewModel
 
 @Composable
 fun HomeScreen(
     viewModel: SeismicViewModel,
     onEarthquakeSelected: (Earthquake) -> Unit,
-    onNavigateToFaults: () -> Unit
+    onNavigateToFaults: () -> Unit,
+    onNavigateToDashboard: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -66,7 +71,8 @@ fun HomeScreen(
             HomeTopBar(
                 isLoading = state.isLoading,
                 onRefresh = { viewModel.loadEarthquakes(isManualRefresh = true) },
-                onNavigateToFaults = onNavigateToFaults
+                onNavigateToFaults = onNavigateToFaults,
+                onNavigateToDashboard = onNavigateToDashboard
             )
         }
     ) { padding ->
@@ -75,12 +81,14 @@ fun HomeScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Live Status Banner
-            LiveStatusBanner()
+            // Live Status Banner Liquid Glass
+            LiveStatusBanner(
+                onOpenDashboard = onNavigateToDashboard
+            )
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Filtros de Magnitud
+            // Filtros de Magnitud Liquid Acrylic
             MagnitudeFilterRow(
                 selectedMinMag = state.selectedMinMag,
                 onSelectMinMag = { viewModel.setMinMagnitudeFilter(it) }
@@ -88,7 +96,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Zonas sísmicas de Panamá (HTML Widget)
+            // Zonas sísmicas de Panamá (5 Zonas con Acrylic Cards)
             PanamaRegionsBanner(
                 selectedRegion = state.selectedRegion,
                 onSelectRegion = { viewModel.setRegionFilter(it) }
@@ -108,14 +116,14 @@ fun HomeScreen(
                 } else if (state.errorMessage != null && state.earthquakes.isEmpty()) {
                     ErrorState(
                         message = state.errorMessage ?: "Error desconocido",
-                        onRetry = { viewModel.loadEarthquakes() }
+                        onRetry = { viewModel.loadEarthquakes(isManualRefresh = true) }
                     )
                 } else if (state.filteredEarthquakes.isEmpty()) {
                     EmptyState()
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(state.filteredEarthquakes, key = { it.id }) { eq ->
@@ -135,12 +143,21 @@ fun HomeScreen(
 private fun HomeTopBar(
     isLoading: Boolean,
     onRefresh: () -> Unit,
-    onNavigateToFaults: () -> Unit
+    onNavigateToFaults: () -> Unit,
+    onNavigateToDashboard: () -> Unit
 ) {
+    val topBarBrush = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xEE141C2B),
+            Color(0xCC0D121B)
+        )
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(SurfaceDark)
+            .background(topBarBrush)
+            .border(width = 0.8.dp, brush = Brush.verticalGradient(listOf(Color(0x33FFFFFF), Color.Transparent)), shape = androidx.compose.ui.graphics.RectangleShape)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -149,30 +166,63 @@ private fun HomeTopBar(
             Text(
                 text = "SISMOS PANAMÁ",
                 fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
                 fontFamily = FontFamily.SansSerif,
-                color = MaterialTheme.colorScheme.onSurface
+                color = Color.White,
+                letterSpacing = (-0.5).sp
             )
             Text(
-                text = "Red Sismológica Nacional en Vivo",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "Red Sismológica Oficial en Vivo",
+                fontSize = 11.sp,
+                color = Color(0xFF94A3B8)
             )
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onNavigateToFaults) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // Botón Dashboard Gráficas
+            IconButton(
+                onClick = onNavigateToDashboard,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color(0x223186FF))
+                    .border(0.8.dp, Color(0x553186FF), CircleShape)
+            ) {
                 Icon(
-                    imageVector = Icons.Default.Info,
-                    contentDescription = "Fallas Geológicas",
-                    tint = PrimaryBlue
+                    imageVector = Icons.Default.Equalizer,
+                    contentDescription = "Dashboard",
+                    tint = PrimaryBlue,
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
-            IconButton(onClick = onRefresh, enabled = !isLoading) {
+            // Botón Fallas Tectónicas
+            IconButton(
+                onClick = onNavigateToFaults,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color(0x1AFFFFFF))
+                    .border(0.8.dp, Color(0x33FFFFFF), CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Info,
+                    contentDescription = "Fallas Geológicas",
+                    tint = Color(0xFFCBD5E1),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            // Botón Refrescar
+            IconButton(
+                onClick = onRefresh,
+                enabled = !isLoading,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(Color(0x1AFFFFFF))
+                    .border(0.8.dp, Color(0x33FFFFFF), CircleShape)
+            ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(18.dp),
                         color = PrimaryBlue,
                         strokeWidth = 2.dp
                     )
@@ -180,7 +230,8 @@ private fun HomeTopBar(
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Actualizar",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -189,30 +240,57 @@ private fun HomeTopBar(
 }
 
 @Composable
-private fun LiveStatusBanner() {
-    Row(
+private fun LiveStatusBanner(
+    onOpenDashboard: () -> Unit
+) {
+    val bannerBrush = Brush.horizontalGradient(
+        colors = listOf(
+            Color(0x401E3A8A),
+            Color(0x200B1320),
+            Color(0x301E3A8A)
+        )
+    )
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFF102A45))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .shadow(4.dp, RoundedCornerShape(12.dp), ambientColor = Color(0xFF3186FF))
+            .clip(RoundedCornerShape(12.dp))
+            .background(bannerBrush)
+            .border(1.dp, Color(0x3338BDF8), RoundedCornerShape(12.dp))
+            .clickable { onOpenDashboard() }
+            .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(MagGreen)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = "EN VIVO IGC-UP • AUTO-REFRESCO CADA 20 SEG",
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF93C5FD)
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(9.dp)
+                        .clip(CircleShape)
+                        .background(MagGreen)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "EN VIVO IGC-UP • AUTO-REFRESCO 20S",
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFBAE6FD)
+                )
+            }
+
+            Text(
+                text = "Ver Gráficas ❯",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = PrimaryBlue
+            )
+        }
     }
 }
 
@@ -236,23 +314,25 @@ private fun MagnitudeFilterRow(
     ) {
         filters.forEach { (label, value) ->
             val isSelected = selectedMinMag == value
-            FilterChip(
-                selected = isSelected,
-                onClick = { onSelectMinMag(value) },
-                label = { Text(text = label, fontSize = 12.sp) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = PrimaryBlue,
-                    selectedLabelColor = Color.White,
-                    containerColor = SurfaceDark,
-                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    borderColor = StrokeDark,
-                    selectedBorderColor = PrimaryBlue,
-                    enabled = true,
-                    selected = isSelected
+            val chipBg = if (isSelected) PrimaryBlue else Color(0x221E293B)
+            val chipBorder = if (isSelected) PrimaryBlue else Color(0x33FFFFFF)
+            val chipTextColor = if (isSelected) Color.White else Color(0xFF94A3B8)
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(99.dp))
+                    .background(chipBg)
+                    .border(1.dp, chipBorder, RoundedCornerShape(99.dp))
+                    .clickable { onSelectMinMag(value) }
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Text(
+                    text = label,
+                    fontSize = 12.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    color = chipTextColor
                 )
-            )
+            }
         }
     }
 }

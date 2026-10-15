@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sismos.panama.data.models.Earthquake
+import com.sismos.panama.ui.screens.DashboardScreen
 import com.sismos.panama.ui.screens.DetailScreen
 import com.sismos.panama.ui.screens.FaultsScreen
 import com.sismos.panama.ui.screens.HomeScreen
@@ -24,19 +25,26 @@ import com.sismos.panama.ui.viewmodel.SeismicViewModel
 class MainActivity : ComponentActivity() {
 
     private val requestNotificationPermission =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
-            // Permiso procesado
-        }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
+
+    private var targetScreenState = mutableStateOf("home")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         askNotificationPermission()
+        targetScreenState.value = intent?.getStringExtra("screen") ?: "home"
 
         setContent {
             SismosPanamaTheme {
-                SismosAppNavigation()
+                SismosAppNavigation(targetScreen = targetScreenState.value)
             }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        intent.getStringExtra("screen")?.let {
+            targetScreenState.value = it
         }
     }
 
@@ -57,12 +65,21 @@ sealed class Screen {
     object Home : Screen()
     data class Detail(val earthquake: Earthquake) : Screen()
     object Faults : Screen()
+    object Dashboard : Screen()
 }
 
 @Composable
-fun SismosAppNavigation() {
+fun SismosAppNavigation(targetScreen: String = "home") {
     val viewModel: SeismicViewModel = viewModel()
-    var currentScreen by remember { mutableStateOf<Screen>(Screen.Home) }
+    var currentScreen by remember(targetScreen) {
+        mutableStateOf<Screen>(
+            when (targetScreen.lowercase()) {
+                "dashboard" -> Screen.Dashboard
+                "faults" -> Screen.Faults
+                else -> Screen.Home
+            }
+        )
+    }
 
     when (val screen = currentScreen) {
         is Screen.Home -> {
@@ -73,7 +90,16 @@ fun SismosAppNavigation() {
                 },
                 onNavigateToFaults = {
                     currentScreen = Screen.Faults
+                },
+                onNavigateToDashboard = {
+                    currentScreen = Screen.Dashboard
                 }
+            )
+        }
+        is Screen.Dashboard -> {
+            DashboardScreen(
+                viewModel = viewModel,
+                onBack = { currentScreen = Screen.Home }
             )
         }
         is Screen.Detail -> {

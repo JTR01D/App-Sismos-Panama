@@ -124,8 +124,12 @@ class EarthquakeRepository(
                     .replace("&aacute;", "á").replace("&eacute;", "é")
                     .replace("&iacute;", "í").replace("&oacute;", "ó")
                     .replace("&uacute;", "ú").replace("&ntilde;", "ñ")
-                    .replace("Panam", "Panamá").replace("Son", "Soná")
-                    .replace("Tonos", "Tonosí")
+                    .replace("Panamáá", "Panamá").replace("Panamá", "Panamá")
+                    .replace("Sonáá", "Soná").replace("Soná", "Soná")
+                    .replace("Tonosíí", "Tonosí").replace("Tonosí", "Tonosí")
+                    .replace("Panam([^á\\w]|$)", "Panamá$1")
+                    .replace("Son([^á\\w]|$)", "Soná$1")
+                    .replace("Tonos([^í\\w]|$)", "Tonosí$1")
 
                 val fullUrl = if (link.startsWith("http")) link else "https://sismosgeociencias.up.ac.pa/$link"
 

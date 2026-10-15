@@ -17,8 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,8 +30,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sismos.panama.data.models.Earthquake
-import com.sismos.panama.ui.theme.StrokeDark
-import com.sismos.panama.ui.theme.SurfaceDarkCard
 import com.sismos.panama.ui.theme.TsunamiWarningColor
 
 @Composable
@@ -42,13 +38,11 @@ fun EarthquakeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    GlassCard(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, StrokeDark, RoundedCornerShape(16.dp))
             .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard)
+        cornerRadius = 18.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -62,20 +56,20 @@ fun EarthquakeCard(
                 ) {
                     MagnitudeBadge(magnitude = earthquake.magnitude)
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
 
                     Column {
                         Text(
                             text = earthquake.place,
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
-                            text = earthquake.getTimeAgo(),
+                            text = "${earthquake.getTimeAgo()} • ${earthquake.sourceName.take(30)}",
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = Color(0xFF94A3B8)
                         )
                     }
                 }
@@ -83,20 +77,20 @@ fun EarthquakeCard(
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = "Ver detalles",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = Color(0xFF64748B),
                     modifier = Modifier.size(20.dp)
                 )
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Metadata: Profundidad, Falla asociada y Región
+            // Metadata con etiquetas acrílicas traslúcidas
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                InfoChip(label = "Profundidad", value = "${earthquake.depthKm.toInt()} km")
-                InfoChip(label = "Falla", value = earthquake.nearestFault.take(18) + if (earthquake.nearestFault.length > 18) "..." else "")
+                AcrylicInfoChip(label = "Profundidad", value = "${earthquake.depthKm.toInt()} km")
+                AcrylicInfoChip(label = "Falla", value = earthquake.nearestFault.take(18) + if (earthquake.nearestFault.length > 18) "..." else "")
             }
 
             if (earthquake.isTsunamiWarning) {
@@ -104,8 +98,9 @@ fun EarthquakeCard(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(TsunamiWarningColor.copy(alpha = 0.15f))
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(TsunamiWarningColor.copy(alpha = 0.18f))
+                        .border(1.dp, TsunamiWarningColor.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -117,10 +112,10 @@ fun EarthquakeCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Alerta preventiva marina registrada",
+                        text = "Aviso preventivo generado",
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = TsunamiWarningColor
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFFCA5A5)
                     )
                 }
             }
@@ -129,11 +124,12 @@ fun EarthquakeCard(
 }
 
 @Composable
-fun InfoChip(label: String, value: String, modifier: Modifier = Modifier) {
+fun AcrylicInfoChip(label: String, value: String, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF0F172A))
+            .background(Color(0x330F172A))
+            .border(0.8.dp, Color(0x33FFFFFF), RoundedCornerShape(8.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -141,13 +137,13 @@ fun InfoChip(label: String, value: String, modifier: Modifier = Modifier) {
                 text = "$label: ",
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = Color(0xFF94A3B8)
             )
             Text(
                 text = value,
                 fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFFE2E8F0)
             )
         }
     }

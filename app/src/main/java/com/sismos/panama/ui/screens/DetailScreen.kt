@@ -25,8 +25,6 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,12 +42,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sismos.panama.data.models.Earthquake
+import com.sismos.panama.ui.components.GlassCard
 import com.sismos.panama.ui.components.MagnitudeBadge
 import com.sismos.panama.ui.theme.BgDark
 import com.sismos.panama.ui.theme.PrimaryBlue
 import com.sismos.panama.ui.theme.StrokeDark
 import com.sismos.panama.ui.theme.SurfaceDark
-import com.sismos.panama.ui.theme.SurfaceDarkCard
 import com.sismos.panama.ui.theme.TsunamiWarningColor
 
 @Composable
@@ -73,14 +71,14 @@ fun DetailScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Atrás",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = Color.White
                     )
                 }
                 Text(
                     text = "Detalle del Evento Sísmico",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = Color.White
                 )
             }
         }
@@ -93,13 +91,8 @@ fun DetailScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header Magnitud y Lugar
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, StrokeDark, RoundedCornerShape(16.dp)),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard)
-            ) {
+            // Header Magnitud y Lugar en GlassCard
+            GlassCard(modifier = Modifier.fillMaxWidth(), cornerRadius = 20.dp) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -112,29 +105,29 @@ fun DetailScreen(
                                 text = "Magnitud ${earthquake.magnitude} Mw",
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = Color.White
                             )
                             Text(
                                 text = "Nivel: ${earthquake.alertLevel.label}",
                                 fontSize = 14.sp,
                                 color = PrimaryBlue,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = earthquake.getTimeAgo(),
+                                text = "${earthquake.getTimeAgo()} • ${earthquake.sourceName}",
                                 fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = Color(0xFF94A3B8)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                     Text(
                         text = earthquake.place,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = Color.White
                     )
                 }
             }
@@ -143,9 +136,9 @@ fun DetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(14.dp))
                         .background(TsunamiWarningColor.copy(alpha = 0.2f))
-                        .border(1.dp, TsunamiWarningColor, RoundedCornerShape(12.dp))
+                        .border(1.dp, TsunamiWarningColor.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -165,50 +158,40 @@ fun DetailScreen(
                 }
             }
 
-            // Parámetros Físicos
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, StrokeDark, RoundedCornerShape(16.dp)),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard)
-            ) {
+            // Parámetros Físicos en GlassCard
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
                         text = "PARÁMETROS FÍSICOS Y LOCALIZACIÓN",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFF93C5FD)
                     )
 
                     DetailRow("Fecha y Hora (Panamá)", earthquake.getFormattedTime())
                     DetailRow("Profundidad Hipocentral", "${earthquake.depthKm.toInt()} km (${if (earthquake.depthKm < 25) "Somero" else "Intermedio"})")
                     DetailRow("Coordenadas Epicentro", "${String.format("%.3f", earthquake.latitude)}° N, ${String.format("%.3f", earthquake.longitude)}° O")
                     DetailRow("Ciudad más Cercana", "${earthquake.nearestCity} (~${earthquake.distanceToNearestCityKm} km)")
-                    DetailRow("Reportes de Percepción", if (earthquake.feltReports > 0) "${earthquake.feltReports} personas" else "No registrados aún")
+                    DetailRow("Fuente de Registro", earthquake.sourceName)
                 }
             }
 
-            // Geodinámica y Fallas
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, StrokeDark, RoundedCornerShape(16.dp)),
-                colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard)
-            ) {
+            // Geodinámica y Fallas en GlassCard
+            GlassCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Text(
                         text = "CONTEXTO GEODINÁMICO EN PANAMÁ",
-                        fontSize = 12.sp,
+                        fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color(0xFF93C5FD)
                     )
 
                     DetailRow("Zona Sismotectónica", earthquake.panamaRegion)
@@ -250,7 +233,7 @@ fun DetailScreen(
                 ) {
                     Icon(imageVector = Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Compartir")
+                    Text("Compartir", color = Color.White)
                 }
             }
         }
@@ -267,13 +250,13 @@ private fun DetailRow(label: String, value: String) {
         Text(
             text = label,
             fontSize = 13.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = Color(0xFF94A3B8)
         )
         Text(
             text = value,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
+            color = Color.White
         )
     }
 }

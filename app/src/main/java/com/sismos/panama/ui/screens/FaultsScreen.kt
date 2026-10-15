@@ -1,7 +1,6 @@
 package com.sismos.panama.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -13,11 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,18 +22,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sismos.panama.data.models.FaultLine
 import com.sismos.panama.data.models.PanamaFaultsCatalog
+import com.sismos.panama.ui.components.GlassCard
 import com.sismos.panama.ui.theme.BgDark
 import com.sismos.panama.ui.theme.PrimaryBlue
-import com.sismos.panama.ui.theme.StrokeDark
 import com.sismos.panama.ui.theme.SurfaceDark
-import com.sismos.panama.ui.theme.SurfaceDarkCard
 
 @Composable
 fun FaultsScreen(
@@ -57,14 +52,14 @@ fun FaultsScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Atrás",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        tint = Color.White
                     )
                 }
                 Text(
                     text = "Sistemas de Fallas en Panamá",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = Color.White
                 )
             }
         }
@@ -82,51 +77,48 @@ fun FaultsScreen(
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color(0xFF93C5FD)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Estructuras sismogénicas identificadas por el IGC-UP y estudios paleosísmicos en el istmo.",
                     fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color(0xFF94A3B8)
                 )
             }
 
             items(PanamaFaultsCatalog.faults, key = { it.id }) { fault ->
-                FaultCard(fault = fault)
+                FaultGlassCard(fault = fault)
             }
         }
     }
 }
 
 @Composable
-private fun FaultCard(fault: FaultLine) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.dp, StrokeDark, RoundedCornerShape(16.dp)),
-        colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard)
+private fun FaultGlassCard(fault: FaultLine) {
+    GlassCard(
+        modifier = Modifier.fillMaxWidth(),
+        cornerRadius = 18.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = fault.name,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = Color.White
             )
             Text(
                 text = fault.region,
                 fontSize = 12.sp,
                 color = PrimaryBlue,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.SemiBold
             )
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = fault.description,
                 fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = Color(0xFFCBD5E1),
                 lineHeight = 18.sp
             )
 
@@ -146,13 +138,13 @@ private fun FaultParamRow(label: String, value: String) {
             text = label.uppercase(),
             fontSize = 10.sp,
             fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = Color(0xFF64748B)
         )
         Text(
             text = value,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
+            color = Color.White
         )
     }
 }

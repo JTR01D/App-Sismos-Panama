@@ -129,6 +129,104 @@ val LasPerlasIslands = listOf(
     Pair(8.32, -79.16)
 )
 
+// Archipiélago de Bocas del Toro (Isla Colón, Carenero y Bastimentos)
+val BocasDelToroIslands = listOf(
+    Pair(9.44, -82.35),
+    Pair(9.40, -82.20),
+    Pair(9.30, -82.16),
+    Pair(9.30, -82.28),
+    Pair(9.38, -82.34)
+)
+
+// Isla Cébaco (Entrada al Golfo de Montijo / Zona de Enjambres)
+val CebacoIsland = listOf(
+    Pair(7.56, -81.25),
+    Pair(7.54, -81.12),
+    Pair(7.46, -81.18),
+    Pair(7.48, -81.28)
+)
+
+// Isla Taboga (Bahía de Panamá)
+val TabogaIsland = listOf(
+    Pair(8.82, -79.57),
+    Pair(8.79, -79.53),
+    Pair(8.76, -79.55),
+    Pair(8.78, -79.58)
+)
+
+// Plataforma Continental de Panamá (Isobata Batimétrica de 200 metros)
+val ContinentalShelf200m = listOf(
+    Pair(8.00, -83.15),
+    Pair(7.70, -82.60),
+    Pair(7.28, -82.20),
+    Pair(7.05, -81.80),
+    Pair(6.92, -81.30),
+    Pair(7.00, -80.60),
+    Pair(7.15, -80.00),
+    Pair(7.30, -79.10),
+    Pair(7.60, -78.40),
+    Pair(7.10, -77.80)
+)
+
+// Rótulos de Cuerpos de Agua y Cuencas Oceánicas
+data class WaterBodyLabel(val name: String, val lat: Double, val lon: Double)
+
+val PanamaWaterLabels = listOf(
+    WaterBodyLabel("MAR CARIBE", 9.80, -81.30),
+    WaterBodyLabel("OCÉANO PACÍFICO", 6.85, -80.10),
+    WaterBodyLabel("GOLFO DE CHIRIQUÍ", 7.85, -82.40),
+    WaterBodyLabel("GOLFO DE PANAMÁ", 8.05, -79.20),
+    WaterBodyLabel("GOLFO DE MONTIJO", 7.68, -81.25),
+    WaterBodyLabel("BAHÍA DE PARITA", 8.28, -80.35)
+)
+
+// Vectores de Movimiento Tectónico GPS (Geodesia de Placas)
+data class TectonicPlateVector(
+    val plateName: String,
+    val velocityLabel: String,
+    val anchorLat: Double,
+    val anchorLon: Double,
+    val vectorDx: Float,
+    val vectorDy: Float
+)
+
+val MajorTectonicPlates = listOf(
+    TectonicPlateVector("PLACA DE COCOS", "72 mm/a ↗", 6.78, -83.15, 34f, -28f),
+    TectonicPlateVector("PLACA DE NAZCA", "54 mm/a ↗", 6.82, -78.60, 30f, -14f),
+    TectonicPlateVector("PLACA DEL CARIBE", "12 mm/a ↙", 9.88, -79.80, -20f, 16f),
+    TectonicPlateVector("BLOQUE NORANDINO", "10 mm/a ↖", 7.55, -77.35, -18f, -16f)
+)
+
+// Hitos Volcánicos y Geológicos Destacados
+data class VolcanoLandmark(val name: String, val elevation: String, val lat: Double, val lon: Double)
+
+val BaruVolcano = VolcanoLandmark("VOLCÁN BARÚ", "3,475 m", 8.808, -82.543)
+
+// Ciudades y Centros Urbanos de Referencia Cartográfica
+data class ReferenceCity(val name: String, val lat: Double, val lon: Double, val isCapital: Boolean = false)
+
+val MapReferenceCities = listOf(
+    ReferenceCity("Ciudad de Panamá", 8.98, -79.52, isCapital = true),
+    ReferenceCity("David", 8.43, -82.43),
+    ReferenceCity("Santiago", 8.10, -80.97),
+    ReferenceCity("Chitré", 7.96, -80.43),
+    ReferenceCity("Penonomé", 8.52, -80.36),
+    ReferenceCity("Colón", 9.36, -79.90),
+    ReferenceCity("Changuinola", 9.43, -82.52),
+    ReferenceCity("La Palma", 8.52, -78.14)
+)
+
+// Estaciones de la Red Sismológica Nacional (IGC - Universidad de Panamá)
+data class SeismicStation(val code: String, val name: String, val lat: Double, val lon: Double)
+
+val PanamaSeismicStations = listOf(
+    SeismicStation("UPA", "Univ. Panamá (Metro)", 8.98, -79.53),
+    SeismicStation("DVD", "David (Chiriquí)", 8.44, -82.42),
+    SeismicStation("TON", "Tonosí (Los Santos)", 7.40, -80.44),
+    SeismicStation("BOC", "Isla Colón (Bocas)", 9.34, -82.24),
+    SeismicStation("SAN", "Santiago (Veraguas)", 8.11, -80.98)
+)
+
 // Lago Gatún / Canal de Panamá (Hito geográfico principal)
 val GatunLakePolygon = listOf(
     Pair(9.12, -79.92),
@@ -200,6 +298,35 @@ val InteractivePanamaFaults = listOf(
         labelAnchor = Pair(6.7, -82.55)
     ),
     FaultLineInteractive(
+        id = "coiba",
+        name = "Zona de Fractura de Coiba (ZFC)",
+        shortBadge = "Z.F. Coiba",
+        region = "Sur de Isla de Coiba / Cuenca de Panamá",
+        mechanism = "Falla transformante oceánica activa con sismicidad somera",
+        slipRate = "~25-35 mm/año",
+        recurrence = "Enjambres sísmicos continuos (M 4.0 - 6.2)",
+        description = "Estructura transformante marina que delimita el bloque de Coiba con la placa de Nazca, fuente directa de los mayores enjambres recientes del Pacífico.",
+        historicalEvents = "2021 (Mw 6.7 Sur de Coiba), 2026 (Enjambres Golfo de Montijo / Coiba)",
+        points = listOf(Pair(7.55, -81.80), Pair(7.20, -81.82), Pair(6.70, -81.85), Pair(6.10, -81.90)),
+        color = Color(0xFFFF5722),
+        labelAnchor = Pair(6.90, -81.65)
+    ),
+    FaultLineInteractive(
+        id = "fosa_mesoamericana",
+        name = "Fosa Mesoamericana / Zona de Subducción",
+        shortBadge = "Fosa Mesoamericana",
+        region = "Pacífico Occidental (Chiriquí - Costa Rica)",
+        mechanism = "Subducción de la Placa de Cocos bajo la Microplaca de Panamá",
+        slipRate = "~70 mm/año",
+        recurrence = "Grandes eventos megathrust interplaca",
+        description = "Extremo oriental de la trinchera oceánica mesoamericana, donde la corteza de Cocos penetra bajo el suroeste panameño.",
+        historicalEvents = "Sismicidad interplaca recurrente y grandes sismos históricos",
+        points = listOf(Pair(7.80, -83.45), Pair(7.45, -83.25), Pair(7.10, -83.05)),
+        color = Color(0xFFE91E63),
+        labelAnchor = Pair(7.50, -83.40),
+        isDashed = true
+    ),
+    FaultLineInteractive(
         id = "burica",
         name = "Sistema de Fallas de Burica / Puerto Armuelles",
         shortBadge = "Falla de Burica",
@@ -228,6 +355,20 @@ val InteractivePanamaFaults = listOf(
         labelAnchor = Pair(7.75, -80.85)
     ),
     FaultLineInteractive(
+        id = "ocu_pese",
+        name = "Sistema de Fallas Ocú - Pesé (Herrera)",
+        shortBadge = "Falla Ocú-Pesé",
+        region = "Macizo de Azuero / Herrera",
+        mechanism = "Falla de rumbo cortical intraplaca",
+        slipRate = "0.5 - 1.2 mm/año",
+        recurrence = "Baja frecuencia pero alta sensibilidad local en Azuero",
+        description = "Estructura cortical interna que atraviesa el norte de la península de Azuero, responsable de eventos locales sentidos con fuerza.",
+        historicalEvents = "Sismicidad intraplaca moderada en Azuero y Golfo de Parita",
+        points = listOf(Pair(8.05, -80.70), Pair(7.90, -80.55), Pair(7.75, -80.40)),
+        color = Color(0xFFFFC107),
+        labelAnchor = Pair(8.08, -80.55)
+    ),
+    FaultLineInteractive(
         id = "pedro_miguel",
         name = "Falla de Pedro Miguel (Canal de Panamá)",
         shortBadge = "Falla Pedro Miguel",
@@ -240,6 +381,20 @@ val InteractivePanamaFaults = listOf(
         points = listOf(Pair(8.88, -79.62), Pair(9.03, -79.60), Pair(9.18, -79.58)),
         color = Color(0xFF00E5FF),
         labelAnchor = Pair(9.05, -79.40)
+    ),
+    FaultLineInteractive(
+        id = "miraflores",
+        name = "Falla de Miraflores (Zona del Canal)",
+        shortBadge = "Falla Miraflores",
+        region = "Esclusas de Miraflores / Balboa / Bahía de Panamá",
+        mechanism = "Rumbo lateral cortical con componente normal",
+        slipRate = "1.0 - 1.5 mm/año",
+        recurrence = "Histórica en el eje interoceánico",
+        description = "Alineamiento tectónico paralelo al Canal de Panamá que atraviesa las esclusas del Pacífico hasta la bahía metropolitana.",
+        historicalEvents = "Monitoreada permanentemente por la ACP y el IGC-UP",
+        points = listOf(Pair(8.95, -79.60), Pair(8.98, -79.58), Pair(9.03, -79.56)),
+        color = Color(0xFF00E5FF),
+        labelAnchor = Pair(8.92, -79.68)
     ),
     FaultLineInteractive(
         id = "limon",
@@ -553,11 +708,19 @@ fun InteractiveMapScreen(
                             "sona_tonosi" -> eq.nearestFault.contains("Soná", ignoreCase = true) ||
                                     eq.nearestFault.contains("Tonosí", ignoreCase = true) ||
                                     (eq.latitude in 7.0..8.2 && eq.longitude in -82.0..-80.2)
-                            "zfp" -> eq.nearestFault.contains("Fractura", ignoreCase = true) ||
-                                    eq.nearestFault.contains("ZFP", ignoreCase = true)
+                            "coiba" -> eq.nearestFault.contains("Coiba", ignoreCase = true) ||
+                                    (eq.latitude in 6.0..7.8 && eq.longitude in -82.3..-81.4)
+                            "fosa_mesoamericana" -> eq.nearestFault.contains("Fosa", ignoreCase = true) ||
+                                    (eq.latitude in 6.8..8.0 && eq.longitude in -83.5..-82.7)
                             "burica" -> eq.nearestFault.contains("Burica", ignoreCase = true) ||
                                     eq.nearestFault.contains("Armuelles", ignoreCase = true)
+                            "ocu_pese" -> eq.nearestFault.contains("Ocú", ignoreCase = true) ||
+                                    eq.nearestFault.contains("Pesé", ignoreCase = true) ||
+                                    eq.nearestFault.contains("Herrera", ignoreCase = true)
+                            "zfp" -> eq.nearestFault.contains("Fractura", ignoreCase = true) ||
+                                    eq.nearestFault.contains("ZFP", ignoreCase = true)
                             "pedro_miguel" -> eq.nearestFault.contains("Pedro Miguel", ignoreCase = true)
+                            "miraflores" -> eq.nearestFault.contains("Miraflores", ignoreCase = true)
                             "limon" -> eq.nearestFault.contains("Limón", ignoreCase = true) ||
                                     eq.nearestFault.contains("Limon", ignoreCase = true)
                             "cdnp" -> eq.nearestFault.contains("CDNP", ignoreCase = true) ||
@@ -780,7 +943,99 @@ private fun AdvancedTectonicMapCanvas(
             // Cuadrícula batimétrica
             drawGeographicGrid(this, size, scale, offset)
 
-            // 2. Masa Continental del Istmo de Panamá
+            // 2. Plataforma Continental de Panamá (Isobata Batimétrica 200m)
+            val shelfPath = Path()
+            ContinentalShelf200m.forEachIndexed { i, pt ->
+                val p = project(pt.first, pt.second, size)
+                if (i == 0) shelfPath.moveTo(p.x, p.y) else shelfPath.lineTo(p.x, p.y)
+            }
+            drawPath(
+                path = shelfPath,
+                color = Color(0x3500E5FF),
+                style = Stroke(
+                    width = 1.4f * scale.coerceIn(0.8f, 1.8f),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f), 0f)
+                )
+            )
+
+            // Rótulo discreto de la plataforma continental
+            val shelfLabelPos = project(7.18, -80.00, size)
+            val shelfPaint = Paint().apply {
+                color = android.graphics.Color.argb(85, 0, 229, 255)
+                textSize = (9f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(8f)
+                typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+                textAlign = Paint.Align.CENTER
+                letterSpacing = 0.2f
+            }
+            drawContext.canvas.nativeCanvas.drawText("ISOBATA 200m • MARGEN CONTINENTAL", shelfLabelPos.x, shelfLabelPos.y + 14f, shelfPaint)
+
+            // 3. Rótulos Marítimos y Cuencas Oceánicas
+            val oceanTextPaint = Paint().apply {
+                color = android.graphics.Color.argb(70, 56, 189, 248)
+                textSize = (13f * scale.coerceIn(0.8f, 2.0f)).coerceAtLeast(10f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+                textAlign = Paint.Align.CENTER
+                letterSpacing = 0.25f
+            }
+            val gulfTextPaint = Paint().apply {
+                color = android.graphics.Color.argb(60, 56, 189, 248)
+                textSize = (10f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(8.5f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+                textAlign = Paint.Align.CENTER
+                letterSpacing = 0.15f
+            }
+            PanamaWaterLabels.forEach { label ->
+                val p = project(label.lat, label.lon, size)
+                val paint = if (label.name.startsWith("MAR") || label.name.startsWith("OCÉANO")) oceanTextPaint else gulfTextPaint
+                drawContext.canvas.nativeCanvas.drawText(label.name, p.x, p.y, paint)
+            }
+
+            // 4. Placas Tectónicas Principales y Vectores GPS
+            val platePaint = Paint().apply {
+                color = android.graphics.Color.argb(125, 148, 163, 184)
+                textSize = (10f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(8.5f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+                letterSpacing = 0.12f
+            }
+            val velocityPaint = Paint().apply {
+                color = android.graphics.Color.argb(175, 0, 229, 255)
+                textSize = (9f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(7.5f)
+                typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+            }
+            MajorTectonicPlates.forEach { plate ->
+                val p = project(plate.anchorLat, plate.anchorLon, size)
+                val vScale = scale.coerceIn(0.8f, 1.6f)
+                val arrowEnd = Offset(p.x + plate.vectorDx * vScale, p.y + plate.vectorDy * vScale)
+
+                // Vector de movimiento geodésico
+                drawLine(
+                    color = Color(0x6600E5FF),
+                    start = p,
+                    end = arrowEnd,
+                    strokeWidth = 2.0f * scale.coerceIn(0.8f, 1.6f)
+                )
+                // Flecha de punta
+                val angle = atan2((arrowEnd.y - p.y).toDouble(), (arrowEnd.x - p.x).toDouble())
+                val arrowHeadLen = 10f * vScale
+                val pHead1 = Offset(
+                    (arrowEnd.x - arrowHeadLen * cos(angle - Math.PI / 6.0)).toFloat(),
+                    (arrowEnd.y - arrowHeadLen * sin(angle - Math.PI / 6.0)).toFloat()
+                )
+                val pHead2 = Offset(
+                    (arrowEnd.x - arrowHeadLen * cos(angle + Math.PI / 6.0)).toFloat(),
+                    (arrowEnd.y - arrowHeadLen * sin(angle + Math.PI / 6.0)).toFloat()
+                )
+                drawLine(color = Color(0xFF00E5FF), start = arrowEnd, end = pHead1, strokeWidth = 2f)
+                drawLine(color = Color(0xFF00E5FF), start = arrowEnd, end = pHead2, strokeWidth = 2f)
+
+                // Rótulo de la placa y velocidad
+                drawContext.canvas.nativeCanvas.drawText(plate.plateName, p.x, p.y - 12f, platePaint)
+                drawContext.canvas.nativeCanvas.drawText(plate.velocityLabel, p.x, p.y + 1f, velocityPaint)
+            }
+
+            // 5. Masa Continental del Istmo de Panamá
             val panamaPath = Path()
             OfficialPanamaCoast.forEachIndexed { i, pt ->
                 val p = project(pt.first, pt.second, size)
@@ -804,7 +1059,19 @@ private fun AdvancedTectonicMapCanvas(
                 style = Stroke(width = 2.2f * scale.coerceIn(0.8f, 2.0f))
             )
 
-            // 3. Isla de Coiba y Las Perlas
+            // Rótulo central: Microplaca de Panamá
+            val microplatePos = project(8.60, -80.60, size)
+            val microplatePaint = Paint().apply {
+                color = android.graphics.Color.argb(70, 0, 229, 255)
+                textSize = (11f * scale.coerceIn(0.8f, 2.0f)).coerceAtLeast(9f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+                letterSpacing = 0.22f
+            }
+            drawContext.canvas.nativeCanvas.drawText("MICROPLACA DE PANAMÁ", microplatePos.x, microplatePos.y, microplatePaint)
+
+            // 6. Archipiélagos e Islas
+            // Isla de Coiba
             val coibaPath = Path()
             CoibaIsland.forEachIndexed { i, pt ->
                 val p = project(pt.first, pt.second, size)
@@ -814,6 +1081,7 @@ private fun AdvancedTectonicMapCanvas(
             drawPath(path = coibaPath, color = Color(0xFF131D2E))
             drawPath(path = coibaPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.8f * scale))
 
+            // Archipiélago de Las Perlas
             val perlasPath = Path()
             LasPerlasIslands.forEachIndexed { i, pt ->
                 val p = project(pt.first, pt.second, size)
@@ -823,7 +1091,37 @@ private fun AdvancedTectonicMapCanvas(
             drawPath(path = perlasPath, color = Color(0xFF131D2E))
             drawPath(path = perlasPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.5f * scale))
 
-            // 4. Lago Gatún / Canal de Panamá
+            // Bocas del Toro (Isla Colón / Bastimentos)
+            val bocasPath = Path()
+            BocasDelToroIslands.forEachIndexed { i, pt ->
+                val p = project(pt.first, pt.second, size)
+                if (i == 0) bocasPath.moveTo(p.x, p.y) else bocasPath.lineTo(p.x, p.y)
+            }
+            bocasPath.close()
+            drawPath(path = bocasPath, color = Color(0xFF131D2E))
+            drawPath(path = bocasPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.6f * scale))
+
+            // Isla Cébaco (Golfo de Montijo)
+            val cebacoPath = Path()
+            CebacoIsland.forEachIndexed { i, pt ->
+                val p = project(pt.first, pt.second, size)
+                if (i == 0) cebacoPath.moveTo(p.x, p.y) else cebacoPath.lineTo(p.x, p.y)
+            }
+            cebacoPath.close()
+            drawPath(path = cebacoPath, color = Color(0xFF131D2E))
+            drawPath(path = cebacoPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.4f * scale))
+
+            // Isla Taboga (Bahía de Panamá)
+            val tabogaPath = Path()
+            TabogaIsland.forEachIndexed { i, pt ->
+                val p = project(pt.first, pt.second, size)
+                if (i == 0) tabogaPath.moveTo(p.x, p.y) else tabogaPath.lineTo(p.x, p.y)
+            }
+            tabogaPath.close()
+            drawPath(path = tabogaPath, color = Color(0xFF131D2E))
+            drawPath(path = tabogaPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.2f * scale))
+
+            // 7. Lago Gatún / Canal de Panamá
             val gatunPath = Path()
             GatunLakePolygon.forEachIndexed { i, pt ->
                 val p = project(pt.first, pt.second, size)
@@ -833,7 +1131,7 @@ private fun AdvancedTectonicMapCanvas(
             drawPath(path = gatunPath, color = Color(0xFF0B121E))
             drawPath(path = gatunPath, color = Color(0x6600E5FF), style = Stroke(width = 1.2f * scale))
 
-            // 5. Límites Provinciales Internos
+            // 8. Límites Provinciales Internos
             ProvinceBorders.forEach { borderLine ->
                 val bPath = Path()
                 borderLine.forEachIndexed { idx, pt ->
@@ -850,10 +1148,10 @@ private fun AdvancedTectonicMapCanvas(
                 )
             }
 
-            // 6. Rótulos Provinciales
+            // 9. Rótulos Provinciales
             val provTextPaint = Paint().apply {
-                color = android.graphics.Color.argb(90, 148, 163, 184)
-                textSize = (12f * scale.coerceIn(0.8f, 2.0f)).coerceAtLeast(10f)
+                color = android.graphics.Color.argb(85, 148, 163, 184)
+                textSize = (11.5f * scale.coerceIn(0.8f, 2.0f)).coerceAtLeast(9.5f)
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
                 letterSpacing = 0.15f
@@ -861,6 +1159,89 @@ private fun AdvancedTectonicMapCanvas(
             PanamaProvinceLabels.forEach { prov ->
                 val pos = project(prov.lat, prov.lon, size)
                 drawContext.canvas.nativeCanvas.drawText(prov.name, pos.x, pos.y, provTextPaint)
+            }
+
+            // 10. Hito Volcánico: Volcán Barú (3,475 m)
+            val baruPos = project(BaruVolcano.lat, BaruVolcano.lon, size)
+            // Resplandor volcánico ámbar
+            drawCircle(
+                color = Color(0x22FF9800),
+                radius = 16f * scale.coerceIn(0.8f, 2.0f),
+                center = baruPos
+            )
+            // Triángulo representativo del volcán
+            val triH = 10f * scale.coerceIn(0.8f, 1.8f)
+            val triW = 8f * scale.coerceIn(0.8f, 1.8f)
+            val vPath = Path().apply {
+                moveTo(baruPos.x, baruPos.y - triH)
+                lineTo(baruPos.x + triW, baruPos.y + (triH * 0.6f))
+                lineTo(baruPos.x - triW, baruPos.y + (triH * 0.6f))
+                close()
+            }
+            drawPath(path = vPath, color = Color(0xFFFF9800))
+            drawPath(path = vPath, color = Color(0xFFFFD54F), style = Stroke(width = 1.2f))
+
+            val baruPaint = Paint().apply {
+                color = android.graphics.Color.argb(220, 255, 183, 77)
+                textSize = (9.5f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(8f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+            }
+            drawContext.canvas.nativeCanvas.drawText("▲ VOLCÁN BARÚ (${BaruVolcano.elevation})", baruPos.x, baruPos.y - triH - 4f, baruPaint)
+
+            // 11. Centros Urbanos y Ciudades de Referencia
+            val cityPaint = Paint().apply {
+                color = android.graphics.Color.argb(170, 226, 232, 240)
+                textSize = (9.5f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(8f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            }
+            val capitalPaint = Paint().apply {
+                color = android.graphics.Color.argb(240, 255, 215, 0)
+                textSize = (10.5f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(9f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            }
+
+            MapReferenceCities.forEach { city ->
+                val cPos = project(city.lat, city.lon, size)
+                val dotRadius = if (city.isCapital) 4.5f * scale.coerceIn(0.8f, 1.6f) else 3.0f * scale.coerceIn(0.8f, 1.6f)
+
+                // Sombra de punto urbano
+                drawCircle(color = Color(0xF0080E1C), radius = dotRadius + 1.5f, center = cPos)
+                // Color interior
+                drawCircle(
+                    color = if (city.isCapital) Color(0xFFFFD700) else Color(0xFF94A3B8),
+                    radius = dotRadius,
+                    center = cPos
+                )
+
+                // Rótulo de la ciudad
+                val cityText = if (city.isCapital) "★ ${city.name}" else city.name
+                val paint = if (city.isCapital) capitalPaint else cityPaint
+                drawContext.canvas.nativeCanvas.drawText(cityText, cPos.x + dotRadius + 5f, cPos.y + 3.5f, paint)
+            }
+
+            // 12. Estaciones de la Red Sismológica Nacional (IGC - UP)
+            val stationPaint = Paint().apply {
+                color = android.graphics.Color.argb(190, 0, 229, 255)
+                textSize = (8.5f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(7.5f)
+                typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+            }
+            PanamaSeismicStations.forEach { station ->
+                val sPos = project(station.lat, station.lon, size)
+                val dSize = 4f * scale.coerceIn(0.8f, 1.6f)
+
+                // Diamante de estación sismológica ◆
+                val diamondPath = Path().apply {
+                    moveTo(sPos.x, sPos.y - dSize)
+                    lineTo(sPos.x + dSize, sPos.y)
+                    lineTo(sPos.x, sPos.y + dSize)
+                    lineTo(sPos.x - dSize, sPos.y)
+                    close()
+                }
+                drawPath(path = diamondPath, color = Color(0xFF00E5FF))
+                drawPath(path = diamondPath, color = Color.White, style = Stroke(width = 0.8f))
+
+                drawContext.canvas.nativeCanvas.drawText("◆ ${station.code}", sPos.x + dSize + 4f, sPos.y + 3f, stationPaint)
             }
 
             // 7. Enjambre Sísmico Activo (Azuero - Coiba): Área Resaltada
@@ -1143,6 +1524,218 @@ private fun AdvancedTectonicMapCanvas(
                     )
                 }
             }
+
+            // 17. Instrumentos Cartográficos de Navegación y Referencia
+            drawCoordinateTickMarks(this, size) { lat, lon -> project(lat, lon, size) }
+            drawDynamicScaleBar(this, size, scale, deltaLon)
+            drawTectonicCompass(this, size, scale)
+        }
+    }
+}
+
+private fun drawTectonicCompass(
+    drawScope: DrawScope,
+    size: Size,
+    scale: Float
+) {
+    val compassCenter = Offset(size.width - 38f, 215f)
+    val r = 20f
+
+    // Fondo acrílico oscuro
+    drawScope.drawCircle(
+        color = Color(0xDD0B1324),
+        radius = r + 7f,
+        center = compassCenter
+    )
+    drawScope.drawCircle(
+        color = Color(0x5500E5FF),
+        radius = r + 7f,
+        center = compassCenter,
+        style = Stroke(width = 1.2f)
+    )
+
+    // Ticks cardinales e intercardinales
+    for (deg in 0 until 360 step 45) {
+        val rad = Math.toRadians(deg.toDouble())
+        val p1 = Offset(
+            compassCenter.x + (cos(rad) * (r + 1f)).toFloat(),
+            compassCenter.y + (sin(rad) * (r + 1f)).toFloat()
+        )
+        val p2 = Offset(
+            compassCenter.x + (cos(rad) * (r + 6f)).toFloat(),
+            compassCenter.y + (sin(rad) * (r + 6f)).toFloat()
+        )
+        drawScope.drawLine(
+            color = if (deg % 90 == 0) Color(0xFF00E5FF) else Color(0x5594A3B8),
+            start = p1,
+            end = p2,
+            strokeWidth = if (deg % 90 == 0) 1.5f else 1.0f
+        )
+    }
+
+    // Flecha Norte (Bicolor: Cian Eléctrico y Blanco)
+    val northPathRight = Path().apply {
+        moveTo(compassCenter.x, compassCenter.y - r)
+        lineTo(compassCenter.x + 4.5f, compassCenter.y)
+        lineTo(compassCenter.x, compassCenter.y)
+        close()
+    }
+    drawScope.drawPath(northPathRight, color = Color(0xFF00E5FF))
+
+    val northPathLeft = Path().apply {
+        moveTo(compassCenter.x, compassCenter.y - r)
+        lineTo(compassCenter.x - 4.5f, compassCenter.y)
+        lineTo(compassCenter.x, compassCenter.y)
+        close()
+    }
+    drawScope.drawPath(northPathLeft, color = Color.White)
+
+    // Flecha Sur
+    val southPath = Path().apply {
+        moveTo(compassCenter.x, compassCenter.y + r)
+        lineTo(compassCenter.x + 4f, compassCenter.y)
+        lineTo(compassCenter.x - 4f, compassCenter.y)
+        close()
+    }
+    drawScope.drawPath(southPath, color = Color(0xFF475569))
+
+    // Puntos Este y Oeste
+    val eastPath = Path().apply {
+        moveTo(compassCenter.x + r, compassCenter.y)
+        lineTo(compassCenter.x, compassCenter.y + 3.5f)
+        lineTo(compassCenter.x, compassCenter.y - 3.5f)
+        close()
+    }
+    drawScope.drawPath(eastPath, color = Color(0xFF64748B))
+
+    val westPath = Path().apply {
+        moveTo(compassCenter.x - r, compassCenter.y)
+        lineTo(compassCenter.x, compassCenter.y + 3.5f)
+        lineTo(compassCenter.x, compassCenter.y - 3.5f)
+        close()
+    }
+    drawScope.drawPath(westPath, color = Color(0xFF64748B))
+
+    // Letra "N" de Norte
+    val compassPaint = Paint().apply {
+        color = android.graphics.Color.argb(240, 0, 229, 255)
+        textSize = 9.5f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textAlign = Paint.Align.CENTER
+    }
+    drawScope.drawContext.canvas.nativeCanvas.drawText("N", compassCenter.x, compassCenter.y - r - 8f, compassPaint)
+}
+
+private fun drawDynamicScaleBar(
+    drawScope: DrawScope,
+    size: Size,
+    scale: Float,
+    deltaLon: Float
+) {
+    val paddingX = 20f
+    val usableWidth = size.width - (paddingX * 2f)
+    val pxPerDegree = usableWidth / deltaLon
+    val pxPerKm = (pxPerDegree / 110.5f) * scale
+
+    val targetBarPx = size.width * 0.22f
+    val idealKm = targetBarPx / pxPerKm
+    val kmStep = when {
+        idealKm >= 150f -> 200f
+        idealKm >= 75f -> 100f
+        idealKm >= 35f -> 50f
+        idealKm >= 18f -> 25f
+        else -> 10f
+    }
+    val barWidthPx = kmStep * pxPerKm
+
+    val origin = Offset(24f, 215f)
+
+    // Fondo acrílico estilizado
+    val bgRect = android.graphics.RectF(
+        origin.x - 6f,
+        origin.y - 18f,
+        origin.x + barWidthPx + 10f,
+        origin.y + 12f
+    )
+    val bgPaint = Paint().apply {
+        color = android.graphics.Color.argb(190, 11, 19, 36)
+        style = Paint.Style.FILL
+    }
+    val borderPaint = Paint().apply {
+        color = android.graphics.Color.argb(60, 0, 229, 255)
+        style = Paint.Style.STROKE
+        strokeWidth = 1f
+    }
+    drawScope.drawContext.canvas.nativeCanvas.drawRoundRect(bgRect, 6f, 6f, bgPaint)
+    drawScope.drawContext.canvas.nativeCanvas.drawRoundRect(bgRect, 6f, 6f, borderPaint)
+
+    // Barra segmentada (Cian / Blanco)
+    val halfWidth = barWidthPx / 2f
+    drawScope.drawRect(
+        color = Color(0xFF00E5FF),
+        topLeft = Offset(origin.x, origin.y),
+        size = Size(halfWidth, 3.5f)
+    )
+    drawScope.drawRect(
+        color = Color.White,
+        topLeft = Offset(origin.x + halfWidth, origin.y),
+        size = Size(halfWidth, 3.5f)
+    )
+
+    // Marcas de división
+    drawScope.drawLine(Color.White, Offset(origin.x, origin.y - 3f), Offset(origin.x, origin.y + 6f), strokeWidth = 1f)
+    drawScope.drawLine(Color.White, Offset(origin.x + halfWidth, origin.y - 3f), Offset(origin.x + halfWidth, origin.y + 6f), strokeWidth = 1f)
+    drawScope.drawLine(Color.White, Offset(origin.x + barWidthPx, origin.y - 3f), Offset(origin.x + barWidthPx, origin.y + 6f), strokeWidth = 1f)
+
+    // Textos de escala
+    val textPaint = Paint().apply {
+        color = android.graphics.Color.argb(220, 203, 213, 225)
+        textSize = 8.5f
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+        textAlign = Paint.Align.CENTER
+    }
+    drawScope.drawContext.canvas.nativeCanvas.drawText("0", origin.x, origin.y - 5f, textPaint)
+    drawScope.drawContext.canvas.nativeCanvas.drawText("${(kmStep / 2).toInt()}", origin.x + halfWidth, origin.y - 5f, textPaint)
+    drawScope.drawContext.canvas.nativeCanvas.drawText("${kmStep.toInt()} km", origin.x + barWidthPx, origin.y - 5f, textPaint)
+}
+
+private fun drawCoordinateTickMarks(
+    drawScope: DrawScope,
+    size: Size,
+    project: (Double, Double) -> Offset
+) {
+    val tickPaint = Paint().apply {
+        color = android.graphics.Color.argb(90, 148, 163, 184)
+        textSize = 8.5f
+        typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
+    }
+
+    // Latitud (7°N, 8°N, 9°N)
+    for (lat in 7..9) {
+        val pt = project(lat.toDouble(), -83.45)
+        if (pt.y in 50f..(size.height - 50f)) {
+            drawScope.drawLine(
+                color = Color(0x3300E5FF),
+                start = Offset(0f, pt.y),
+                end = Offset(7f, pt.y),
+                strokeWidth = 1.2f
+            )
+            drawScope.drawContext.canvas.nativeCanvas.drawText("${lat}°N", 10f, pt.y + 3f, tickPaint)
+        }
+    }
+
+    // Longitud (-83°W a -78°W)
+    for (lon in -83..-78) {
+        val pt = project(9.95, lon.toDouble())
+        if (pt.x in 25f..(size.width - 25f)) {
+            drawScope.drawLine(
+                color = Color(0x3300E5FF),
+                start = Offset(pt.x, 0f),
+                end = Offset(pt.x, 7f),
+                strokeWidth = 1.2f
+            )
+            tickPaint.textAlign = Paint.Align.CENTER
+            drawScope.drawContext.canvas.nativeCanvas.drawText("${kotlin.math.abs(lon)}°W", pt.x, 17f, tickPaint)
         }
     }
 }

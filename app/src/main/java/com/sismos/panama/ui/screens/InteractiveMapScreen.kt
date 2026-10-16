@@ -510,20 +510,19 @@ fun InteractiveMapScreen(
                 )
             }
 
-            // Leyenda de Magnitud Flotante (oculta automáticamente durante simulación de ondas para máxima visibilidad geográfica)
+            // Leyenda de Magnitud Flotante (oculta automáticamente durante selección o simulación para máxima visibilidad geográfica y simetría perfecta)
             AnimatedVisibility(
-                visible = !showWaveSimulation,
+                visible = !showWaveSimulation && selectedEq == null && selectedFault == null,
                 enter = fadeIn(),
                 exit = fadeOut(),
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
+                    .align(Alignment.BottomCenter)
                     .padding(
-                        start = 12.dp,
-                        end = 72.dp,
-                        bottom = if (selectedEq != null || selectedFault != null) 180.dp else 16.dp
+                        horizontal = 14.dp,
+                        vertical = 12.dp
                     )
             ) {
-                MapLegendBadge()
+                MapLegendBadge(modifier = Modifier.fillMaxWidth())
             }
 
             // Controles flotantes de Zoom
@@ -536,7 +535,7 @@ fun InteractiveMapScreen(
                 },
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .padding(end = 16.dp)
+                    .padding(end = 12.dp)
             )
 
             // Tarjeta inferior interactiva: Falla seleccionada
@@ -658,7 +657,7 @@ private fun AdvancedTectonicMapCanvas(
                 val mapHeight = deltaLat * pxPerDegree
 
                 val startX = paddingX
-                val startY = (canvasSize.height - mapHeight) / 2f - 35f
+                val startY = (canvasSize.height - mapHeight) / 2f
 
                 val rawX = startX + ((swarmLon - minLon).toFloat() * pxPerDegree)
                 val rawY = startY + ((maxLat - swarmLat).toFloat() * pxPerDegree)
@@ -666,7 +665,7 @@ private fun AdvancedTectonicMapCanvas(
                 val centerX = canvasSize.width / 2f
                 val centerY = canvasSize.height / 2f
 
-                val swarmScale = 2.45f
+                val swarmScale = 2.15f
                 val targetOffset = Offset((centerX - rawX) * swarmScale, (centerY - rawY) * swarmScale)
 
                 hasAutoZoomedToSwarm = true
@@ -683,7 +682,7 @@ private fun AdvancedTectonicMapCanvas(
         val mapHeight = deltaLat * pxPerDegree
 
         val startX = paddingX
-        val startY = (size.height - mapHeight) / 2f - 35f
+        val startY = (size.height - mapHeight) / 2f
 
         val rawX = startX + ((lon - minLon).toFloat() * pxPerDegree)
         val rawY = startY + ((maxLat - lat).toFloat() * pxPerDegree)
@@ -1199,44 +1198,50 @@ private fun MapTopBar(
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Atrás",
-                        tint = Color.White
-                    )
-                }
-                Column {
-                    Text(
-                        text = "EXPLORADOR TECTÓNICO DE PANAMÁ",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color.White,
-                        letterSpacing = (-0.3).sp
-                    )
-                    Text(
-                        text = if (showWaveSimulation) "Simulación de ondas en tiempo real • Máxima visibilidad" else "Mostrando $earthquakeCount de $totalCount sismos • Toca fallas o sismos",
-                        fontSize = 11.sp,
-                        color = if (showWaveSimulation) Color(0xFF60A5FA) else Color(0xFF94A3B8)
-                    )
-                }
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Atrás",
+                    tint = Color.White
+                )
+            }
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp)
+            ) {
+                Text(
+                    text = "EXPLORADOR TECTÓNICO",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White,
+                    letterSpacing = (-0.2).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = if (showWaveSimulation) "Simulación de ondas en tiempo real" else "Mostrando $earthquakeCount de $totalCount sismos",
+                    fontSize = 11.sp,
+                    color = if (showWaveSimulation) Color(0xFF60A5FA) else Color(0xFF94A3B8),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
 
             IconButton(
                 onClick = onResetView,
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(Color(0x22FFFFFF))
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.MyLocation,
                     contentDescription = "Centrar Panamá",
                     tint = PrimaryBlue,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -1409,26 +1414,62 @@ private fun MapLegendBadge(modifier: Modifier = Modifier) {
         border = BorderStroke(0.8.dp, Color(0x44FFFFFF))
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text(
-                text = "ESCALA DE PELIGRO DESTRUCTIVO",
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF94A3B8),
-                fontFamily = FontFamily.Monospace
-            )
             Row(
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                LegendItem(Color(0xFF00E676), "<3.0 Instrumental")
-                LegendItem(Color(0xFF00E5FF), "3.0-3.9 Leve")
-                LegendItem(Color(0xFFFFD600), "4.0-4.9 Moderado")
-                LegendItem(Color(0xFFFF6D00), "5.0-5.9 Fuerte")
-                LegendItem(Color(0xFFFF1744), "≥6.0 Destructivo")
+                Text(
+                    text = "ESCALA DE PELIGRO SÍSMICO",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF94A3B8),
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 0.5.sp
+                )
+                Text(
+                    text = "USGS / IGC",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF64748B),
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
+            // Barra continua de gradiente sísmico
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(1.5.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color(0xFF00E676),
+                                Color(0xFF00E5FF),
+                                Color(0xFFFFD600),
+                                Color(0xFFFF6D00),
+                                Color(0xFFFF1744)
+                            )
+                        )
+                    )
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LegendItem(Color(0xFF00E676), "<3.0")
+                LegendItem(Color(0xFF00E5FF), "3.0-3.9")
+                LegendItem(Color(0xFFFFD600), "4.0-4.9")
+                LegendItem(Color(0xFFFF6D00), "5.0-5.9")
+                LegendItem(Color(0xFFFF1744), "≥6.0")
             }
         }
     }
@@ -1436,9 +1477,18 @@ private fun MapLegendBadge(modifier: Modifier = Modifier) {
 
 @Composable
 private fun LegendItem(color: Color, label: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
-        Text(text = label, fontSize = 10.sp, color = Color(0xFFE2E8F0), fontFamily = FontFamily.Monospace)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(color))
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFE2E8F0),
+            fontFamily = FontFamily.Monospace
+        )
     }
 }
 
@@ -1663,23 +1713,23 @@ private fun FloatingZoomControls(
         IconButton(
             onClick = onZoomIn,
             modifier = Modifier
-                .size(40.dp)
+                .size(36.dp)
                 .clip(CircleShape)
                 .background(Color(0xCC162133))
-                .border(1.dp, Color(0x44FFFFFF), CircleShape)
+                .border(0.8.dp, Color(0x44FFFFFF), CircleShape)
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Acercar", tint = Color.White)
+            Icon(Icons.Default.Add, contentDescription = "Acercar", tint = Color.White, modifier = Modifier.size(18.dp))
         }
 
         IconButton(
             onClick = onZoomOut,
             modifier = Modifier
-                .size(40.dp)
+                .size(36.dp)
                 .clip(CircleShape)
                 .background(Color(0xCC162133))
-                .border(1.dp, Color(0x44FFFFFF), CircleShape)
+                .border(0.8.dp, Color(0x44FFFFFF), CircleShape)
         ) {
-            Icon(Icons.Default.Remove, contentDescription = "Alejar", tint = Color.White)
+            Icon(Icons.Default.Remove, contentDescription = "Alejar", tint = Color.White, modifier = Modifier.size(18.dp))
         }
     }
 }

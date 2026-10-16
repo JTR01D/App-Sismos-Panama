@@ -37,9 +37,14 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.round
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -77,14 +82,14 @@ fun NotificationSettingsModal(
     var soundEnabled by remember { mutableStateOf(initialSettings.soundEnabled) }
     var vibrateEnabled by remember { mutableStateOf(initialSettings.vibrateEnabled) }
     var messagesEnabled by remember { mutableStateOf(initialSettings.messagesEnabled) }
-    var minMag by remember { mutableFloatStateOf(initialSettings.minMagnitude) }
+    var minMag by remember { mutableFloatStateOf(if (initialSettings.minMagnitude <= 0.0f) 2.0f else initialSettings.minMagnitude) }
 
     val currentSettings = AlertSettings(
         notificationsEnabled = notifEnabled,
         soundEnabled = soundEnabled,
         vibrateEnabled = vibrateEnabled,
         messagesEnabled = messagesEnabled,
-        minMagnitude = minMag
+        minMagnitude = if (minMag <= 2.0f) 0.0f else minMag
     )
 
     val scrollState = rememberScrollState()
@@ -389,50 +394,152 @@ fun NotificationSettingsModal(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // SECCIÓN 3: UMBRAL DE MAGNITUD MÍNIMA
-                Text(
-                    text = "ALERTAR A PARTIR DE MAGNITUD",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF94A3B8),
-                    letterSpacing = 0.8.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
+                // SECCIÓN 3: BARRA INTERACTIVA DE MAGNITUD MÍNIMA (SLIDER)
+                val sliderSeverityColor = when {
+                    minMag <= 2.0f -> Color(0xFF00E676)
+                    minMag < 4.0f -> Color(0xFF00E5FF)
+                    minMag < 5.0f -> Color(0xFFFFD600)
+                    minMag < 6.0f -> Color(0xFFFF6D00)
+                    else -> Color(0xFFFF1744)
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    listOf(
-                        0.0f to "Todos",
-                        3.0f to "M ≥ 3.0",
-                        4.0f to "M ≥ 4.0",
-                        5.0f to "M ≥ 5.0"
-                    ).forEach { (mag, label) ->
-                        val isSelected = minMag == mag
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(
-                                    if (isSelected) Color(0xFF3186FF) else Color(0x1AFFFFFF)
-                                )
-                                .border(
-                                    width = 0.8.dp,
-                                    color = if (isSelected) Color(0xFF60A5FA) else Color(0x22FFFFFF),
-                                    shape = RoundedCornerShape(10.dp)
-                                )
-                                .clickable { minMag = mag }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
+                    Text(
+                        text = "RANGO DE ALERTA POR MAGNITUD",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF94A3B8),
+                        letterSpacing = 0.8.sp
+                    )
+
+                    // Badge interactivo de magnitud actual
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(sliderSeverityColor.copy(alpha = 0.2f))
+                            .border(1.dp, sliderSeverityColor.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 10.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = if (minMag <= 2.0f) "Todos los sismos" else "M ≥ ${String.format(Locale.US, "%.1f", minMag)}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = FontFamily.Monospace,
+                            color = sliderSeverityColor
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                GlassCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    cornerRadius = 16.dp,
+                    borderWidth = 0.8.dp
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        val magSeverityDesc = when {
+                            minMag <= 2.0f -> "🟢 Sin filtro: Recibirás alerta de absolutamente todos los sismos detectados."
+                            minMag < 4.0f -> "🔵 Leves en adelante: Sentidos en reposo o pisos altos (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
+                            minMag < 5.0f -> "🟡 Moderados en adelante: Sentidos ampliamente por la población (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
+                            minMag < 6.0f -> "🟠 Fuertes en adelante: Sacudida notable y potencial daño local (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
+                            else -> "🔴 Severos únicamente: Sismos destructivos o de gran magnitud (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
+                        }
+
+                        Text(
+                            text = magSeverityDesc,
+                            fontSize = 11.sp,
+                            color = Color(0xFFCBD5E1),
+                            lineHeight = 15.sp
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Barra Slider para mover la magnitud libremente
+                        Slider(
+                            value = minMag.coerceIn(2.0f, 6.5f),
+                            onValueChange = { newValue ->
+                                minMag = round(newValue * 10f) / 10f
+                            },
+                            valueRange = 2.0f..6.5f,
+                            steps = 44, // Saltos de 0.1 en 0.1
+                            colors = SliderDefaults.colors(
+                                thumbColor = sliderSeverityColor,
+                                activeTrackColor = sliderSeverityColor,
+                                inactiveTrackColor = Color(0x33FFFFFF)
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Indicadores en extremos de la barra
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = label,
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) Color.White else Color(0xFF94A3B8)
+                                text = "2.0 (Todos)",
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = Color(0xFF64748B)
                             )
+                            Text(
+                                text = "4.0",
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = Color(0xFF64748B)
+                            )
+                            Text(
+                                text = "6.5+ (Severos)",
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Chips de acceso rápido para saltar a valores clave
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf(
+                                2.0f to "Todos",
+                                3.0f to "M ≥ 3.0",
+                                4.0f to "M ≥ 4.0",
+                                5.0f to "M ≥ 5.0",
+                                6.0f to "M ≥ 6.0"
+                            ).forEach { (mag, label) ->
+                                val isSelected = abs(minMag - mag) < 0.05f
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(
+                                            if (isSelected) Color(0x333186FF) else Color(0x12FFFFFF)
+                                        )
+                                        .border(
+                                            width = 0.8.dp,
+                                            color = if (isSelected) Color(0xFF60A5FA) else Color(0x1AFFFFFF),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { minMag = mag }
+                                        .padding(vertical = 6.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        fontSize = 10.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color(0xFF93C5FD) else Color(0xFF94A3B8),
+                                        maxLines = 1
+                                    )
+                                }
+                            }
                         }
                     }
                 }

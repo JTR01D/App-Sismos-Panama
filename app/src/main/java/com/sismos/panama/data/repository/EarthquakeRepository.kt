@@ -85,9 +85,6 @@ class EarthquakeRepository(
             val matcher = rowPattern.matcher(slice)
 
             val list = mutableListOf<Earthquake>()
-            val sdf = SimpleDateFormat("yyyy-MM-dd hh:mm:ssa", Locale.US).apply {
-                timeZone = TimeZone.getTimeZone("America/Panama")
-            }
 
             while (matcher.find() && list.size < 40) {
                 val estado = matcher.group(1)?.trim() ?: "OFICIAL"
@@ -107,14 +104,7 @@ class EarthquakeRepository(
 
                 if (minMagnitude != null && mag < minMagnitude) continue
 
-                var timeMillis = System.currentTimeMillis()
-                try {
-                    val cleanHora = hora.replace(" ", "")
-                    val dateParsed = sdf.parse("$fecha $cleanHora")
-                    if (dateParsed != null) timeMillis = dateParsed.time
-                } catch (e: Exception) {
-                    // Fallback a hora actual si el formato difiere
-                }
+                val timeMillis = parseIgcTimestamp(fecha, hora)
 
                 val (nearestCity, distanceKm) = findNearestCity(lat, lon)
                 val nearestFault = findNearestFault(lat, lon)
@@ -277,14 +267,39 @@ class EarthquakeRepository(
         }
     }
 
-    private fun haversineDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val r = 6371.0
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = sin(dLat / 2) * sin(dLat / 2) +
-                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
-                sin(dLon / 2) * sin(dLon / 2)
-        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
-        return r * c
+    private fun parseIgcTimestamp(fecha: String, hora: String): Long {
+        val cleanHora = hora.trim()
+            .replace("a. m.", "AM", ignoreCase = true)
+            .replace("p. m.", "PM", ignoreCase = true)
+            .replace("a.m.", "AM", ignoreCase = true)
+            .replace("p.m.", "PM", ignoreCase = true)
+            .replace("am", "AM")
+            .replace("pm", "PM")
+            .replace(" ", "")
+
+        val patterns = listOf(
+            "yyyy-MM-dd hh:mm:ssa",
+            "yyyy-MM-dd h:mm:ssa",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd H:mm:ss",
+            "yyyy-MM-dd hh:mm:ss",
+            "dd/MM/yyyy hh:mm:ssa",
+            "dd/MM/yyyy HH:mm:ss"
+        )
+
+        for (pattern in patterns) {
+            try {
+                val sdf = SimpleDateFormat(pattern, Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("America/Panama")
+                    isLenient = true
+                }
+                val parsed = sdf.parse("$fecha $cleanHora")
+                if (parsed != null) return parsed.time
+            } catch (_: Exception) {}
+        }
+        return System.currentTimeMillis()
     }
+
+    private fun haversineDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double =
+        com.sismos.panama.data.background.SeismicAlertCoordinator.haversineDistanceKm(lat1, lon1, lat2, lon2)
 }

@@ -52,17 +52,7 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
     }
 
     private fun checkAndNotifyNew(context: Context, latest: Earthquake) {
-        val settings = com.sismos.panama.data.models.AlertSettings.load(context)
-        if (settings.isCompletelyDisabled()) return
-
-        val prefs = context.getSharedPreferences("sismos_prefs", Context.MODE_PRIVATE)
-        val lastNotifiedId = prefs.getString("last_notified_event_id", null)
-
-        // Si es un evento no notificado y cumple el umbral del usuario o es aviso tsunami
-        if (latest.id != lastNotifiedId && (latest.magnitude >= settings.minMagnitude || latest.isTsunamiWarning)) {
-            sendHighPriorityNotification(context, latest, settings)
-            prefs.edit().putString("last_notified_event_id", latest.id).apply()
-        }
+        SeismicAlertCoordinator.checkAndNotify(context, latest, callerTag = "AlarmReceiver")
     }
 
     companion object {

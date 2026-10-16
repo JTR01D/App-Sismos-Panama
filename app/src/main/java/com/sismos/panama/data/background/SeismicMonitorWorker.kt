@@ -38,15 +38,6 @@ class SeismicMonitorWorker(
     }
 
     private fun checkAndNotifyNewEarthquake(latest: com.sismos.panama.data.models.Earthquake) {
-        val settings = com.sismos.panama.data.models.AlertSettings.load(appContext)
-        if (settings.isCompletelyDisabled()) return
-
-        val prefs = appContext.getSharedPreferences("sismos_prefs", Context.MODE_PRIVATE)
-        val lastNotifiedId = prefs.getString("last_notified_event_id", null)
-
-        if (latest.id != lastNotifiedId && (latest.magnitude >= settings.minMagnitude || latest.isTsunamiWarning)) {
-            SeismicAlarmReceiver.sendHighPriorityNotification(appContext, latest, settings)
-            prefs.edit().putString("last_notified_event_id", latest.id).apply()
-        }
+        SeismicAlertCoordinator.checkAndNotify(appContext, latest, callerTag = "WorkManager")
     }
 }

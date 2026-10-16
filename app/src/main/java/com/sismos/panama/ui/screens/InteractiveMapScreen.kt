@@ -15,11 +15,13 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
@@ -36,6 +38,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -444,6 +447,22 @@ val InteractivePanamaFaults = listOf(
     )
 )
 
+// Categorías Oficiales de la Escala de Peligro Sísmico (USGS / IGC)
+enum class MagnitudeHazardTier(
+    val id: String,
+    val label: String,
+    val title: String,
+    val color: Color,
+    val minMag: Double,
+    val maxMag: Double
+) {
+    MICRO("micro", "<3.0", "Menor", Color(0xFF00E676), 0.0, 2.999),
+    LIGHT("light", "3.0-3.9", "Leve", Color(0xFF00E5FF), 3.0, 3.999),
+    MODERATE("moderate", "4.0-4.9", "Moderado", Color(0xFFFFD600), 4.0, 4.999),
+    STRONG("strong", "5.0-5.9", "Fuerte", Color(0xFFFF6D00), 5.0, 5.999),
+    MAJOR("major", "≥6.0", "Mayor", Color(0xFFFF1744), 6.0, 10.0)
+}
+
 @Composable
 fun InteractiveMapScreen(
     viewModel: SeismicViewModel,
@@ -455,15 +474,34 @@ fun InteractiveMapScreen(
     val state by viewModel.uiState.collectAsState()
     val allEarthquakes = state.filteredEarthquakes
 
-    // Filtro interactivo de magnitud en mapa
+    // Filtros interactivos de magnitud y peligro sísmico en mapa
     var minMagFilter by remember { mutableStateOf<Double?>(null) }
+    var selectedHazardTier by remember { mutableStateOf<MagnitudeHazardTier?>(null) }
     var showOnlySwarm by remember { mutableStateOf(false) }
 
-    val displayEarthquakes = remember(allEarthquakes, minMagFilter, showOnlySwarm) {
+    // Conteo de sismos según la escala de peligro sísmico
+    val baseQuakesForCounts = remember(allEarthquakes, showOnlySwarm) {
+        if (showOnlySwarm) {
+            allEarthquakes.filter { it.latitude in 7.0..8.2 && it.longitude in -82.0..-80.2 }
+        } else {
+            allEarthquakes
+        }
+    }
+    val hazardTierCounts = remember(baseQuakesForCounts) {
+        MagnitudeHazardTier.values().associate { tier ->
+            tier.id to baseQuakesForCounts.count { eq ->
+                eq.magnitude >= tier.minMag && eq.magnitude <= tier.maxMag
+            }
+        }
+    }
+
+    val displayEarthquakes = remember(allEarthquakes, minMagFilter, selectedHazardTier, showOnlySwarm) {
         allEarthquakes.filter { eq ->
-            val passesMag = minMagFilter == null || eq.magnitude >= minMagFilter!!
+            val passesMinMag = minMagFilter == null || eq.magnitude >= minMagFilter!!
+            val passesTier = selectedHazardTier == null ||
+                    (eq.magnitude >= selectedHazardTier!!.minMag && eq.magnitude <= selectedHazardTier!!.maxMag)
             val passesSwarm = !showOnlySwarm || (eq.latitude in 7.0..8.2 && eq.longitude in -82.0..-80.2)
-            passesMag && passesSwarm
+            passesMinMag && passesTier && passesSwarm
         }
     }
 
@@ -507,7 +545,15 @@ fun InteractiveMapScreen(
                 earthquakeCount = displayEarthquakes.size,
                 totalCount = allEarthquakes.size,
                 minMagFilter = minMagFilter,
-                onSelectMinMag = { minMagFilter = it },
+                onSelectMinMag = {
+                    minMagFilter = it
+                    if (it != null) selectedHazardTier = null
+                },
+                selectedHazardTier = selectedHazardTier,
+                onSelectHazardTier = { tier ->
+                    selectedHazardTier = tier
+                    if (tier != null) minMagFilter = null
+                },
                 showOnlySwarm = showOnlySwarm,
                 onToggleSwarm = { showOnlySwarm = !showOnlySwarm },
                 showFaults = showFaults,
@@ -533,6 +579,7 @@ fun InteractiveMapScreen(
                     selectedEq = null
                     showOnlySwarm = false
                     minMagFilter = null
+                    selectedHazardTier = null
                     isSwarmFocused = false
                 }
             )
@@ -552,6 +599,7 @@ fun InteractiveMapScreen(
                 earthquakes = displayEarthquakes,
                 latestEarthquakeId = latestQuake?.id,
                 selectedEarthquake = selectedEq,
+                selectedHazardTier = selectedHazardTier,
                 selectedFault = selectedFault,
                 showFaults = showFaults,
                 showWaveSimulation = showWaveSimulation,
@@ -668,7 +716,56 @@ fun InteractiveMapScreen(
                 )
             }
 
-            // Leyenda de Magnitud Flotante (oculta automáticamente durante selección o simulación para máxima visibilidad geográfica y simetría perfecta)
+            // Mensaje informativo cuando el rango de magnitud seleccionado no tiene eventos registrados
+            AnimatedVisibility(
+                visible = displayEarthquakes.isEmpty() && selectedHazardTier != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(24.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xF20B1322),
+                    border = BorderStroke(1.dp, selectedHazardTier?.color?.copy(alpha = 0.65f) ?: Color(0xFF38BDF8))
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
+                    ) {
+                        Text(
+                            text = "Sin sismos en rango ${selectedHazardTier?.label ?: ""}",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "No se registran eventos activos con magnitud ${selectedHazardTier?.label ?: ""}.",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Button(
+                            onClick = { selectedHazardTier = null },
+                            colors = ButtonDefaults.buttonColors(containerColor = selectedHazardTier?.color ?: Color(0xFF00E5FF)),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                "Ver Todos los Sismos",
+                                color = Color(0xFF091020),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Escala de Peligro Sísmico como selector interactivo por magnitud
             AnimatedVisibility(
                 visible = !showWaveSimulation && selectedEq == null && selectedFault == null,
                 enter = fadeIn(),
@@ -680,7 +777,19 @@ fun InteractiveMapScreen(
                         vertical = 12.dp
                     )
             ) {
-                MapLegendBadge(modifier = Modifier.fillMaxWidth())
+                MapLegendBadge(
+                    selectedTier = selectedHazardTier,
+                    onSelectTier = { tier ->
+                        selectedHazardTier = tier
+                        if (tier != null) {
+                            minMagFilter = null
+                        }
+                    },
+                    quakeCounts = hazardTierCounts,
+                    totalQuakesCount = baseQuakesForCounts.size,
+                    filteredQuakesCount = displayEarthquakes.size,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
             // Controles flotantes de Zoom
@@ -777,6 +886,7 @@ private fun AdvancedTectonicMapCanvas(
     earthquakes: List<Earthquake>,
     latestEarthquakeId: String? = null,
     selectedEarthquake: Earthquake?,
+    selectedHazardTier: MagnitudeHazardTier? = null,
     selectedFault: FaultLineInteractive?,
     showFaults: Boolean,
     showWaveSimulation: Boolean,
@@ -1444,6 +1554,18 @@ private fun AdvancedTectonicMapCanvas(
                     center = pos
                 )
 
+                // Resplandor de pulso cuando está activo el filtro de peligro sísmico
+                if (selectedHazardTier != null) {
+                    val pulseRadius = baseRadius * (1.3f + (beaconProgress * 1.5f))
+                    val pulseAlpha = ((1f - beaconProgress) * 0.7f).coerceIn(0f, 1f)
+                    drawCircle(
+                        color = magColor.copy(alpha = pulseAlpha),
+                        radius = pulseRadius,
+                        center = pos,
+                        style = Stroke(width = 1.8f * scale.coerceIn(0.8f, 1.8f))
+                    )
+                }
+
                 // 2. Halo de disipación de energía sismológica
                 val haloMultiplier = when {
                     eq.magnitude >= 6.0 -> 3.2f
@@ -1806,6 +1928,8 @@ private fun MapTopBar(
     totalCount: Int,
     minMagFilter: Double?,
     onSelectMinMag: (Double?) -> Unit,
+    selectedHazardTier: MagnitudeHazardTier? = null,
+    onSelectHazardTier: ((MagnitudeHazardTier?) -> Unit)? = null,
     showOnlySwarm: Boolean,
     onToggleSwarm: () -> Unit,
     showFaults: Boolean,
@@ -1891,9 +2015,10 @@ private fun MapTopBar(
                     // Filtro rápido de sismos para evitar saturación
                     item {
                         FilterChip(
-                            selected = minMagFilter == null && !showOnlySwarm,
+                            selected = minMagFilter == null && !showOnlySwarm && selectedHazardTier == null,
                             onClick = {
                                 onSelectMinMag(null)
+                                onSelectHazardTier?.invoke(null)
                                 if (showOnlySwarm) onToggleSwarm()
                             },
                             label = { Text("Todos ($totalCount)", fontSize = 11.sp, maxLines = 1) },
@@ -1906,10 +2031,37 @@ private fun MapTopBar(
                         )
                     }
 
+                    if (selectedHazardTier != null) {
+                        item {
+                            FilterChip(
+                                selected = true,
+                                onClick = { onSelectHazardTier?.invoke(null) },
+                                label = { Text("M ${selectedHazardTier.label} ($earthquakeCount)", fontSize = 11.sp, maxLines = 1) },
+                                trailingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Limpiar rango",
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = selectedHazardTier.color.copy(alpha = 0.25f),
+                                    selectedLabelColor = selectedHazardTier.color,
+                                    selectedTrailingIconColor = selectedHazardTier.color,
+                                    containerColor = Color(0x1AFFFFFF),
+                                    labelColor = Color(0xFF94A3B8)
+                                )
+                            )
+                        }
+                    }
+
                     item {
                         FilterChip(
-                            selected = minMagFilter == 4.0,
-                            onClick = { onSelectMinMag(if (minMagFilter == 4.0) null else 4.0) },
+                            selected = minMagFilter == 4.0 && selectedHazardTier == null,
+                            onClick = {
+                                onSelectHazardTier?.invoke(null)
+                                onSelectMinMag(if (minMagFilter == 4.0) null else 4.0)
+                            },
                             label = { Text("M ≥ 4.0", fontSize = 11.sp, maxLines = 1) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = Color(0x33FF9800),
@@ -2034,42 +2186,111 @@ private fun MapTopBar(
 }
 
 @Composable
-private fun MapLegendBadge(modifier: Modifier = Modifier) {
+private fun MapLegendBadge(
+    selectedTier: MagnitudeHazardTier?,
+    onSelectTier: (MagnitudeHazardTier?) -> Unit,
+    quakeCounts: Map<String, Int>,
+    totalQuakesCount: Int,
+    filteredQuakesCount: Int,
+    modifier: Modifier = Modifier
+) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xF20B1220),
-        border = BorderStroke(0.8.dp, Color(0x44FFFFFF))
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xF2091020),
+        border = BorderStroke(
+            0.9.dp,
+            if (selectedTier != null) selectedTier.color.copy(alpha = 0.55f) else Color(0x3338BDF8)
+        )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            // Fila de Encabezado: Título y Selector de Filtro
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "ESCALA DE PELIGRO SÍSMICO",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF94A3B8),
-                    fontFamily = FontFamily.Monospace,
-                    letterSpacing = 0.5.sp
-                )
-                Text(
-                    text = "USGS / IGC",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B),
-                    fontFamily = FontFamily.Monospace
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(selectedTier?.color ?: Color(0xFF38BDF8))
+                    )
+                    Text(
+                        text = "PELIGRO SÍSMICO",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF94A3B8),
+                        fontFamily = FontFamily.Monospace,
+                        letterSpacing = 0.5.sp,
+                        maxLines = 1
+                    )
+                    if (selectedTier != null) {
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = selectedTier.color.copy(alpha = 0.22f),
+                            border = BorderStroke(0.8.dp, selectedTier.color)
+                        ) {
+                            Text(
+                                text = "${selectedTier.title.uppercase()} • $filteredQuakesCount",
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = selectedTier.color,
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+
+                if (selectedTier != null) {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable { onSelectTier(null) }
+                            .background(Color(0x2238BDF8))
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Limpiar filtro",
+                            tint = Color(0xFF38BDF8),
+                            modifier = Modifier.size(10.dp)
+                        )
+                        Text(
+                            text = "Ver Todos ($totalQuakesCount)",
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF38BDF8),
+                            fontFamily = FontFamily.Monospace,
+                            maxLines = 1
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Toca un rango para filtrar",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF64748B),
+                        fontFamily = FontFamily.Monospace,
+                        maxLines = 1
+                    )
+                }
             }
 
-            // Barra continua de gradiente sísmico
+            // Barra continua de gradiente sísmico con ticks de división
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2088,35 +2309,75 @@ private fun MapLegendBadge(modifier: Modifier = Modifier) {
                     )
             )
 
+            // Selector interactivo de rangos de magnitud
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                LegendItem(Color(0xFF00E676), "<3.0")
-                LegendItem(Color(0xFF00E5FF), "3.0-3.9")
-                LegendItem(Color(0xFFFFD600), "4.0-4.9")
-                LegendItem(Color(0xFFFF6D00), "5.0-5.9")
-                LegendItem(Color(0xFFFF1744), "≥6.0")
+                MagnitudeHazardTier.values().forEach { tier ->
+                    val isSelected = selectedTier == tier
+                    val count = quakeCounts[tier.id] ?: 0
+                    val isAnySelected = selectedTier != null
+                    val itemAlpha = if (!isAnySelected || isSelected) 1f else 0.45f
+
+                    Surface(
+                        onClick = {
+                            if (isSelected) onSelectTier(null) else onSelectTier(tier)
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (isSelected) tier.color.copy(alpha = 0.22f) else Color(0x12FFFFFF),
+                        border = BorderStroke(
+                            width = if (isSelected) 1.2.dp else 0.6.dp,
+                            color = if (isSelected) tier.color else Color(0x22FFFFFF)
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .alpha(itemAlpha)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp, horizontal = 2.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(if (isSelected) 6.dp else 5.dp)
+                                        .clip(CircleShape)
+                                        .background(tier.color)
+                                )
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text(
+                                    text = tier.label,
+                                    fontSize = 8.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+                                    color = if (isSelected) Color.White else Color(0xFFE2E8F0),
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(1.dp))
+                            Text(
+                                text = if (count > 0) "($count)" else "0",
+                                fontSize = 7.5.sp,
+                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = if (isSelected) tier.color else Color(0xFF64748B),
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
+                    }
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun LegendItem(color: Color, label: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(3.dp)
-    ) {
-        Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(color))
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFFE2E8F0),
-            fontFamily = FontFamily.Monospace
-        )
     }
 }
 

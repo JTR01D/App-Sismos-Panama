@@ -31,9 +31,16 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.sismos.panama.BuildConfig
 import com.sismos.panama.data.models.AlertSettings
+import com.sismos.panama.data.models.AppUpdateInfo
+import com.sismos.panama.data.repository.UpdateRepository
 import com.sismos.panama.ui.components.NotificationSettingsModal
 import com.sismos.panama.ui.theme.*
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.launch
 
 @Composable
 fun AboutScreen(
@@ -105,6 +112,11 @@ fun AboutScreen(
             // Hero Banner de la Aplicación con Glassmorphism
             item {
                 AppHeroCard()
+            }
+
+            // Actualizaciones Oficiales desde GitHub
+            item {
+                AboutGitHubUpdatesCard(context = context)
             }
 
             // Tarjeta de Configuración de Alertas Sísmicas (Acceso Directo)
@@ -288,6 +300,224 @@ private fun AlertStatusPill(
             fontWeight = FontWeight.Bold,
             color = textCol
         )
+    }
+}
+
+@Composable
+private fun AboutGitHubUpdatesCard(
+    context: Context,
+    modifier: Modifier = Modifier
+) {
+    val updateRepo = remember { UpdateRepository() }
+    val scope = rememberCoroutineScope()
+    var isChecking by remember { mutableStateOf(false) }
+    var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var checkError by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(Unit) {
+        isChecking = true
+        checkError = null
+        val result = updateRepo.checkForUpdates()
+        result.onSuccess {
+            updateInfo = it
+            isChecking = false
+        }.onFailure {
+            checkError = it.message
+            isChecking = false
+        }
+    }
+
+    val cardBorderBrush = when {
+        updateInfo?.isUpdateAvailable == true -> Brush.linearGradient(listOf(Color(0xFF00E5FF), Color(0xFFFFB300)))
+        else -> Brush.linearGradient(listOf(Color(0x333186FF), Color(0x2200E5FF)))
+    }
+
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceDarkCard),
+        border = androidx.compose.foundation.BorderStroke(1.dp, cardBorderBrush),
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x2200E5FF))
+                            .border(0.8.dp, Color(0x6600E5FF), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.SystemUpdate,
+                            contentDescription = null,
+                            tint = Color(0xFF00E5FF),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Column {
+                        Text(
+                            text = "ACTUALIZACIONES GITHUB",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            letterSpacing = 0.5.sp
+                        )
+                        Text(
+                            text = if (isChecking) "Comprobando lanzamientos..."
+                            else if (updateInfo?.isUpdateAvailable == true) "¡Nueva versión ${updateInfo?.latestVersion} disponible!"
+                            else "Estás al día (v${BuildConfig.VERSION_NAME})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (updateInfo?.isUpdateAvailable == true) Color(0xFF00E5FF) else Color(0xFF10B981)
+                        )
+                    }
+                }
+
+                if (isChecking) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color(0xFF00E5FF),
+                        strokeWidth = 2.dp
+                    )
+                } else {
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                isChecking = true
+                                checkError = null
+                                updateRepo.checkForUpdates()
+                                    .onSuccess { updateInfo = it }
+                                    .onFailure { checkError = it.message }
+                                isChecking = false
+                            }
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Buscar actualizaciones",
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            if (updateInfo?.isUpdateAvailable == true) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0x1A00E5FF))
+                        .border(0.8.dp, Color(0x4400E5FF), RoundedCornerShape(10.dp))
+                        .padding(10.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = updateInfo?.releaseTitle ?: "Nueva versión",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                        if (!updateInfo?.releaseNotes.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = updateInfo?.releaseNotes ?: "",
+                                fontSize = 11.sp,
+                                color = Color(0xFFCBD5E1),
+                                maxLines = 4,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo?.apkDownloadUrl))
+                            context.startActivity(intent)
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF)),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Download,
+                            contentDescription = null,
+                            tint = Color(0xFF070B13),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Descargar APK" + (if (updateInfo?.getFormattedApkSize()?.isNotBlank() == true) " (${updateInfo?.getFormattedApkSize()})" else ""),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF070B13)
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo?.releasePageUrl))
+                            context.startActivity(intent)
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        border = androidx.compose.foundation.BorderStroke(0.8.dp, Color(0x66FFFFFF)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text("Ver en GitHub", fontSize = 11.sp)
+                    }
+                }
+            } else if (checkError != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Nota: $checkError (Se conectará cuando el repositorio esté público).",
+                    fontSize = 10.5.sp,
+                    color = Color(0xFF94A3B8)
+                )
+            } else {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Canal oficial: github.com/JTR01D/App-Sismos-Panama",
+                        fontSize = 10.5.sp,
+                        color = Color(0xFF64748B)
+                    )
+                    Text(
+                        text = "Ver repositorio ❯",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF38BDF8),
+                        modifier = Modifier.clickable {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/JTR01D/App-Sismos-Panama"))
+                            context.startActivity(intent)
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 

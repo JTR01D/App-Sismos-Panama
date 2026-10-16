@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -482,32 +483,64 @@ fun NotificationSettingsModal(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // BOTÓN GUARDAR Y APLICAR
-                Button(
-                    onClick = {
-                        AlertSettings.save(context, currentSettings)
-                        onSettingsChanged(currentSettings)
-                        Toast.makeText(
-                            context,
-                            "✓ Configuración de alertas guardada",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        onDismiss()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF3186FF)
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                // BOTONES CERRAR Y GUARDAR
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = "Guardar y Aplicar",
-                        color = Color.White,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 14.sp
-                    )
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x44FFFFFF)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0x18FFFFFF),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Cerrar",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            AlertSettings.save(context, currentSettings)
+                            onSettingsChanged(currentSettings)
+                            Toast.makeText(
+                                context,
+                                "✓ Configuración de alertas guardada",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            onDismiss()
+                        },
+                        modifier = Modifier
+                            .weight(1.5f)
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF3186FF)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = "Guardar",
+                            color = Color.White,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 14.sp
+                        )
+                    }
                 }
             }
         }

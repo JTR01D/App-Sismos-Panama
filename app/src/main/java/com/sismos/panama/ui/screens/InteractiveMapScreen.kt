@@ -291,7 +291,8 @@ fun InteractiveMapScreen(
     viewModel: SeismicViewModel,
     onBack: () -> Unit,
     onEarthquakeSelected: (Earthquake) -> Unit,
-    initialWaveSimulation: Boolean = false
+    initialWaveSimulation: Boolean = false,
+    selectFirst: Boolean = false
 ) {
     val state by viewModel.uiState.collectAsState()
     val allEarthquakes = state.filteredEarthquakes
@@ -315,8 +316,8 @@ fun InteractiveMapScreen(
     var showWaveSimulation by remember { mutableStateOf(initialWaveSimulation) }
     var simulationTimeSeconds by remember { mutableStateOf(0f) }
 
-    LaunchedEffect(initialWaveSimulation, displayEarthquakes) {
-        if (initialWaveSimulation && selectedEq == null && displayEarthquakes.isNotEmpty()) {
+    LaunchedEffect(initialWaveSimulation, selectFirst, displayEarthquakes) {
+        if ((initialWaveSimulation || selectFirst) && selectedEq == null && displayEarthquakes.isNotEmpty()) {
             selectedEq = displayEarthquakes.first()
         }
     }
@@ -415,6 +416,11 @@ fun InteractiveMapScreen(
                 onSelectFault = { fault ->
                     selectedFault = fault
                     selectedEq = null // Priorizar falla
+                },
+                onTapBlank = {
+                    selectedEq = null
+                    selectedFault = null
+                    showWaveSimulation = false
                 }
             )
 
@@ -590,7 +596,10 @@ fun InteractiveMapScreen(
                             showWaveSimulation = !showWaveSimulation
                         },
                         onViewDetail = { onEarthquakeSelected(eq) },
-                        onDismiss = { selectedEq = null }
+                        onDismiss = {
+                            selectedEq = null
+                            showWaveSimulation = false
+                        }
                     )
                 }
             }
@@ -612,7 +621,8 @@ private fun AdvancedTectonicMapCanvas(
     onTransform: (Offset, Float) -> Unit,
     onAutoZoomSwarm: ((Float, Offset) -> Unit)? = null,
     onSelectEarthquake: (Earthquake) -> Unit,
-    onSelectFault: (FaultLineInteractive) -> Unit
+    onSelectFault: (FaultLineInteractive) -> Unit,
+    onTapBlank: (() -> Unit)? = null
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "beacon")
     val beaconProgress by infiniteTransition.animateFloat(
@@ -745,7 +755,11 @@ private fun AdvancedTectonicMapCanvas(
 
                     if (touchedFault != null) {
                         onSelectFault(touchedFault)
+                        return@detectTapGestures
                     }
+
+                    // Tocar espacio libre en el mapa deselecciona para mayor libertad
+                    onTapBlank?.invoke()
                 }
             }
             .pointerInput(Unit) {
@@ -1475,9 +1489,12 @@ private fun SelectedFaultCard(
 
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x2EFFFFFF))
                 ) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Cerrar", tint = Color(0xFF94A3B8))
+                    Icon(imageVector = Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(20.dp))
                 }
             }
 
@@ -1530,24 +1547,50 @@ private fun SelectedFaultCard(
                 color = Color(0xFF94A3B8)
             )
 
-            if (associatedQuakesCount > 0) {
-                Button(
-                    onClick = onFilterFaultQuakes,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = fault.color.copy(alpha = 0.25f),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(
+                    onClick = onDismiss,
+                    border = BorderStroke(1.dp, Color(0x44FFFFFF)),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = Color(0x18FFFFFF),
                         contentColor = Color.White
                     ),
-                    border = BorderStroke(1.dp, fault.color),
                     shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(38.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.weight(0.85f).height(38.dp)
                 ) {
-                    Text(
-                        text = "⚡ Ver los $associatedQuakesCount sismos de esta falla",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cerrar",
+                        modifier = Modifier.size(15.dp),
+                        tint = Color(0xFFEF4444)
                     )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(text = "Cerrar", fontSize = 12.sp, color = Color.White)
+                }
+
+                if (associatedQuakesCount > 0) {
+                    Button(
+                        onClick = onFilterFaultQuakes,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = fault.color.copy(alpha = 0.25f),
+                            contentColor = Color.White
+                        ),
+                        border = BorderStroke(1.dp, fault.color),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(1.35f).height(38.dp)
+                    ) {
+                        Text(
+                            text = "⚡ Ver $associatedQuakesCount sismos",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -1591,12 +1634,16 @@ private fun WaveSimulationHeader(
         }
         IconButton(
             onClick = onStop,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(Color(0x2EFFFFFF))
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Detener",
-                tint = Color(0xFF94A3B8)
+                tint = Color.White,
+                modifier = Modifier.size(18.dp)
             )
         }
     }
@@ -1716,6 +1763,21 @@ private fun SelectedEarthquakeCard(
                             modifier = Modifier.size(18.dp)
                         )
                     }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x2EFFFFFF))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
         } else {
@@ -1730,7 +1792,8 @@ private fun SelectedEarthquakeCard(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
                     ) {
                         MagnitudeBadge(magnitude = earthquake.magnitude, size = 48.dp)
                         Column {
@@ -1750,12 +1813,16 @@ private fun SelectedEarthquakeCard(
 
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x2EFFFFFF))
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
-                            tint = Color(0xFF94A3B8)
+                            contentDescription = "Cerrar selección",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -1769,42 +1836,76 @@ private fun SelectedEarthquakeCard(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Botón Cerrar / Deseleccionar explícito
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        border = BorderStroke(1.dp, Color(0x44FFFFFF)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0x18FFFFFF),
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.weight(0.9f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cerrar",
+                            modifier = Modifier.size(15.dp),
+                            tint = Color(0xFFEF4444)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Cerrar",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    }
+
                     // Botón Simular Onda
                     Button(
                         onClick = onToggleWaveSim,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0x333186FF)
                         ),
-                        modifier = Modifier.weight(1f)
+                        border = BorderStroke(1.dp, Color(0x663186FF)),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1.15f)
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                            tint = Color.White
+                            modifier = Modifier.size(15.dp),
+                            tint = Color(0xFF60A5FA)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Simular Ondas",
+                            text = "Simular",
                             fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = Color.White
                         )
                     }
 
-                    // Botón Ver Detalle
+                    // Botón Ver Análisis
                     Button(
                         onClick = onViewDetail,
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                        modifier = Modifier.weight(1f)
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.weight(1.25f)
                     ) {
-                        Text(text = "Ver Análisis", fontSize = 12.sp, color = Color.White)
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "Ver Análisis", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Spacer(modifier = Modifier.width(2.dp))
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = null,
-                            modifier = Modifier.size(16.dp),
+                            modifier = Modifier.size(15.dp),
                             tint = Color.White
                         )
                     }

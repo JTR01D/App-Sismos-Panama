@@ -92,7 +92,10 @@ class MainActivity : ComponentActivity() {
         when (target) {
             "dashboard" -> currentScreenState.value = Screen.Dashboard
             "faults" -> currentScreenState.value = Screen.Faults
-            "map" -> currentScreenState.value = Screen.Map(initialWaveSimulation = simulate)
+            "map" -> {
+                val selectFirst = intent.getBooleanExtra("selectFirst", false)
+                currentScreenState.value = Screen.Map(initialWaveSimulation = simulate, selectFirst = selectFirst)
+            }
             "about" -> currentScreenState.value = Screen.About
             "home" -> currentScreenState.value = Screen.Home
             "detail" -> {
@@ -151,7 +154,7 @@ sealed class Screen {
     data class Detail(val earthquake: Earthquake, val autoSimulate: Boolean = false) : Screen()
     object Faults : Screen()
     object Dashboard : Screen()
-    data class Map(val initialWaveSimulation: Boolean = false) : Screen()
+    data class Map(val initialWaveSimulation: Boolean = false, val selectFirst: Boolean = false) : Screen()
     object About : Screen()
 }
 
@@ -190,6 +193,7 @@ fun SismosAppNavigation(
             InteractiveMapScreen(
                 viewModel = viewModel,
                 initialWaveSimulation = screen.initialWaveSimulation,
+                selectFirst = screen.selectFirst,
                 onBack = { screenState.value = Screen.Home },
                 onEarthquakeSelected = { eq ->
                     screenState.value = Screen.Detail(eq)

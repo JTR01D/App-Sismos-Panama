@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -828,9 +829,17 @@ private fun CitizenEducationCard(
 
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier.size(26.dp)
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x2EFFFFFF))
                 ) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Cerrar", tint = Color(0xFF94A3B8))
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cerrar",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 
@@ -874,33 +883,54 @@ private fun CitizenEducationCard(
                 lineHeight = 15.sp
             )
 
-            // Barra de acción inferior con conteo y botón para ver en mapa
+            // Barra de acción inferior con conteo, botón cerrar y ver en mapa
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Mostrando $earthquakeCount sismos registrados",
+                    text = "Mostrando $earthquakeCount sismos",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace,
-                    color = item.color
+                    color = item.color,
+                    modifier = Modifier.weight(1f)
                 )
 
-                Button(
-                    onClick = onOpenMap,
-                    colors = ButtonDefaults.buttonColors(containerColor = item.color.copy(alpha = 0.25f)),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, item.color),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier.height(30.dp)
-                ) {
-                    Text(
-                        text = "Ver en Mapa ❯",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x44FFFFFF)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color(0x18FFFFFF),
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Text(
+                            text = "Cerrar",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    }
+
+                    Button(
+                        onClick = onOpenMap,
+                        colors = ButtonDefaults.buttonColors(containerColor = item.color.copy(alpha = 0.25f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, item.color),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Text(
+                            text = "Ver en Mapa ❯",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }

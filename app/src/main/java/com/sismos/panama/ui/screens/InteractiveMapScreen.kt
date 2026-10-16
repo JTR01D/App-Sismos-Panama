@@ -481,9 +481,10 @@ fun InteractiveMapScreen(
     val allEarthquakes = state.filteredEarthquakes
 
     // Filtros interactivos de magnitud y peligro sísmico en mapa
-    var minMagFilter by remember { mutableStateOf<Double?>(null) }
     var selectedHazardTier by remember { mutableStateOf<MagnitudeHazardTier?>(null) }
     var showOnlySwarm by remember { mutableStateOf(false) }
+    var dismissEmptyTierNoticeFor by remember { mutableStateOf<MagnitudeHazardTier?>(null) }
+    var isHazardScaleCollapsed by remember { mutableStateOf(false) }
 
     // Conteo de sismos según la escala de peligro sísmico
     val baseQuakesForCounts = remember(allEarthquakes, showOnlySwarm) {
@@ -501,13 +502,12 @@ fun InteractiveMapScreen(
         }
     }
 
-    val displayEarthquakes = remember(allEarthquakes, minMagFilter, selectedHazardTier, showOnlySwarm) {
+    val displayEarthquakes = remember(allEarthquakes, selectedHazardTier, showOnlySwarm) {
         allEarthquakes.filter { eq ->
-            val passesMinMag = minMagFilter == null || eq.magnitude >= minMagFilter!!
             val passesTier = selectedHazardTier == null ||
                     (eq.magnitude >= selectedHazardTier!!.minMag && eq.magnitude <= selectedHazardTier!!.maxMag)
             val passesSwarm = !showOnlySwarm || (eq.latitude in 7.0..8.2 && eq.longitude in -82.0..-80.2)
-            passesMinMag && passesTier && passesSwarm
+            passesTier && passesSwarm
         }
     }
 
@@ -528,6 +528,7 @@ fun InteractiveMapScreen(
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     var isSwarmFocused by remember { mutableStateOf(false) }
+    var isSwarmBannerDismissed by remember { mutableStateOf(false) }
 
     // Simulación de ondas en tiempo real
     LaunchedEffect(showWaveSimulation, selectedEq) {
@@ -550,18 +551,13 @@ fun InteractiveMapScreen(
                 onBack = onBack,
                 earthquakeCount = displayEarthquakes.size,
                 totalCount = allEarthquakes.size,
-                minMagFilter = minMagFilter,
-                onSelectMinMag = {
-                    minMagFilter = it
-                    if (it != null) selectedHazardTier = null
-                },
-                selectedHazardTier = selectedHazardTier,
-                onSelectHazardTier = { tier ->
-                    selectedHazardTier = tier
-                    if (tier != null) minMagFilter = null
-                },
                 showOnlySwarm = showOnlySwarm,
-                onToggleSwarm = { showOnlySwarm = !showOnlySwarm },
+                onToggleSwarm = {
+                    showOnlySwarm = !showOnlySwarm
+                    if (showOnlySwarm) {
+                        isSwarmBannerDismissed = false
+                    }
+                },
                 showFaults = showFaults,
                 onToggleFaults = { showFaults = !showFaults },
                 selectedFault = selectedFault,
@@ -584,8 +580,8 @@ fun InteractiveMapScreen(
                     selectedFault = null
                     selectedEq = null
                     showOnlySwarm = false
-                    minMagFilter = null
                     selectedHazardTier = null
+                    dismissEmptyTierNoticeFor = null
                     isSwarmFocused = false
                 }
             )
@@ -645,7 +641,7 @@ fun InteractiveMapScreen(
             }
             val swarmCount = swarmQuakes.size
 
-            if (isSwarmFocused && swarmCount >= 5 && !showWaveSimulation) {
+            if (isSwarmFocused && swarmCount >= 5 && !showWaveSimulation && !isSwarmBannerDismissed) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
@@ -706,6 +702,20 @@ fun InteractiveMapScreen(
                                 color = Color(0xFF38BDF8)
                             )
                         }
+                        IconButton(
+                            onClick = {
+                                isSwarmBannerDismissed = true
+                                isSwarmFocused = false
+                            },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Ocultar aviso de enjambre",
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -722,56 +732,7 @@ fun InteractiveMapScreen(
                 )
             }
 
-            // Mensaje informativo cuando el rango de magnitud seleccionado no tiene eventos registrados
-            AnimatedVisibility(
-                visible = displayEarthquakes.isEmpty() && selectedHazardTier != null,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically(),
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(24.dp)
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0xF20B1322),
-                    border = BorderStroke(1.dp, selectedHazardTier?.color?.copy(alpha = 0.65f) ?: Color(0xFF38BDF8))
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
-                    ) {
-                        Text(
-                            text = "Sin sismos en rango ${selectedHazardTier?.label ?: ""}",
-                            color = Color.White,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                        Text(
-                            text = "No se registran eventos activos con magnitud ${selectedHazardTier?.label ?: ""}.",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 11.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Button(
-                            onClick = { selectedHazardTier = null },
-                            colors = ButtonDefaults.buttonColors(containerColor = selectedHazardTier?.color ?: Color(0xFF00E5FF)),
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
-                        ) {
-                            Text(
-                                "Ver Todos los Sismos",
-                                color = Color(0xFF091020),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Escala de Peligro Sísmico como selector interactivo por magnitud
+            // Escala de Peligro Sísmico como selector interactivo por magnitud (contraíble a demanda)
             AnimatedVisibility(
                 visible = !showWaveSimulation && selectedEq == null && selectedFault == null,
                 enter = fadeIn(),
@@ -787,13 +748,13 @@ fun InteractiveMapScreen(
                     selectedTier = selectedHazardTier,
                     onSelectTier = { tier ->
                         selectedHazardTier = tier
-                        if (tier != null) {
-                            minMagFilter = null
-                        }
+                        dismissEmptyTierNoticeFor = null
                     },
                     quakeCounts = hazardTierCounts,
                     totalQuakesCount = baseQuakesForCounts.size,
                     filteredQuakesCount = displayEarthquakes.size,
+                    isCollapsed = isHazardScaleCollapsed,
+                    onToggleCollapse = { isHazardScaleCollapsed = !isHazardScaleCollapsed },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -810,6 +771,108 @@ fun InteractiveMapScreen(
                     .align(Alignment.CenterEnd)
                     .padding(end = 12.dp)
             )
+
+            // Mensaje informativo cuando el rango de magnitud seleccionado no tiene eventos registrados
+            val showEmptyNotice = displayEarthquakes.isEmpty() && selectedHazardTier != null && dismissEmptyTierNoticeFor != selectedHazardTier
+            AnimatedVisibility(
+                visible = showEmptyNotice,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(24.dp)
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xF20B1322),
+                    border = BorderStroke(1.dp, selectedHazardTier?.color?.copy(alpha = 0.65f) ?: Color(0xFF38BDF8)),
+                    modifier = Modifier.widthIn(max = 440.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(selectedHazardTier?.color ?: Color(0xFF38BDF8))
+                                )
+                                Text(
+                                    text = "Sin sismos en rango ${selectedHazardTier?.label ?: ""}",
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            IconButton(
+                                onClick = { dismissEmptyTierNoticeFor = selectedHazardTier },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cerrar aviso",
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "No se registran eventos activos con magnitud ${selectedHazardTier?.label ?: ""}.",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 11.sp,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = { dismissEmptyTierNoticeFor = selectedHazardTier },
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(0.8.dp, Color(0x44FFFFFF)),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                Text(
+                                    "Cerrar",
+                                    color = Color(0xFF94A3B8),
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Button(
+                                onClick = {
+                                    selectedHazardTier = null
+                                    dismissEmptyTierNoticeFor = null
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = selectedHazardTier?.color ?: Color(0xFF00E5FF)),
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                                modifier = Modifier.height(34.dp)
+                            ) {
+                                Text(
+                                    "Ver Todos los Sismos",
+                                    color = Color(0xFF091020),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             // Tarjeta inferior interactiva: Falla seleccionada
             AnimatedVisibility(
@@ -1932,10 +1995,6 @@ private fun MapTopBar(
     onBack: () -> Unit,
     earthquakeCount: Int,
     totalCount: Int,
-    minMagFilter: Double?,
-    onSelectMinMag: (Double?) -> Unit,
-    selectedHazardTier: MagnitudeHazardTier? = null,
-    onSelectHazardTier: ((MagnitudeHazardTier?) -> Unit)? = null,
     showOnlySwarm: Boolean,
     onToggleSwarm: () -> Unit,
     showFaults: Boolean,
@@ -1946,13 +2005,15 @@ private fun MapTopBar(
     onToggleWaves: () -> Unit,
     onResetView: () -> Unit
 ) {
+    var areToolsExpanded by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0xFF0F172A))
             .statusBarsPadding()
             .border(0.8.dp, Color(0x33FFFFFF), RectangleShape)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1960,7 +2021,7 @@ private fun MapTopBar(
         ) {
             IconButton(
                 onClick = onBack,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(38.dp)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -1971,11 +2032,11 @@ private fun MapTopBar(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 8.dp)
+                    .padding(horizontal = 6.dp)
             ) {
                 Text(
                     text = "EXPLORADOR TECTÓNICO",
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
                     letterSpacing = (-0.2).sp,
@@ -1984,100 +2045,54 @@ private fun MapTopBar(
                 )
                 Text(
                     text = if (showWaveSimulation) "Simulación de ondas en tiempo real" else "Mostrando $earthquakeCount de $totalCount sismos",
-                    fontSize = 11.sp,
+                    fontSize = 10.5.sp,
                     color = if (showWaveSimulation) Color(0xFF60A5FA) else Color(0xFF94A3B8),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
             }
 
+            // Botón para contraer/expandir panel de herramientas y capas
+            IconButton(
+                onClick = { areToolsExpanded = !areToolsExpanded },
+                modifier = Modifier.size(38.dp)
+            ) {
+                Icon(
+                    imageVector = if (areToolsExpanded) Icons.Default.ExpandLess else Icons.Default.Tune,
+                    contentDescription = if (areToolsExpanded) "Ocultar herramientas" else "Mostrar herramientas",
+                    tint = if (areToolsExpanded || showOnlySwarm || showFaults || showWaveSimulation) PrimaryBlue else Color(0xFF94A3B8),
+                    modifier = Modifier.size(19.dp)
+                )
+            }
+
+            // Centrar Panamá
             IconButton(
                 onClick = onResetView,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(38.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.MyLocation,
                     contentDescription = "Centrar Panamá",
-                    tint = PrimaryBlue,
-                    modifier = Modifier.size(20.dp)
+                    tint = Color(0xFF94A3B8),
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
 
-        // Fila de Filtros y Carrusel de Fallas (se ocultan suavemente durante la simulación de ondas para no restar espacio al mapa)
+        // Fila de Capas y Carrusel de Fallas (Contraíble a demanda, sin filtros de magnitud redundantes)
         AnimatedVisibility(
-            visible = !showWaveSimulation,
+            visible = !showWaveSimulation && areToolsExpanded,
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
             Column {
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Fila de Filtros y Capas Principales con Scroll Horizontal para cualquier tamaño de pantalla
+                // Capas y herramientas principales (sin duplicidad de magnitud)
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Filtro rápido de sismos para evitar saturación
-                    item {
-                        FilterChip(
-                            selected = minMagFilter == null && !showOnlySwarm && selectedHazardTier == null,
-                            onClick = {
-                                onSelectMinMag(null)
-                                onSelectHazardTier?.invoke(null)
-                                if (showOnlySwarm) onToggleSwarm()
-                            },
-                            label = { Text("Todos ($totalCount)", fontSize = 11.sp, maxLines = 1) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0x333186FF),
-                                selectedLabelColor = Color(0xFF93C5FD),
-                                containerColor = Color(0x1AFFFFFF),
-                                labelColor = Color(0xFF94A3B8)
-                            )
-                        )
-                    }
-
-                    if (selectedHazardTier != null) {
-                        item {
-                            FilterChip(
-                                selected = true,
-                                onClick = { onSelectHazardTier?.invoke(null) },
-                                label = { Text("M ${selectedHazardTier.label} ($earthquakeCount)", fontSize = 11.sp, maxLines = 1) },
-                                trailingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Limpiar rango",
-                                        modifier = Modifier.size(12.dp)
-                                    )
-                                },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = selectedHazardTier.color.copy(alpha = 0.25f),
-                                    selectedLabelColor = selectedHazardTier.color,
-                                    selectedTrailingIconColor = selectedHazardTier.color,
-                                    containerColor = Color(0x1AFFFFFF),
-                                    labelColor = Color(0xFF94A3B8)
-                                )
-                            )
-                        }
-                    }
-
-                    item {
-                        FilterChip(
-                            selected = minMagFilter == 4.0 && selectedHazardTier == null,
-                            onClick = {
-                                onSelectHazardTier?.invoke(null)
-                                onSelectMinMag(if (minMagFilter == 4.0) null else 4.0)
-                            },
-                            label = { Text("M ≥ 4.0", fontSize = 11.sp, maxLines = 1) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0x33FF9800),
-                                selectedLabelColor = Color(0xFFFFB74D),
-                                containerColor = Color(0x1AFFFFFF),
-                                labelColor = Color(0xFF94A3B8)
-                            )
-                        )
-                    }
-
                     item {
                         FilterChip(
                             selected = showOnlySwarm,
@@ -2096,7 +2111,7 @@ private fun MapTopBar(
                         FilterChip(
                             selected = showFaults,
                             onClick = onToggleFaults,
-                            label = { Text("Fallas", fontSize = 11.sp, maxLines = 1) },
+                            label = { Text("Fallas Geológicas", fontSize = 11.sp, maxLines = 1) },
                             leadingIcon = {
                                 Icon(imageVector = Icons.Default.Timeline, contentDescription = null, modifier = Modifier.size(14.dp))
                             },
@@ -2129,23 +2144,16 @@ private fun MapTopBar(
                     }
                 }
 
-                // Carrusel Horizontal de Fallas Registradas para acceso interactivo directo
+                // Carrusel Horizontal de Fallas Registradas (si la capa de fallas está activa)
                 if (showFaults) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 2.dp)
-                    ) {
-                        Text(
-                            text = "FALLAS REGISTRADAS (TOCA PARA INSPECCIONAR):",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF64748B),
-                            letterSpacing = 0.4.sp
-                        )
-                    }
+                    Text(
+                        text = "FALLAS REGISTRADAS (TOCA PARA INSPECCIONAR):",
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF64748B),
+                        letterSpacing = 0.4.sp
+                    )
                     Spacer(modifier = Modifier.height(3.dp))
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
@@ -2198,6 +2206,8 @@ private fun MapLegendBadge(
     quakeCounts: Map<String, Int>,
     totalQuakesCount: Int,
     filteredQuakesCount: Int,
+    isCollapsed: Boolean,
+    onToggleCollapse: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     // 6 Posiciones discretas: 0=Todos, 1=<3.0, 2=3.0-3.9, 3=4.0-4.9, 4=5.0-5.9, 5=≥6.0
@@ -2239,34 +2249,28 @@ private fun MapLegendBadge(
         label = "hazardSliderThumb"
     )
 
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        color = Color(0xF2091020),
-        border = BorderStroke(
-            0.9.dp,
-            if (targetIndex > 0) activeColor.copy(alpha = 0.55f) else Color(0x3338BDF8)
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 7.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+    if (isCollapsed) {
+        Surface(
+            modifier = modifier.clickable { onToggleCollapse() },
+            shape = RoundedCornerShape(20.dp),
+            color = Color(0xF2091020),
+            border = BorderStroke(
+                0.9.dp,
+                if (targetIndex > 0) activeColor.copy(alpha = 0.65f) else Color(0x3338BDF8)
+            )
         ) {
-            // 1. Fila de Encabezado: Título y Badge de Información Dinámica
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(6.dp)
+                            .size(7.dp)
                             .clip(CircleShape)
                             .background(activeColor)
                     )
@@ -2276,20 +2280,18 @@ private fun MapLegendBadge(
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF94A3B8),
                         fontFamily = FontFamily.Monospace,
-                        letterSpacing = 0.5.sp,
-                        maxLines = 1
+                        letterSpacing = 0.5.sp
                     )
                 }
 
-                // Badge dinámico con información del nivel seleccionado
-                Surface(
-                    shape = RoundedCornerShape(5.dp),
-                    color = activeColor.copy(alpha = 0.18f),
-                    border = BorderStroke(0.8.dp, activeColor.copy(alpha = 0.8f))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    Surface(
+                        shape = RoundedCornerShape(5.dp),
+                        color = activeColor.copy(alpha = 0.18f),
+                        border = BorderStroke(0.8.dp, activeColor.copy(alpha = 0.8f))
                     ) {
                         Text(
                             text = headerBadgeText,
@@ -2297,22 +2299,103 @@ private fun MapLegendBadge(
                             fontWeight = FontWeight.ExtraBold,
                             color = activeColor,
                             fontFamily = FontFamily.Monospace,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             maxLines = 1
                         )
-                        if (targetIndex > 0) {
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Mostrar todos los sismos",
-                                tint = activeColor,
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .clickable { onSelectTier(null) }
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ExpandLess,
+                        contentDescription = "Expandir selector",
+                        tint = activeColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+    } else {
+        Surface(
+            modifier = modifier,
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xF2091020),
+            border = BorderStroke(
+                0.9.dp,
+                if (targetIndex > 0) activeColor.copy(alpha = 0.55f) else Color(0x3338BDF8)
+            )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // 1. Fila de Encabezado: Título y Badge de Información Dinámica
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onToggleCollapse() }
+                        .padding(vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(activeColor)
+                        )
+                        Text(
+                            text = "PELIGRO SÍSMICO",
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF94A3B8),
+                            fontFamily = FontFamily.Monospace,
+                            letterSpacing = 0.5.sp,
+                            maxLines = 1
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ExpandMore,
+                            contentDescription = "Contraer escala",
+                            tint = Color(0xFF64748B),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Badge dinámico con información del nivel seleccionado
+                    Surface(
+                        shape = RoundedCornerShape(5.dp),
+                        color = activeColor.copy(alpha = 0.18f),
+                        border = BorderStroke(0.8.dp, activeColor.copy(alpha = 0.8f))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = headerBadgeText,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = activeColor,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1
                             )
+                            if (targetIndex > 0) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Mostrar todos los sismos",
+                                    tint = activeColor,
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clickable { onSelectTier(null) }
+                                )
+                            }
                         }
                     }
                 }
-            }
 
             // 2. Track Gradiente con la "Bolita" Desplazable (Slider Interactivo)
             val labels = listOf("Todos", "<3.0", "3.0-3.9", "4.0-4.9", "5.0-5.9", "≥6.0")
@@ -2489,6 +2572,7 @@ private fun MapLegendBadge(
             }
         }
     }
+}
 }
 
 @Composable

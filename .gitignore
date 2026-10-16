@@ -17,3 +17,14 @@
 *.log
 .kotlin/
 *.tmp
+
+# Claves criptográficas y firmas
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+google-services.json
+.env*
+signing.properties
+release.properties

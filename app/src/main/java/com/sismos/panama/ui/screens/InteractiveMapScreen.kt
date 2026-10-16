@@ -5,10 +5,16 @@ import android.graphics.Typeface
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.platform.LocalDensity
+
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -2194,22 +2200,61 @@ private fun MapLegendBadge(
     filteredQuakesCount: Int,
     modifier: Modifier = Modifier
 ) {
+    // 6 Posiciones discretas: 0=Todos, 1=<3.0, 2=3.0-3.9, 3=4.0-4.9, 4=5.0-5.9, 5=≥6.0
+    val targetIndex = when (selectedTier) {
+        null -> 0
+        MagnitudeHazardTier.MICRO -> 1
+        MagnitudeHazardTier.LIGHT -> 2
+        MagnitudeHazardTier.MODERATE -> 3
+        MagnitudeHazardTier.STRONG -> 4
+        MagnitudeHazardTier.MAJOR -> 5
+    }
+
+    val tiers = MagnitudeHazardTier.values()
+    val activeColor = when (targetIndex) {
+        0 -> Color(0xFF38BDF8)
+        else -> tiers[targetIndex - 1].color
+    }
+
+    // Texto informativo dinámico según la posición de la bolita
+    val headerBadgeText = when (targetIndex) {
+        0 -> "TODOS • $totalQuakesCount SISMOS"
+        else -> {
+            val tier = tiers[targetIndex - 1]
+            val count = quakeCounts[tier.id] ?: 0
+            "M ${tier.label} ${tier.title.uppercase()} • $count SISMOS"
+        }
+    }
+
+    // Animación fluida de la bolita cuando no está siendo arrastrada directamente
+    var isDragging by remember { mutableStateOf(false) }
+    var dragX by remember { mutableFloatStateOf(0f) }
+
+    val animatedIndex by animateFloatAsState(
+        targetValue = targetIndex.toFloat(),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "hazardSliderThumb"
+    )
+
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(14.dp),
         color = Color(0xF2091020),
         border = BorderStroke(
             0.9.dp,
-            if (selectedTier != null) selectedTier.color.copy(alpha = 0.55f) else Color(0x3338BDF8)
+            if (targetIndex > 0) activeColor.copy(alpha = 0.55f) else Color(0x3338BDF8)
         )
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+                .padding(horizontal = 14.dp, vertical = 7.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            // Fila de Encabezado: Título y Selector de Filtro
+            // 1. Fila de Encabezado: Título y Badge de Información Dinámica
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -2217,164 +2262,229 @@ private fun MapLegendBadge(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    modifier = Modifier.weight(1f, fill = false)
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     Box(
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
-                            .background(selectedTier?.color ?: Color(0xFF38BDF8))
+                            .background(activeColor)
                     )
                     Text(
                         text = "PELIGRO SÍSMICO",
-                        fontSize = 9.sp,
+                        fontSize = 8.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF94A3B8),
                         fontFamily = FontFamily.Monospace,
                         letterSpacing = 0.5.sp,
                         maxLines = 1
                     )
-                    if (selectedTier != null) {
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = selectedTier.color.copy(alpha = 0.22f),
-                            border = BorderStroke(0.8.dp, selectedTier.color)
-                        ) {
-                            Text(
-                                text = "${selectedTier.title.uppercase()} • $filteredQuakesCount",
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = selectedTier.color,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
-                                maxLines = 1
-                            )
-                        }
-                    }
                 }
 
-                if (selectedTier != null) {
+                // Badge dinámico con información del nivel seleccionado
+                Surface(
+                    shape = RoundedCornerShape(5.dp),
+                    color = activeColor.copy(alpha = 0.18f),
+                    border = BorderStroke(0.8.dp, activeColor.copy(alpha = 0.8f))
+                ) {
                     Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .clickable { onSelectTier(null) }
-                            .background(Color(0x2238BDF8))
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Limpiar filtro",
-                            tint = Color(0xFF38BDF8),
-                            modifier = Modifier.size(10.dp)
-                        )
                         Text(
-                            text = "Ver Todos ($totalQuakesCount)",
-                            fontSize = 8.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF38BDF8),
+                            text = headerBadgeText,
+                            fontSize = 8.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = activeColor,
                             fontFamily = FontFamily.Monospace,
                             maxLines = 1
                         )
-                    }
-                } else {
-                    Text(
-                        text = "Toca un rango para filtrar",
-                        fontSize = 8.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF64748B),
-                        fontFamily = FontFamily.Monospace,
-                        maxLines = 1
-                    )
-                }
-            }
-
-            // Barra continua de gradiente sísmico con ticks de división
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(3.dp)
-                    .clip(RoundedCornerShape(1.5.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                Color(0xFF00E676),
-                                Color(0xFF00E5FF),
-                                Color(0xFFFFD600),
-                                Color(0xFFFF6D00),
-                                Color(0xFFFF1744)
-                            )
-                        )
-                    )
-            )
-
-            // Selector interactivo de rangos de magnitud
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                MagnitudeHazardTier.values().forEach { tier ->
-                    val isSelected = selectedTier == tier
-                    val count = quakeCounts[tier.id] ?: 0
-                    val isAnySelected = selectedTier != null
-                    val itemAlpha = if (!isAnySelected || isSelected) 1f else 0.45f
-
-                    Surface(
-                        onClick = {
-                            if (isSelected) onSelectTier(null) else onSelectTier(tier)
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) tier.color.copy(alpha = 0.22f) else Color(0x12FFFFFF),
-                        border = BorderStroke(
-                            width = if (isSelected) 1.2.dp else 0.6.dp,
-                            color = if (isSelected) tier.color else Color(0x22FFFFFF)
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .alpha(itemAlpha)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp, horizontal = 2.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(if (isSelected) 6.dp else 5.dp)
-                                        .clip(CircleShape)
-                                        .background(tier.color)
-                                )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text(
-                                    text = tier.label,
-                                    fontSize = 8.5.sp,
-                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
-                                    color = if (isSelected) Color.White else Color(0xFFE2E8F0),
-                                    fontFamily = FontFamily.Monospace,
-                                    maxLines = 1,
-                                    softWrap = false
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(1.dp))
-                            Text(
-                                text = if (count > 0) "($count)" else "0",
-                                fontSize = 7.5.sp,
-                                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                color = if (isSelected) tier.color else Color(0xFF64748B),
-                                fontFamily = FontFamily.Monospace,
-                                maxLines = 1,
-                                softWrap = false
+                        if (targetIndex > 0) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Mostrar todos los sismos",
+                                tint = activeColor,
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clickable { onSelectTier(null) }
                             )
                         }
                     }
+                }
+            }
+
+            // 2. Track Gradiente con la "Bolita" Desplazable (Slider Interactivo)
+            val labels = listOf("Todos", "<3.0", "3.0-3.9", "4.0-4.9", "5.0-5.9", "≥6.0")
+
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(28.dp)
+            ) {
+                val density = LocalDensity.current
+                val widthPx = constraints.maxWidth.toFloat()
+                val thumbRadiusPx = with(density) { 9.dp.toPx() }
+                val haloRadiusPx = with(density) { 14.dp.toPx() }
+                val usableWidthPx = (widthPx - 2 * thumbRadiusPx).coerceAtLeast(1f)
+
+                // Función auxiliar para mapear coordenada X a índice de magnitud 0..5
+                fun getIndexFromX(x: Float): Int {
+                    val relativeX = (x - thumbRadiusPx).coerceIn(0f, usableWidthPx)
+                    return ((relativeX / usableWidthPx) * 5f).roundToInt().coerceIn(0, 5)
+                }
+
+                fun selectIndex(idx: Int) {
+                    val newTier = if (idx == 0) null else tiers[idx - 1]
+                    onSelectTier(newTier)
+                }
+
+                val currentThumbX = if (isDragging) {
+                    dragX.coerceIn(thumbRadiusPx, widthPx - thumbRadiusPx)
+                } else {
+                    thumbRadiusPx + (animatedIndex / 5f) * usableWidthPx
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectTapGestures { offset ->
+                                val tappedIdx = getIndexFromX(offset.x)
+                                selectIndex(tappedIdx)
+                            }
+                        }
+                        .pointerInput(Unit) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    isDragging = true
+                                    dragX = offset.x
+                                    val idx = getIndexFromX(offset.x)
+                                    selectIndex(idx)
+                                },
+                                onDragEnd = {
+                                    isDragging = false
+                                    val idx = getIndexFromX(dragX)
+                                    selectIndex(idx)
+                                },
+                                onDragCancel = {
+                                    isDragging = false
+                                },
+                                onHorizontalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragX += dragAmount
+                                    val idx = getIndexFromX(dragX)
+                                    selectIndex(idx)
+                                }
+                            )
+                        }
+                ) {
+                    // Barra continua de gradiente sísmico (láser neón de 4dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 9.dp)
+                            .height(4.dp)
+                            .align(Alignment.Center)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color(0xFF38BDF8),
+                                        Color(0xFF00E676),
+                                        Color(0xFF00E5FF),
+                                        Color(0xFFFFD600),
+                                        Color(0xFFFF6D00),
+                                        Color(0xFFFF1744)
+                                    )
+                                )
+                            )
+                    )
+
+                    // Puntos de parada discretos a lo largo del riel
+                    for (i in 0..5) {
+                        val tickXPx = thumbRadiusPx + (i.toFloat() / 5f) * usableWidthPx
+                        val tickXDp = with(density) { tickXPx.toDp() }
+                        val isTickActive = targetIndex == i
+
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .offset(x = tickXDp - 2.5.dp)
+                                .size(5.dp)
+                                .clip(CircleShape)
+                                .background(if (isTickActive) Color.White else Color(0x66000000))
+                                .border(0.5.dp, if (isTickActive) activeColor else Color(0x44FFFFFF), CircleShape)
+                        )
+                    }
+
+                    // La "Bolita" Desplazable (Glowing Thumb)
+                    val thumbXDp = with(density) { (currentThumbX - haloRadiusPx).toDp() }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .offset(x = thumbXDp)
+                            .size(28.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Halo exterior pulsante/difuso
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(activeColor.copy(alpha = 0.35f))
+                        )
+                        // Núcleo sólido de la bolita
+                        Box(
+                            modifier = Modifier
+                                .size(15.dp)
+                                .clip(CircleShape)
+                                .background(activeColor)
+                                .border(1.8.dp, Color.White, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            // Destello blanco central
+                            Box(
+                                modifier = Modifier
+                                    .size(3.5.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 3. Rótulos de Rangos debajo del riel
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                labels.forEachIndexed { i, label ->
+                    val isCurrent = targetIndex == i
+                    val labelColor = when {
+                        isCurrent -> activeColor
+                        i == 0 -> Color(0xFF64748B)
+                        else -> tiers[i - 1].color.copy(alpha = 0.65f)
+                    }
+
+                    Text(
+                        text = label,
+                        fontSize = 7.5.sp,
+                        fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Medium,
+                        color = labelColor,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(3.dp))
+                            .clickable {
+                                val newTier = if (i == 0) null else tiers[i - 1]
+                                onSelectTier(newTier)
+                            }
+                            .padding(horizontal = 2.dp, vertical = 1.dp),
+                        maxLines = 1,
+                        softWrap = false
+                    )
                 }
             }
         }

@@ -34,7 +34,7 @@ import com.sismos.panama.ui.viewmodel.SeismicViewModel
 class MainActivity : ComponentActivity() {
 
     private val viewModel: SeismicViewModel by viewModels()
-    private val currentScreenState: MutableState<Screen> = mutableStateOf(Screen.Home)
+    private val currentScreenState: MutableState<Screen> = mutableStateOf(Screen.Home())
 
     private val requestNotificationPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
@@ -65,11 +65,9 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
-                ) { innerPadding ->
+                ) { _ ->
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(bottom = innerPadding.calculateBottomPadding())
+                        modifier = Modifier.fillMaxSize()
                     ) {
                         SismosAppNavigation(
                             viewModel = viewModel,
@@ -94,10 +92,24 @@ class MainActivity : ComponentActivity() {
             "faults" -> currentScreenState.value = Screen.Faults
             "map" -> {
                 val selectFirst = intent.getBooleanExtra("selectFirst", false)
-                currentScreenState.value = Screen.Map(initialWaveSimulation = simulate, selectFirst = selectFirst)
+                val faultId = intent.getStringExtra("fault")
+                currentScreenState.value = Screen.Map(
+                    initialWaveSimulation = simulate,
+                    selectFirst = selectFirst,
+                    initialFaultId = faultId
+                )
             }
             "about" -> currentScreenState.value = Screen.About
-            "home" -> currentScreenState.value = Screen.Home
+            "home" -> {
+                val collapsed = intent.getBooleanExtra("collapsed", false)
+                val scrollIndex = intent.getIntExtra("scrollIndex", 0)
+                val scrollOffset = intent.getIntExtra("scrollOffset", 0)
+                currentScreenState.value = Screen.Home(
+                    initialCollapsed = collapsed,
+                    initialScrollIndex = scrollIndex,
+                    initialScrollOffset = scrollOffset
+                )
+            }
             "detail" -> {
                 val eq = viewModel.uiState.value.earthquakes.firstOrNull() ?: Earthquake(
                     id = "demo_panama_chiriqui",
@@ -150,11 +162,19 @@ class MainActivity : ComponentActivity() {
 }
 
 sealed class Screen {
-    object Home : Screen()
+    data class Home(
+        val initialCollapsed: Boolean = true,
+        val initialScrollIndex: Int = 0,
+        val initialScrollOffset: Int = 0
+    ) : Screen()
     data class Detail(val earthquake: Earthquake, val autoSimulate: Boolean = false) : Screen()
     object Faults : Screen()
     object Dashboard : Screen()
-    data class Map(val initialWaveSimulation: Boolean = false, val selectFirst: Boolean = false) : Screen()
+    data class Map(
+        val initialWaveSimulation: Boolean = false,
+        val selectFirst: Boolean = false,
+        val initialFaultId: String? = null
+    ) : Screen()
     object About : Screen()
 }
 
@@ -167,6 +187,9 @@ fun SismosAppNavigation(
         is Screen.Home -> {
             HomeScreen(
                 viewModel = viewModel,
+                initialCollapsed = screen.initialCollapsed,
+                initialScrollIndex = screen.initialScrollIndex,
+                initialScrollOffset = screen.initialScrollOffset,
                 onEarthquakeSelected = { eq ->
                     screenState.value = Screen.Detail(eq)
                 },
@@ -186,7 +209,7 @@ fun SismosAppNavigation(
         }
         is Screen.About -> {
             AboutScreen(
-                onBack = { screenState.value = Screen.Home }
+                onBack = { screenState.value = Screen.Home() }
             )
         }
         is Screen.Map -> {
@@ -194,7 +217,8 @@ fun SismosAppNavigation(
                 viewModel = viewModel,
                 initialWaveSimulation = screen.initialWaveSimulation,
                 selectFirst = screen.selectFirst,
-                onBack = { screenState.value = Screen.Home },
+                initialFaultId = screen.initialFaultId,
+                onBack = { screenState.value = Screen.Home() },
                 onEarthquakeSelected = { eq ->
                     screenState.value = Screen.Detail(eq)
                 }
@@ -203,7 +227,7 @@ fun SismosAppNavigation(
         is Screen.Dashboard -> {
             DashboardScreen(
                 viewModel = viewModel,
-                onBack = { screenState.value = Screen.Home },
+                onBack = { screenState.value = Screen.Home() },
                 onEarthquakeSelected = { eq ->
                     screenState.value = Screen.Detail(eq)
                 }
@@ -213,13 +237,13 @@ fun SismosAppNavigation(
             DetailScreen(
                 earthquake = screen.earthquake,
                 initialSimulating = screen.autoSimulate,
-                onBack = { screenState.value = Screen.Home },
+                onBack = { screenState.value = Screen.Home() },
                 onOpenMap = { screenState.value = Screen.Map(initialWaveSimulation = true) }
             )
         }
         is Screen.Faults -> {
             FaultsScreen(
-                onBack = { screenState.value = Screen.Home }
+                onBack = { screenState.value = Screen.Home() }
             )
         }
     }

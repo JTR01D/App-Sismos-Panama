@@ -96,8 +96,8 @@ fun FaultsScreen(
 
     val topBarBrush = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFF131B2A),
-            Color(0xFF0D121B)
+            Color(0xCC0E1726), // 80% opacity dark slate blue
+            Color(0xD90A0F1D)  // 85% opacity deep navy
         )
     )
 
@@ -110,8 +110,8 @@ fun FaultsScreen(
                     .background(topBarBrush)
                     .statusBarsPadding()
                     .border(
-                        width = 0.8.dp,
-                        brush = Brush.verticalGradient(listOf(Color(0x33FFFFFF), Color.Transparent)),
+                        width = 1.dp,
+                        brush = Brush.verticalGradient(listOf(Color(0x22FFFFFF), Color(0x5538BDF8))),
                         shape = androidx.compose.ui.graphics.RectangleShape
                     )
                     .padding(horizontal = 8.dp, vertical = 12.dp),
@@ -147,7 +147,7 @@ fun FaultsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 92.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Panel de Introducción Tectónica

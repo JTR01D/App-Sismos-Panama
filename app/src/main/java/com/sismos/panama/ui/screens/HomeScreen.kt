@@ -1,8 +1,10 @@
 package com.sismos.panama.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,29 +17,48 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -81,6 +102,9 @@ import com.sismos.panama.ui.viewmodel.SeismicViewModel
 @Composable
 fun HomeScreen(
     viewModel: SeismicViewModel,
+    initialCollapsed: Boolean = true,
+    initialScrollIndex: Int = 0,
+    initialScrollOffset: Int = 0,
     onEarthquakeSelected: (Earthquake) -> Unit,
     onNavigateToFaults: () -> Unit,
     onNavigateToDashboard: () -> Unit,
@@ -89,15 +113,159 @@ fun HomeScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val density = LocalDensity.current
     var showNotificationSettings by remember { mutableStateOf(false) }
     var alertSettings by remember { mutableStateOf(AlertSettings.load(context)) }
+    var isPanelsExpanded by rememberSaveable { mutableStateOf(!initialCollapsed) }
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = initialScrollIndex,
+        initialFirstVisibleItemScrollOffset = initialScrollOffset
+    )
 
-    Scaffold(
-        containerColor = BgDark,
-        topBar = {
-            HomeTopBar(
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    var topBarHeightPx by remember { mutableIntStateOf(0) }
+    val topBarHeightDp = with(density) { topBarHeightPx.toDp() }
+    val collapsedTopPadding = statusBarTop + 68.dp
+    val topBarPadding = if (isPanelsExpanded && topBarHeightDp > 0.dp) (topBarHeightDp + 6.dp) else (collapsedTopPadding + 12.dp)
+
+    val topBarBrush = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xEA0D1627), // 92% frosted deep slate navy
+            Color(0xF2080D1A)  // 95% frosted dark navy
+        )
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BgDark)
+    ) {
+        if (state.isLoading && state.earthquakes.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topBarPadding, bottom = 92.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = PrimaryBlue)
+            }
+        } else if (state.errorMessage != null && state.earthquakes.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = topBarPadding, bottom = 92.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                ErrorState(
+                    message = state.errorMessage ?: "Error desconocido",
+                    onRetry = { viewModel.loadEarthquakes(isManualRefresh = true) }
+                )
+            }
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = topBarPadding,
+                    bottom = 92.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (state.filteredEarthquakes.isEmpty()) {
+                    item(key = "empty_state") {
+                        EmptyState()
+                    }
+                } else {
+                    itemsIndexed(state.filteredEarthquakes, key = { _, eq -> eq.id }) { index, eq ->
+                        EarthquakeCard(
+                            earthquake = eq,
+                            onClick = { onEarthquakeSelected(eq) },
+                            orderIndex = index
+                        )
+                    }
+
+                    // Acceso rápido a Acerca de la Aplicación
+                    item(key = "about_shortcut") {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF141C2B))
+                                .border(0.8.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+                                .clickable { onNavigateToAbout() }
+                                .padding(vertical = 12.dp, horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = Color(0xFFA78BFA),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Acerca de Sismos Panamá",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                    Text(
+                                        text = "v2.5.0 • Propósito, fuentes oficiales y emergencias",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF94A3B8)
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = Color(0xFF94A3B8),
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+            }
+        }
+
+        // Barra superior flotante acrílica (Liquid Glass) con desplegable hacia abajo estilo Explorador Tectónico
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .shadow(
+                    elevation = 14.dp,
+                    shape = androidx.compose.ui.graphics.RectangleShape,
+                    ambientColor = Color(0x66000000),
+                    spotColor = Color(0xAA000000)
+                )
+                .background(topBarBrush)
+                .statusBarsPadding()
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(listOf(Color(0x22FFFFFF), Color(0x5538BDF8))),
+                    shape = androidx.compose.ui.graphics.RectangleShape
+                )
+                .onGloballyPositioned { coordinates ->
+                    topBarHeightPx = coordinates.size.height
+                }
+        ) {
+            val hasActiveFilters = state.selectedMinMag != null || state.isSwarmOnly || state.selectedFaultId != null || state.selectedRegion != null
+
+            HomeTopBarContent(
+                quakesCount = state.filteredEarthquakes.size,
                 isLoading = state.isLoading,
                 alertSettings = alertSettings,
+                isPanelsExpanded = isPanelsExpanded,
+                onTogglePanels = { isPanelsExpanded = !isPanelsExpanded },
+                hasActiveFilters = hasActiveFilters,
                 onRefresh = { viewModel.loadEarthquakes(isManualRefresh = true) },
                 onNavigateToFaults = onNavigateToFaults,
                 onNavigateToDashboard = onNavigateToDashboard,
@@ -105,142 +273,82 @@ fun HomeScreen(
                 onNavigateToAbout = onNavigateToAbout,
                 onOpenNotificationSettings = { showNotificationSettings = true }
             )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // Live Status Banner Liquid Glass con acceso al Mapa, Dashboard y Alertas
-            LiveStatusBanner(
-                alertSettings = alertSettings,
-                onOpenDashboard = onNavigateToDashboard,
-                onOpenMap = onNavigateToMap,
-                onOpenNotificationSettings = { showNotificationSettings = true }
-            )
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Filtros de Magnitud Liquid Acrylic
-            MagnitudeFilterRow(
-                selectedMinMag = state.selectedMinMag,
-                onSelectMinMag = { viewModel.setMinMagnitudeFilter(it) }
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Filtro Interactivo por Enjambres y Fallas Geológicas
-            FaultAndSwarmFilterRow(
-                allEarthquakes = state.earthquakes,
-                selectedFaultId = state.selectedFaultId,
-                isSwarmOnly = state.isSwarmOnly,
-                onSelectFault = { viewModel.setFaultFilter(it) },
-                onToggleSwarm = { viewModel.toggleSwarmFilter() }
-            )
-
-            // Tarjeta Educativa para Ciudadanos (No geólogos)
-            val activeEducationalItem = when {
-                state.isSwarmOnly -> CitizenSwarmInfo
-                state.selectedFaultId != null -> CitizenFaultCatalog.find { it.id == state.selectedFaultId }
-                else -> null
-            }
-
-            if (activeEducationalItem != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                CitizenEducationCard(
-                    item = activeEducationalItem,
-                    earthquakeCount = state.filteredEarthquakes.size,
-                    onDismiss = { viewModel.clearAllFilters() },
-                    onOpenMap = onNavigateToMap
-                )
-            } else {
-                Spacer(modifier = Modifier.height(10.dp))
-                // Zonas sísmicas de Panamá (5 Zonas con Acrylic Cards)
-                PanamaRegionsBanner(
-                    selectedRegion = state.selectedRegion,
-                    onSelectRegion = { viewModel.setRegionFilter(it) }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Lista de Sismos ordenados cronológicamente
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (state.isLoading && state.earthquakes.isEmpty()) {
+            // Paneles desplegables hacia abajo a demanda (exactamente como en el Explorador Tectónico)
+            AnimatedVisibility(
+                visible = isPanelsExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(start = 14.dp, end = 14.dp, bottom = 12.dp)
+                ) {
+                    // Divisor especular sutil
                     Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = PrimaryBlue)
-                    }
-                } else if (state.errorMessage != null && state.earthquakes.isEmpty()) {
-                    ErrorState(
-                        message = state.errorMessage ?: "Error desconocido",
-                        onRetry = { viewModel.loadEarthquakes(isManualRefresh = true) }
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(0.6.dp)
+                            .background(Color(0x1AFFFFFF))
                     )
-                } else if (state.filteredEarthquakes.isEmpty()) {
-                    EmptyState()
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        itemsIndexed(state.filteredEarthquakes, key = { _, eq -> eq.id }) { index, eq ->
-                            EarthquakeCard(
-                                earthquake = eq,
-                                onClick = { onEarthquakeSelected(eq) },
-                                orderIndex = index
-                            )
-                        }
 
-                        // Acceso rápido a Acerca de la Aplicación
-                        item {
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF141C2B))
-                                    .border(0.8.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
-                                    .clickable { onNavigateToAbout() }
-                                    .padding(vertical = 12.dp, horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Info,
-                                        contentDescription = null,
-                                        tint = Color(0xFFA78BFA),
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column {
-                                        Text(
-                                            text = "Acerca de Sismos Panamá",
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
-                                        )
-                                        Text(
-                                            text = "v2.5.0 • Propósito, fuentes oficiales y emergencias",
-                                            fontSize = 11.sp,
-                                            color = Color(0xFF94A3B8)
-                                        )
-                                    }
-                                }
-                                Icon(
-                                    imageVector = Icons.Default.ChevronRight,
-                                    contentDescription = null,
-                                    tint = Color(0xFF94A3B8),
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Live Status Banner Liquid Glass con acceso al Mapa, Dashboard y Alertas
+                    LiveStatusBanner(
+                        alertSettings = alertSettings,
+                        onOpenDashboard = onNavigateToDashboard,
+                        onOpenMap = onNavigateToMap,
+                        onOpenNotificationSettings = { showNotificationSettings = true }
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Filtros de Magnitud Liquid Acrylic
+                    MagnitudeFilterRow(
+                        selectedMinMag = state.selectedMinMag,
+                        onSelectMinMag = { viewModel.setMinMagnitudeFilter(it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Filtro Interactivo por Enjambres y Fallas Geológicas
+                    FaultAndSwarmFilterRow(
+                        allEarthquakes = state.earthquakes,
+                        selectedFaultId = state.selectedFaultId,
+                        isSwarmOnly = state.isSwarmOnly,
+                        onSelectFault = { viewModel.setFaultFilter(it) },
+                        onToggleSwarm = { viewModel.toggleSwarmFilter() }
+                    )
+
+                    // Tarjeta Educativa para Ciudadanos (No geólogos)
+                    val activeEducationalItem = when {
+                        state.isSwarmOnly -> CitizenSwarmInfo
+                        state.selectedFaultId != null -> CitizenFaultCatalog.find { it.id == state.selectedFaultId }
+                        else -> null
                     }
+
+                    if (activeEducationalItem != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        CitizenEducationCard(
+                            item = activeEducationalItem,
+                            earthquakeCount = state.filteredEarthquakes.size,
+                            onDismiss = { viewModel.clearAllFilters() },
+                            onOpenMap = onNavigateToMap
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        // Zonas sísmicas de Panamá (5 Zonas con Acrylic Cards)
+                        PanamaRegionsBanner(
+                            selectedRegion = state.selectedRegion,
+                            onSelectRegion = { viewModel.setRegionFilter(it) }
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
             }
         }
@@ -255,9 +363,13 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeTopBar(
+private fun HomeTopBarContent(
+    quakesCount: Int,
     isLoading: Boolean,
     alertSettings: AlertSettings,
+    isPanelsExpanded: Boolean,
+    onTogglePanels: () -> Unit,
+    hasActiveFilters: Boolean,
     onRefresh: () -> Unit,
     onNavigateToFaults: () -> Unit,
     onNavigateToDashboard: () -> Unit,
@@ -265,13 +377,6 @@ private fun HomeTopBar(
     onNavigateToAbout: () -> Unit,
     onOpenNotificationSettings: () -> Unit
 ) {
-    val topBarBrush = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFF131B2A),
-            Color(0xFF0D121B)
-        )
-    )
-
     val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp
     val isTablet = screenWidth >= 600
 
@@ -293,41 +398,63 @@ private fun HomeTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(topBarBrush)
-            .statusBarsPadding()
-            .border(
-                width = 0.8.dp,
-                brush = Brush.verticalGradient(listOf(Color(0x33FFFFFF), Color.Transparent)),
-                shape = androidx.compose.ui.graphics.RectangleShape
-            )
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f, fill = false)) {
             Text(
                 text = "SISMOS PANAMÁ",
-                fontSize = if (isTablet) 20.sp else 18.sp,
+                fontSize = if (isTablet) 20.sp else 17.sp,
                 fontWeight = FontWeight.ExtraBold,
                 fontFamily = FontFamily.SansSerif,
                 color = Color.White,
                 letterSpacing = (-0.4).sp,
                 maxLines = 1
             )
-            Text(
-                text = "Red Sismológica Oficial en Vivo",
-                fontSize = if (isTablet) 11.sp else 10.sp,
-                color = Color(0xFF94A3B8),
-                maxLines = 1
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(if (hasActiveFilters) Color(0xFF00E5FF) else Color(0xFF10B981))
+                )
+                Text(
+                    text = if (hasActiveFilters) {
+                        "Filtro activo • $quakesCount sismos"
+                    } else {
+                        "Red Sismológica Oficial • $quakesCount sismos"
+                    },
+                    fontSize = if (isTablet) 11.sp else 10.sp,
+                    color = if (hasActiveFilters) Color(0xFF38BDF8) else Color(0xFF94A3B8),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(if (isTablet) 8.dp else 4.dp)
+            horizontalArrangement = Arrangement.spacedBy(if (isTablet) 6.dp else 2.dp)
         ) {
+            // Botón Desplegable de Paneles y Filtros (al lado de la campanita de notificaciones)
+            IconButton(
+                onClick = onTogglePanels,
+                modifier = Modifier.size(if (isTablet) 40.dp else 36.dp)
+            ) {
+                Icon(
+                    imageVector = if (isPanelsExpanded) Icons.Default.ExpandLess else Icons.Default.Tune,
+                    contentDescription = if (isPanelsExpanded) "Ocultar paneles y filtros" else "Mostrar paneles y filtros",
+                    tint = if (isPanelsExpanded || hasActiveFilters) PrimaryBlue else Color(0xFF94A3B8),
+                    modifier = Modifier.size(if (isTablet) 24.dp else 22.dp)
+                )
+            }
+
             // Botón Alertas y Notificaciones (Campana Dinámica)
             IconButton(
                 onClick = onOpenNotificationSettings,

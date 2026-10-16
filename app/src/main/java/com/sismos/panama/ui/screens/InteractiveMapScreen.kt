@@ -23,6 +23,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -475,7 +476,8 @@ fun InteractiveMapScreen(
     onBack: () -> Unit,
     onEarthquakeSelected: (Earthquake) -> Unit,
     initialWaveSimulation: Boolean = false,
-    selectFirst: Boolean = false
+    selectFirst: Boolean = false,
+    initialFaultId: String? = null
 ) {
     val state by viewModel.uiState.collectAsState()
     val allEarthquakes = state.filteredEarthquakes
@@ -484,7 +486,7 @@ fun InteractiveMapScreen(
     var selectedHazardTier by remember { mutableStateOf<MagnitudeHazardTier?>(null) }
     var showOnlySwarm by remember { mutableStateOf(false) }
     var dismissEmptyTierNoticeFor by remember { mutableStateOf<MagnitudeHazardTier?>(null) }
-    var isHazardScaleCollapsed by remember { mutableStateOf(false) }
+    var isHazardScaleCollapsed by remember { mutableStateOf(true) }
 
     // Conteo de sismos según la escala de peligro sísmico
     val baseQuakesForCounts = remember(allEarthquakes, showOnlySwarm) {
@@ -521,6 +523,12 @@ fun InteractiveMapScreen(
     LaunchedEffect(initialWaveSimulation, selectFirst, displayEarthquakes) {
         if ((initialWaveSimulation || selectFirst) && selectedEq == null && displayEarthquakes.isNotEmpty()) {
             selectedEq = displayEarthquakes.first()
+        }
+    }
+
+    LaunchedEffect(initialFaultId) {
+        if (initialFaultId != null) {
+            selectedFault = InteractivePanamaFaults.find { it.id.equals(initialFaultId, ignoreCase = true) }
         }
     }
 
@@ -645,6 +653,7 @@ fun InteractiveMapScreen(
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
+                        .fillMaxWidth()
                         .padding(top = 10.dp, start = 12.dp, end = 12.dp),
                     shape = RoundedCornerShape(20.dp),
                     color = Color(0xF20B1324),
@@ -652,69 +661,66 @@ fun InteractiveMapScreen(
                 ) {
                     Row(
                         modifier = Modifier
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                            .horizontalScroll(rememberScrollState()),
+                            .fillMaxWidth()
+                            .padding(start = 12.dp, top = 4.dp, end = 6.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFFFB300))
-                        )
-                        Text(
-                            text = "⚡ Enjambre Azuero ($swarmCount) • M ${String.format(java.util.Locale.US, "%.1f", latestSwarmQuake?.magnitude ?: 0.0)}",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            maxLines = 1
-                        )
-                        if (latestSwarmQuake != null) {
-                            TextButton(
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.weight(1f, fill = false)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFFB300))
+                            )
+                            Text(
+                                text = "⚡ Enjambre Azuero ($swarmCount) • M ${String.format(java.util.Locale.US, "%.1f", latestSwarmQuake?.magnitude ?: 0.0)}",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (latestSwarmQuake != null) {
+                                Surface(
+                                    onClick = { selectedEq = latestSwarmQuake },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = Color(0x33FFB300),
+                                    border = BorderStroke(0.6.dp, Color(0x66FFB300))
+                                ) {
+                                    Text(
+                                        text = "📍 Ver #1",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFFFD700),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+                            IconButton(
                                 onClick = {
-                                    selectedEq = latestSwarmQuake
+                                    isSwarmBannerDismissed = true
+                                    isSwarmFocused = false
                                 },
-                                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                                modifier = Modifier.height(26.dp)
+                                modifier = Modifier.size(28.dp)
                             ) {
-                                Text(
-                                    text = "📍 Ver #1",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFFFD700)
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Cerrar aviso de enjambre",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
-                        }
-                        TextButton(
-                            onClick = {
-                                scale = 1f
-                                offset = Offset.Zero
-                                isSwarmFocused = false
-                            },
-                            contentPadding = PaddingValues(horizontal = 6.dp, vertical = 0.dp),
-                            modifier = Modifier.height(26.dp)
-                        ) {
-                            Text(
-                                text = "Ver Panamá",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF38BDF8)
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                isSwarmBannerDismissed = true
-                                isSwarmFocused = false
-                            },
-                            modifier = Modifier.size(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Ocultar aviso de enjambre",
-                                tint = Color(0xFF94A3B8),
-                                modifier = Modifier.size(14.dp)
-                            )
                         }
                     }
                 }
@@ -740,8 +746,10 @@ fun InteractiveMapScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(
-                        horizontal = 14.dp,
-                        vertical = 12.dp
+                        start = 14.dp,
+                        end = 14.dp,
+                        top = 12.dp,
+                        bottom = 78.dp
                     )
             ) {
                 MapLegendBadge(
@@ -836,22 +844,9 @@ fun InteractiveMapScreen(
                         )
 
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            horizontalArrangement = Arrangement.Center,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            OutlinedButton(
-                                onClick = { dismissEmptyTierNoticeFor = selectedHazardTier },
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(0.8.dp, Color(0x44FFFFFF)),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Text(
-                                    "Cerrar",
-                                    color = Color(0xFF94A3B8),
-                                    fontSize = 11.sp
-                                )
-                            }
                             Button(
                                 onClick = {
                                     selectedHazardTier = null
@@ -859,14 +854,14 @@ fun InteractiveMapScreen(
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = selectedHazardTier?.color ?: Color(0xFF00E5FF)),
                                 shape = RoundedCornerShape(8.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                                modifier = Modifier.height(34.dp)
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
+                                modifier = Modifier.height(36.dp)
                             ) {
                                 Text(
                                     "Ver Todos los Sismos",
                                     color = Color(0xFF091020),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 11.sp
+                                    fontSize = 12.sp
                                 )
                             }
                         }
@@ -881,7 +876,7 @@ fun InteractiveMapScreen(
                 exit = slideOutVertically { it } + fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(16.dp)
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 82.dp)
             ) {
                 selectedFault?.let { fault ->
                     val faultQuakes = allEarthquakes.filter { eq ->
@@ -929,7 +924,7 @@ fun InteractiveMapScreen(
                 exit = slideOutVertically { it } + fadeOut(),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(16.dp)
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 82.dp)
             ) {
                 selectedEq?.let { eq ->
                     SelectedEarthquakeCard(
@@ -2007,12 +2002,29 @@ private fun MapTopBar(
 ) {
     var areToolsExpanded by remember { mutableStateOf(false) }
 
+    val topBarBrush = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xEA0D1627), // 92% frosted deep slate navy
+            Color(0xF2080D1A)  // 95% frosted dark navy
+        )
+    )
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF0F172A))
+            .shadow(
+                elevation = 12.dp,
+                shape = RectangleShape,
+                ambientColor = Color(0x66000000),
+                spotColor = Color(0xAA000000)
+            )
+            .background(topBarBrush)
             .statusBarsPadding()
-            .border(0.8.dp, Color(0x33FFFFFF), RectangleShape)
+            .border(
+                width = 1.dp,
+                brush = Brush.verticalGradient(listOf(Color(0x22FFFFFF), Color(0x5538BDF8))),
+                shape = RectangleShape
+            )
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Row(
@@ -2596,6 +2608,7 @@ private fun SelectedFaultCard(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -2605,20 +2618,26 @@ private fun SelectedFaultCard(
                             .clip(CircleShape)
                             .background(fault.color)
                     )
-                    Column {
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
                             text = fault.name,
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = fault.region,
                             fontSize = 12.sp,
-                            color = Color(0xFF94A3B8)
+                            color = Color(0xFF94A3B8),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 IconButton(
                     onClick = onDismiss,
@@ -2627,7 +2646,12 @@ private fun SelectedFaultCard(
                         .clip(CircleShape)
                         .background(Color(0x2EFFFFFF))
                 ) {
-                    Icon(imageVector = Icons.Default.Close, contentDescription = "Cerrar", tint = Color.White, modifier = Modifier.size(20.dp))
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Cerrar",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
@@ -2680,50 +2704,23 @@ private fun SelectedFaultCard(
                 color = Color(0xFF94A3B8)
             )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                OutlinedButton(
-                    onClick = onDismiss,
-                    border = BorderStroke(1.dp, Color(0x44FFFFFF)),
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color(0x18FFFFFF),
+            if (associatedQuakesCount > 0) {
+                Button(
+                    onClick = onFilterFaultQuakes,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = fault.color.copy(alpha = 0.25f),
                         contentColor = Color.White
                     ),
+                    border = BorderStroke(1.dp, fault.color),
                     shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.weight(0.85f).height(38.dp)
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().height(40.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cerrar",
-                        modifier = Modifier.size(15.dp),
-                        tint = Color(0xFFEF4444)
+                    Text(
+                        text = "⚡ Ver $associatedQuakesCount sismos activos asociados",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = "Cerrar", fontSize = 12.sp, color = Color.White)
-                }
-
-                if (associatedQuakesCount > 0) {
-                    Button(
-                        onClick = onFilterFaultQuakes,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = fault.color.copy(alpha = 0.25f),
-                            contentColor = Color.White
-                        ),
-                        border = BorderStroke(1.dp, fault.color),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        modifier = Modifier.weight(1.35f).height(38.dp)
-                    ) {
-                        Text(
-                            text = "⚡ Ver $associatedQuakesCount sismos",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
                 }
             }
         }
@@ -2969,36 +2966,9 @@ private fun SelectedEarthquakeCard(
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Botón Cerrar / Deseleccionar explícito
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        border = BorderStroke(1.dp, Color(0x44FFFFFF)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color(0x18FFFFFF),
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        modifier = Modifier.weight(0.9f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Cerrar",
-                            modifier = Modifier.size(15.dp),
-                            tint = Color(0xFFEF4444)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Cerrar",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.White
-                        )
-                    }
-
                     // Botón Simular Onda
                     Button(
                         onClick = onToggleWaveSim,
@@ -3006,17 +2976,17 @@ private fun SelectedEarthquakeCard(
                             containerColor = Color(0x333186FF)
                         ),
                         border = BorderStroke(1.dp, Color(0x663186FF)),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1.15f)
+                        modifier = Modifier.weight(1f).height(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = null,
-                            modifier = Modifier.size(15.dp),
+                            modifier = Modifier.size(16.dp),
                             tint = Color(0xFF60A5FA)
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Simular",
                             fontSize = 12.sp,
@@ -3029,16 +2999,16 @@ private fun SelectedEarthquakeCard(
                     Button(
                         onClick = onViewDetail,
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1.25f)
+                        modifier = Modifier.weight(1f).height(40.dp)
                     ) {
                         Text(text = "Ver Análisis", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                        Spacer(modifier = Modifier.width(2.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = null,
-                            modifier = Modifier.size(15.dp),
+                            modifier = Modifier.size(16.dp),
                             tint = Color.White
                         )
                     }

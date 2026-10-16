@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -56,8 +57,8 @@ fun PanamaBottomNavigationBar(
 ) {
     val barBrush = Brush.verticalGradient(
         colors = listOf(
-            Color(0xEE111827),
-            Color(0xFA0B0F19)
+            Color(0xEA0D1627), // 92% frosted deep slate navy
+            Color(0xF2080D1A)  // 95% frosted dark navy
         )
     )
 
@@ -70,12 +71,18 @@ fun PanamaBottomNavigationBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .shadow(
+                    elevation = 16.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    ambientColor = Color(0x66000000),
+                    spotColor = Color(0x9900E5FF)
+                )
                 .clip(RoundedCornerShape(24.dp))
                 .background(barBrush)
                 .border(
                     width = 1.dp,
                     brush = Brush.verticalGradient(
-                        listOf(Color(0x4038BDF8), Color(0x15FFFFFF))
+                        listOf(Color(0x6638BDF8), Color(0x22FFFFFF))
                     ),
                     shape = RoundedCornerShape(24.dp)
                 )
@@ -116,7 +123,7 @@ fun PanamaBottomNavigationBar(
                                 indication = ripple(bounded = true, color = item.accentColor)
                             ) {
                                 when (item) {
-                                    BottomNavItem.HOME -> onNavigate(Screen.Home)
+                                    BottomNavItem.HOME -> onNavigate(Screen.Home())
                                     BottomNavItem.MAP -> onNavigate(Screen.Map())
                                     BottomNavItem.DASHBOARD -> onNavigate(Screen.Dashboard)
                                     BottomNavItem.FAULTS -> onNavigate(Screen.Faults)

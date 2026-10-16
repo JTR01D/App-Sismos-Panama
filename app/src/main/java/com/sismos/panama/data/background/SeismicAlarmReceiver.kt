@@ -142,14 +142,38 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
                 else -> "💬"
             }
 
-            val title = "$modeTag ALERTA SÍSMICA PANAMÁ: M${String.format(java.util.Locale.US, "%.1f", eq.magnitude)}"
-            val content = "${eq.place} | Prof: ${eq.depthKm.toInt()} km • ${eq.nearestFault}"
+            val magFormatted = String.format(java.util.Locale.US, "%.1f", eq.magnitude)
+
+            // Limpieza del lugar para que sea conciso y libre de redundancias
+            val cleanPlace = eq.place
+                .replace(", Panamá", "", ignoreCase = true)
+                .replace(", Panama", "", ignoreCase = true)
+                .trim()
+
+            val shortLocation = if (cleanPlace.length > 30) {
+                if (eq.nearestCity.isNotBlank()) eq.nearestCity else "Panamá"
+            } else cleanPlace
+
+            // La magnitud está estrictamente al inicio del mensaje, corto y directo
+            val title = if (eq.isTsunamiWarning) {
+                "M $magFormatted • Alerta de Tsunami"
+            } else {
+                "M $magFormatted • Sismo en $shortLocation"
+            }
+
+            // Mensaje secundario corto y entendible: profundidad y ciudad de referencia
+            val content = if (cleanPlace.length > 30) {
+                "$cleanPlace • Prof: ${eq.depthKm.toInt()} km"
+            } else {
+                "Prof: ${eq.depthKm.toInt()} km • Cerca de ${eq.nearestCity}"
+            }
 
             val builder = NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle(title)
                 .setContentText(content)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(content))
+                .setTicker(title)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent)
@@ -187,7 +211,7 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
             val testEarthquake = Earthquake(
                 id = "test_alert_${System.currentTimeMillis()}",
                 magnitude = 4.5,
-                place = "Prueba de Alerta Sísmica - Panamá",
+                place = "Prueba de Alerta Sísmica",
                 timeMillis = System.currentTimeMillis(),
                 latitude = 8.98,
                 longitude = -79.52,

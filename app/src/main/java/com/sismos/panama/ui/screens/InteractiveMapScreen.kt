@@ -202,29 +202,32 @@ data class VolcanoLandmark(val name: String, val elevation: String, val lat: Dou
 
 val BaruVolcano = VolcanoLandmark("VOLCÁN BARÚ", "3,475 m", 8.808, -82.543)
 
-// Ciudades y Centros Urbanos de Referencia Cartográfica
-data class ReferenceCity(val name: String, val lat: Double, val lon: Double, val isCapital: Boolean = false)
+// Estaciones Sismológicas Oficiales de Monitoreo (Red Sismológica Nacional IGC - Universidad de Panamá)
+data class SeismicStation(
+    val code: String,
+    val locality: String,
+    val lat: Double,
+    val lon: Double,
+    val isPrimaryCampus: Boolean = false
+)
 
-val MapReferenceCities = listOf(
-    ReferenceCity("Ciudad de Panamá", 8.98, -79.52, isCapital = true),
-    ReferenceCity("David", 8.43, -82.43),
-    ReferenceCity("Santiago", 8.10, -80.97),
-    ReferenceCity("Chitré", 7.96, -80.43),
+val PanamaSeismicStations = listOf(
+    SeismicStation("UPA", "Panamá Metro", 8.98, -79.53, isPrimaryCampus = true),
+    SeismicStation("DVD", "David", 8.44, -82.42),
+    SeismicStation("TON", "Tonosí", 7.28, -80.44),
+    SeismicStation("BOC", "Bocas del Toro", 9.34, -82.24),
+    SeismicStation("SAN", "Santiago", 8.11, -80.98)
+)
+
+// Centros Urbanos Secundarios de Referencia (sin estación sismológica principal)
+data class ReferenceCity(val name: String, val lat: Double, val lon: Double)
+
+val SecondaryReferenceCities = listOf(
     ReferenceCity("Penonomé", 8.52, -80.36),
+    ReferenceCity("Chitré", 7.96, -80.43),
     ReferenceCity("Colón", 9.36, -79.90),
     ReferenceCity("Changuinola", 9.43, -82.52),
     ReferenceCity("La Palma", 8.52, -78.14)
-)
-
-// Estaciones de la Red Sismológica Nacional (IGC - Universidad de Panamá)
-data class SeismicStation(val code: String, val name: String, val lat: Double, val lon: Double)
-
-val PanamaSeismicStations = listOf(
-    SeismicStation("UPA", "Univ. Panamá (Metro)", 8.98, -79.53),
-    SeismicStation("DVD", "David (Chiriquí)", 8.44, -82.42),
-    SeismicStation("TON", "Tonosí (Los Santos)", 7.40, -80.44),
-    SeismicStation("BOC", "Isla Colón (Bocas)", 9.34, -82.24),
-    SeismicStation("SAN", "Santiago (Veraguas)", 8.11, -80.98)
 )
 
 // Lago Gatún / Canal de Panamá (Hito geográfico principal)
@@ -250,17 +253,17 @@ val ProvinceBorders = listOf(
     listOf(Pair(8.45, -78.50), Pair(8.90, -78.30), Pair(9.20, -78.00))
 )
 
-// Rótulos provinciales en el mapa
+// Rótulos provinciales en el mapa (posicionados en los centros geográficos sin colisión)
 data class ProvinceLabel(val name: String, val lat: Double, val lon: Double)
 
 val PanamaProvinceLabels = listOf(
-    ProvinceLabel("CHIRIQUÍ", 8.45, -82.55),
-    ProvinceLabel("BOCAS DEL TORO", 9.30, -82.45),
-    ProvinceLabel("VERAGUAS", 8.25, -81.30),
-    ProvinceLabel("AZUERO", 7.65, -80.45),
-    ProvinceLabel("COCLÉ", 8.55, -80.45),
-    ProvinceLabel("COLÓN", 9.25, -79.80),
-    ProvinceLabel("PANAMÁ", 9.15, -79.25),
+    ProvinceLabel("CHIRIQUÍ", 8.60, -82.72),
+    ProvinceLabel("BOCAS DEL TORO", 9.18, -82.65),
+    ProvinceLabel("VERAGUAS", 8.35, -81.35),
+    ProvinceLabel("AZUERO", 7.62, -80.60),
+    ProvinceLabel("COCLÉ", 8.62, -80.52),
+    ProvinceLabel("COLÓN", 9.18, -80.05),
+    ProvinceLabel("PANAMÁ", 9.25, -79.15),
     ProvinceLabel("DARIÉN", 8.20, -77.90)
 )
 
@@ -1060,7 +1063,7 @@ private fun AdvancedTectonicMapCanvas(
             )
 
             // Rótulo central: Microplaca de Panamá
-            val microplatePos = project(8.60, -80.60, size)
+            val microplatePos = project(8.85, -80.90, size)
             val microplatePaint = Paint().apply {
                 color = android.graphics.Color.argb(70, 0, 229, 255)
                 textSize = (11f * scale.coerceIn(0.8f, 2.0f)).coerceAtLeast(9f)
@@ -1148,13 +1151,13 @@ private fun AdvancedTectonicMapCanvas(
                 )
             }
 
-            // 9. Rótulos Provinciales
+            // 9. Rótulos Provinciales de Fondo (Contexto Geográfico Suave / Marca de Agua)
             val provTextPaint = Paint().apply {
-                color = android.graphics.Color.argb(85, 148, 163, 184)
-                textSize = (11.5f * scale.coerceIn(0.8f, 2.0f)).coerceAtLeast(9.5f)
+                color = android.graphics.Color.argb(45, 148, 163, 184)
+                textSize = (12f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(10f)
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
-                letterSpacing = 0.15f
+                letterSpacing = 0.20f
             }
             PanamaProvinceLabels.forEach { prov ->
                 val pos = project(prov.lat, prov.lon, size)
@@ -1189,48 +1192,39 @@ private fun AdvancedTectonicMapCanvas(
             }
             drawContext.canvas.nativeCanvas.drawText("▲ VOLCÁN BARÚ (${BaruVolcano.elevation})", baruPos.x, baruPos.y - triH - 4f, baruPaint)
 
-            // 11. Centros Urbanos y Ciudades de Referencia
-            val cityPaint = Paint().apply {
-                color = android.graphics.Color.argb(170, 226, 232, 240)
-                textSize = (9.5f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(8f)
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            // 11. Estaciones Sismológicas Oficiales (Red Sismológica Nacional IGC - Universidad de Panamá)
+            val stationBadgePaint = Paint().apply {
+                color = android.graphics.Color.argb(235, 9, 16, 32)
+                style = Paint.Style.FILL
             }
-            val capitalPaint = Paint().apply {
-                color = android.graphics.Color.argb(240, 255, 215, 0)
-                textSize = (10.5f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(9f)
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            val stationBorderPaint = Paint().apply {
+                color = android.graphics.Color.argb(160, 0, 229, 255)
+                style = Paint.Style.STROKE
+                strokeWidth = 1.1f
             }
-
-            MapReferenceCities.forEach { city ->
-                val cPos = project(city.lat, city.lon, size)
-                val dotRadius = if (city.isCapital) 4.5f * scale.coerceIn(0.8f, 1.6f) else 3.0f * scale.coerceIn(0.8f, 1.6f)
-
-                // Sombra de punto urbano
-                drawCircle(color = Color(0xF0080E1C), radius = dotRadius + 1.5f, center = cPos)
-                // Color interior
-                drawCircle(
-                    color = if (city.isCapital) Color(0xFFFFD700) else Color(0xFF94A3B8),
-                    radius = dotRadius,
-                    center = cPos
-                )
-
-                // Rótulo de la ciudad
-                val cityText = if (city.isCapital) "★ ${city.name}" else city.name
-                val paint = if (city.isCapital) capitalPaint else cityPaint
-                drawContext.canvas.nativeCanvas.drawText(cityText, cPos.x + dotRadius + 5f, cPos.y + 3.5f, paint)
-            }
-
-            // 12. Estaciones de la Red Sismológica Nacional (IGC - UP)
-            val stationPaint = Paint().apply {
-                color = android.graphics.Color.argb(190, 0, 229, 255)
-                textSize = (8.5f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(7.5f)
+            val stationCodePaint = Paint().apply {
+                color = android.graphics.Color.argb(255, 0, 229, 255)
+                textSize = (9f * scale.coerceIn(0.8f, 1.6f)).coerceAtLeast(8f)
                 typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
             }
+            val stationLocalityPaint = Paint().apply {
+                color = android.graphics.Color.argb(220, 226, 232, 240)
+                textSize = (9f * scale.coerceIn(0.8f, 1.6f)).coerceAtLeast(8f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            }
+
             PanamaSeismicStations.forEach { station ->
                 val sPos = project(station.lat, station.lon, size)
-                val dSize = 4f * scale.coerceIn(0.8f, 1.6f)
+                val dSize = 4.5f * scale.coerceIn(0.8f, 1.6f)
 
-                // Diamante de estación sismológica ◆
+                // Resplandor de pulso
+                drawCircle(
+                    color = Color(0x2800E5FF),
+                    radius = dSize * 2.8f,
+                    center = sPos
+                )
+
+                // Diamante oficial ◆
                 val diamondPath = Path().apply {
                     moveTo(sPos.x, sPos.y - dSize)
                     lineTo(sPos.x + dSize, sPos.y)
@@ -1239,9 +1233,50 @@ private fun AdvancedTectonicMapCanvas(
                     close()
                 }
                 drawPath(path = diamondPath, color = Color(0xFF00E5FF))
-                drawPath(path = diamondPath, color = Color.White, style = Stroke(width = 0.8f))
+                drawPath(path = diamondPath, color = Color.White, style = Stroke(width = 1.0f))
 
-                drawContext.canvas.nativeCanvas.drawText("◆ ${station.code}", sPos.x + dSize + 4f, sPos.y + 3f, stationPaint)
+                // Badge descriptivo de la estación IGC
+                val codeText = "◆ ${station.code}"
+                val locText = " • ${station.locality}"
+                val codeW = stationCodePaint.measureText(codeText)
+                val locW = stationLocalityPaint.measureText(locText)
+                val totalW = codeW + locW
+
+                val badgeH = 17f * scale.coerceIn(0.8f, 1.4f)
+                val badgeStartX = if (station.code == "UPA") {
+                    sPos.x - totalW - dSize - 12f
+                } else {
+                    sPos.x + dSize + 5f
+                }
+                val badgeStartY = sPos.y - (badgeH / 2f)
+
+                val badgeRect = android.graphics.RectF(
+                    badgeStartX - 4f,
+                    badgeStartY,
+                    badgeStartX + totalW + 8f,
+                    badgeStartY + badgeH
+                )
+
+                drawContext.canvas.nativeCanvas.drawRoundRect(badgeRect, 5f, 5f, stationBadgePaint)
+                drawContext.canvas.nativeCanvas.drawRoundRect(badgeRect, 5f, 5f, stationBorderPaint)
+
+                val textBaselineY = badgeStartY + (badgeH * 0.72f)
+                drawContext.canvas.nativeCanvas.drawText(codeText, badgeStartX, textBaselineY, stationCodePaint)
+                drawContext.canvas.nativeCanvas.drawText(locText, badgeStartX + codeW, textBaselineY, stationLocalityPaint)
+            }
+
+            // 12. Centros Urbanos Secundarios (sin estación sismológica principal)
+            val secCityPaint = Paint().apply {
+                color = android.graphics.Color.argb(140, 203, 213, 225)
+                textSize = (8.5f * scale.coerceIn(0.8f, 1.6f)).coerceAtLeast(7.5f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+            }
+            SecondaryReferenceCities.forEach { city ->
+                val cPos = project(city.lat, city.lon, size)
+                val dotR = 2.5f * scale.coerceIn(0.8f, 1.4f)
+                drawCircle(color = Color(0xDD080E1C), radius = dotR + 1.2f, center = cPos)
+                drawCircle(color = Color(0xFF64748B), radius = dotR, center = cPos)
+                drawContext.canvas.nativeCanvas.drawText(city.name, cPos.x + dotR + 4f, cPos.y + 3f, secCityPaint)
             }
 
             // 7. Enjambre Sísmico Activo (Azuero - Coiba): Área Resaltada

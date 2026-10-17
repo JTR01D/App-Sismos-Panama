@@ -1,5 +1,6 @@
 package com.sismos.panama.ui.components
 
+import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -10,11 +11,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -68,7 +73,8 @@ import com.sismos.panama.data.models.AlertSettings
 
 /**
  * Modal Liquid Glass interactivo para la gestión completa de alertas y notificaciones sísmicas.
- * Otorga libertad total para seleccionar Solo Vibrar, Solo Sonido, Solo Mensajes, o Desactivar Todas.
+ * Diseño responsivo adaptativo que garantiza visibilidad y navegación perfecta en cualquier
+ * orientación (vertical u horizontal), tamaño de pantalla y escala de texto.
  */
 @Composable
 fun NotificationSettingsModal(
@@ -76,6 +82,11 @@ fun NotificationSettingsModal(
     onSettingsChanged: (AlertSettings) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val screenHeightDp = configuration.screenHeightDp.dp
+    val screenWidthDp = configuration.screenWidthDp.dp
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE || screenWidthDp > screenHeightDp
+
     val initialSettings = remember { AlertSettings.load(context) }
 
     var notifEnabled by remember { mutableStateOf(initialSettings.notificationsEnabled) }
@@ -100,7 +111,9 @@ fun NotificationSettingsModal(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.94f)
+                .fillMaxWidth(if (isLandscape) 0.88f else 0.94f)
+                .widthIn(max = if (isLandscape) 640.dp else 440.dp)
+                .fillMaxHeight(if (isLandscape) 0.94f else 0.90f)
                 .clip(RoundedCornerShape(24.dp))
                 .background(
                     Brush.verticalGradient(
@@ -118,12 +131,13 @@ fun NotificationSettingsModal(
                     ),
                     shape = RoundedCornerShape(24.dp)
                 )
-                .padding(20.dp)
+                .padding(
+                    horizontal = if (isLandscape) 16.dp else 20.dp,
+                    vertical = if (isLandscape) 12.dp else 16.dp
+                )
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(scrollState)
+                modifier = Modifier.fillMaxSize()
             ) {
                 // Header
                 Row(
@@ -153,7 +167,7 @@ fun NotificationSettingsModal(
 
                         Box(
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(if (isLandscape) 38.dp else 44.dp)
                                 .clip(CircleShape)
                                 .background(headerGlowColor.copy(alpha = 0.18f))
                                 .border(1.dp, headerGlowColor.copy(alpha = 0.5f), CircleShape),
@@ -163,21 +177,21 @@ fun NotificationSettingsModal(
                                 imageVector = headerIcon,
                                 contentDescription = null,
                                 tint = headerGlowColor,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(if (isLandscape) 20.dp else 24.dp)
                             )
                         }
 
                         Column {
                             Text(
                                 text = "ALERTAS Y NOTIFICACIONES",
-                                fontSize = 16.sp,
+                                fontSize = if (isLandscape) 14.sp else 16.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White,
                                 letterSpacing = (-0.3).sp
                             )
                             Text(
                                 text = "Modo: ${currentSettings.getModeDescription().uppercase()}",
-                                fontSize = 11.sp,
+                                fontSize = if (isLandscape) 10.sp else 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = headerGlowColor
                             )
@@ -187,7 +201,7 @@ fun NotificationSettingsModal(
                     IconButton(
                         onClick = onDismiss,
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(if (isLandscape) 30.dp else 34.dp)
                             .clip(CircleShape)
                             .background(Color(0x22FFFFFF))
                     ) {
@@ -195,402 +209,471 @@ fun NotificationSettingsModal(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Cerrar",
                             tint = Color.White,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(if (isLandscape) 16.dp else 18.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(if (isLandscape) 8.dp else 14.dp))
 
-                // SECCIÓN 1: MODOS RÁPIDOS EN 1 TOQUE (PRESETS)
-                Text(
-                    text = "ACCESOS RÁPIDOS (1 TOQUE)",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF94A3B8),
-                    letterSpacing = 0.8.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                // Scrollable Body
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(scrollState)
                 ) {
-                    // Botón Completa
-                    PresetChip(
-                        title = "⚡ Completa",
-                        subtitle = "Sonido + Vibrar",
-                        isSelected = notifEnabled && soundEnabled && vibrateEnabled && messagesEnabled,
-                        activeColor = Color(0xFF00E5FF),
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            notifEnabled = true
-                            soundEnabled = true
-                            vibrateEnabled = true
-                            messagesEnabled = true
-                        }
-                    )
-
-                    // Botón Solo Vibrar
-                    PresetChip(
-                        title = "📳 Solo Vibrar",
-                        subtitle = "Táctil discreto",
-                        isSelected = notifEnabled && !soundEnabled && vibrateEnabled && messagesEnabled,
-                        activeColor = Color(0xFFF59E0B),
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            notifEnabled = true
-                            soundEnabled = false
-                            vibrateEnabled = true
-                            messagesEnabled = true
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    // Botón Solo Sonido
-                    PresetChip(
-                        title = "🔊 Solo Sonido",
-                        subtitle = "Alarma sin vibrar",
-                        isSelected = notifEnabled && soundEnabled && !vibrateEnabled && messagesEnabled,
-                        activeColor = Color(0xFF38BDF8),
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            notifEnabled = true
-                            soundEnabled = true
-                            vibrateEnabled = false
-                            messagesEnabled = true
-                        }
-                    )
-
-                    // Botón Solo Mensajes
-                    PresetChip(
-                        title = "💬 Solo Mensajes",
-                        subtitle = "Silencioso en pantalla",
-                        isSelected = notifEnabled && !soundEnabled && !vibrateEnabled && messagesEnabled,
-                        activeColor = Color(0xFFA78BFA),
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            notifEnabled = true
-                            soundEnabled = false
-                            vibrateEnabled = false
-                            messagesEnabled = true
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // Botón Desactivar Todas
-                PresetChip(
-                    title = "🔕 Desactivar Todas",
-                    subtitle = "Silencio absoluto / Desactivar notificaciones",
-                    isSelected = currentSettings.isCompletelyDisabled(),
-                    activeColor = Color(0xFFEF4444),
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        notifEnabled = false
-                        soundEnabled = false
-                        vibrateEnabled = false
-                        messagesEnabled = false
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(18.dp))
-
-                // SECCIÓN 2: INTERRUPTORES INDIVIDUALES CON LIBERTAD TOTAL
-                Text(
-                    text = "SELECCIÓN MANUAL INDIVIDUAL",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF94A3B8),
-                    letterSpacing = 0.8.sp
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    cornerRadius = 16.dp,
-                    borderWidth = 0.8.dp
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        // Toggle 1: Notificaciones Sísmicas (General)
-                        SettingToggleRow(
-                            icon = Icons.Default.Notifications,
-                            title = "Sistema de Notificaciones",
-                            description = if (notifEnabled) "Monitoreo activo las 24 horas" else "Desactivadas por completo",
-                            checked = notifEnabled,
-                            activeColor = Color(0xFF00E5FF),
-                            onCheckedChange = { isChecked ->
-                                notifEnabled = isChecked
-                                if (!isChecked) {
-                                    soundEnabled = false
-                                    vibrateEnabled = false
-                                    messagesEnabled = false
-                                } else {
-                                    messagesEnabled = true
-                                    soundEnabled = true
-                                    vibrateEnabled = true
-                                }
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Toggle 2: Sonido de Alarma
-                        SettingToggleRow(
-                            icon = if (soundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
-                            title = "Sonido de Alarma Sísmica",
-                            description = "Alerta audible de alta prioridad (nivel USAGE_ALARM)",
-                            checked = soundEnabled,
-                            enabled = notifEnabled,
-                            activeColor = Color(0xFF38BDF8),
-                            onCheckedChange = { isChecked ->
-                                soundEnabled = isChecked
-                                if (isChecked && !notifEnabled) notifEnabled = true
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Toggle 3: Solo Vibrar / Vibración
-                        SettingToggleRow(
-                            icon = Icons.Default.Vibration,
-                            title = "Vibración Táctil de Emergencia",
-                            description = "Patrón de pulso sísmico (0, 350, 150, 350, 500 ms)",
-                            checked = vibrateEnabled,
-                            enabled = notifEnabled,
-                            activeColor = Color(0xFFF59E0B),
-                            onCheckedChange = { isChecked ->
-                                vibrateEnabled = isChecked
-                                if (isChecked && !notifEnabled) notifEnabled = true
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Toggle 4: Solo Mensajes / Visuales
-                        SettingToggleRow(
-                            icon = Icons.Default.Message,
-                            title = "Mensajes y Banners Visuales",
-                            description = "Avisos emergentes (Heads-up) y en pantalla de bloqueo",
-                            checked = messagesEnabled,
-                            enabled = notifEnabled,
-                            activeColor = Color(0xFFA78BFA),
-                            onCheckedChange = { isChecked ->
-                                messagesEnabled = isChecked
-                                if (isChecked && !notifEnabled) notifEnabled = true
-                            }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // SECCIÓN 3: BARRA INTERACTIVA DE MAGNITUD MÍNIMA (SLIDER)
-                val sliderSeverityColor = when {
-                    minMag <= 2.0f -> Color(0xFF00E676)
-                    minMag < 4.0f -> Color(0xFF00E5FF)
-                    minMag < 5.0f -> Color(0xFFFFD600)
-                    minMag < 6.0f -> Color(0xFFFF6D00)
-                    else -> Color(0xFFFF1744)
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                    // SECCIÓN 1: MODOS RÁPIDOS EN 1 TOQUE (PRESETS)
                     Text(
-                        text = "RANGO DE ALERTA POR MAGNITUD",
+                        text = "ACCESOS RÁPIDOS (1 TOQUE)",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF94A3B8),
                         letterSpacing = 0.8.sp
                     )
 
-                    // Badge interactivo de magnitud actual
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(sliderSeverityColor.copy(alpha = 0.2f))
-                            .border(1.dp, sliderSeverityColor.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 3.dp)
-                    ) {
-                        Text(
-                            text = if (minMag <= 2.0f) "Todos los sismos" else "M ≥ ${String.format(Locale.US, "%.1f", minMag)}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontFamily = FontFamily.Monospace,
-                            color = sliderSeverityColor
-                        )
-                    }
-                }
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                GlassCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    cornerRadius = 16.dp,
-                    borderWidth = 0.8.dp
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        val magSeverityDesc = when {
-                            minMag <= 2.0f -> "🟢 Sin filtro: Recibirás alerta de absolutamente todos los sismos detectados."
-                            minMag < 4.0f -> "🔵 Leves en adelante: Sentidos en reposo o pisos altos (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
-                            minMag < 5.0f -> "🟡 Moderados en adelante: Sentidos ampliamente por la población (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
-                            minMag < 6.0f -> "🟠 Fuertes en adelante: Sacudida notable y potencial daño local (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
-                            else -> "🔴 Severos únicamente: Sismos destructivos o de gran magnitud (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
-                        }
-
-                        Text(
-                            text = magSeverityDesc,
-                            fontSize = 11.sp,
-                            color = Color(0xFFCBD5E1),
-                            lineHeight = 15.sp
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // Barra Slider para mover la magnitud libremente
-                        Slider(
-                            value = minMag.coerceIn(2.0f, 6.5f),
-                            onValueChange = { newValue ->
-                                minMag = round(newValue * 10f) / 10f
-                            },
-                            valueRange = 2.0f..6.5f,
-                            steps = 44, // Saltos de 0.1 en 0.1
-                            colors = SliderDefaults.colors(
-                                thumbColor = sliderSeverityColor,
-                                activeTrackColor = sliderSeverityColor,
-                                inactiveTrackColor = Color(0x33FFFFFF)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        // Indicadores en extremos de la barra
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "2.0 (Todos)",
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = Color(0xFF64748B)
-                            )
-                            Text(
-                                text = "4.0",
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = Color(0xFF64748B)
-                            )
-                            Text(
-                                text = "6.5+ (Severos)",
-                                fontSize = 10.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = Color(0xFF64748B)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        // Chips de acceso rápido para saltar a valores clave
+                    if (isLandscape) {
+                        // En horizontal: 4 accesos rápidos en 1 sola fila para ahorrar espacio vertical
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            listOf(
-                                2.0f to "Todos",
-                                3.0f to "M ≥ 3.0",
-                                4.0f to "M ≥ 4.0",
-                                5.0f to "M ≥ 5.0",
-                                6.0f to "M ≥ 6.0"
-                            ).forEach { (mag, label) ->
-                                val isSelected = abs(minMag - mag) < 0.05f
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(
-                                            if (isSelected) Color(0x333186FF) else Color(0x12FFFFFF)
+                            PresetChip(
+                                title = "⚡ Completa",
+                                subtitle = "Sonido + Vibrar",
+                                isSelected = notifEnabled && soundEnabled && vibrateEnabled && messagesEnabled,
+                                activeColor = Color(0xFF00E5FF),
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    notifEnabled = true
+                                    soundEnabled = true
+                                    vibrateEnabled = true
+                                    messagesEnabled = true
+                                }
+                            )
+
+                            PresetChip(
+                                title = "📳 Solo Vibrar",
+                                subtitle = "Táctil discreto",
+                                isSelected = notifEnabled && !soundEnabled && vibrateEnabled && messagesEnabled,
+                                activeColor = Color(0xFFF59E0B),
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    notifEnabled = true
+                                    soundEnabled = false
+                                    vibrateEnabled = true
+                                    messagesEnabled = true
+                                }
+                            )
+
+                            PresetChip(
+                                title = "🔊 Solo Sonido",
+                                subtitle = "Alarma sin vibrar",
+                                isSelected = notifEnabled && soundEnabled && !vibrateEnabled && messagesEnabled,
+                                activeColor = Color(0xFF38BDF8),
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    notifEnabled = true
+                                    soundEnabled = true
+                                    vibrateEnabled = false
+                                    messagesEnabled = true
+                                }
+                            )
+
+                            PresetChip(
+                                title = "💬 Solo Mensajes",
+                                subtitle = "Silencioso pantalla",
+                                isSelected = notifEnabled && !soundEnabled && !vibrateEnabled && messagesEnabled,
+                                activeColor = Color(0xFFA78BFA),
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    notifEnabled = true
+                                    soundEnabled = false
+                                    vibrateEnabled = false
+                                    messagesEnabled = true
+                                }
+                            )
+                        }
+                    } else {
+                        // En vertical: 2 filas de 2 accesos
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            PresetChip(
+                                title = "⚡ Completa",
+                                subtitle = "Sonido + Vibrar",
+                                isSelected = notifEnabled && soundEnabled && vibrateEnabled && messagesEnabled,
+                                activeColor = Color(0xFF00E5FF),
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    notifEnabled = true
+                                    soundEnabled = true
+                                    vibrateEnabled = true
+                                    messagesEnabled = true
+                                }
+                            )
+
+                            PresetChip(
+                                title = "📳 Solo Vibrar",
+                                subtitle = "Táctil discreto",
+                                isSelected = notifEnabled && !soundEnabled && vibrateEnabled && messagesEnabled,
+                                activeColor = Color(0xFFF59E0B),
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    notifEnabled = true
+                                    soundEnabled = false
+                                    vibrateEnabled = true
+                                    messagesEnabled = true
+                                }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            PresetChip(
+                                title = "🔊 Solo Sonido",
+                                subtitle = "Alarma sin vibrar",
+                                isSelected = notifEnabled && soundEnabled && !vibrateEnabled && messagesEnabled,
+                                activeColor = Color(0xFF38BDF8),
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    notifEnabled = true
+                                    soundEnabled = true
+                                    vibrateEnabled = false
+                                    messagesEnabled = true
+                                }
+                            )
+
+                            PresetChip(
+                                title = "💬 Solo Mensajes",
+                                subtitle = "Silencioso en pantalla",
+                                isSelected = notifEnabled && !soundEnabled && !vibrateEnabled && messagesEnabled,
+                                activeColor = Color(0xFFA78BFA),
+                                modifier = Modifier.weight(1f),
+                                onClick = {
+                                    notifEnabled = true
+                                    soundEnabled = false
+                                    vibrateEnabled = false
+                                    messagesEnabled = true
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Botón Desactivar Todas
+                    PresetChip(
+                        title = "🔕 Desactivar Todas",
+                        subtitle = "Silencio absoluto / Desactivar notificaciones",
+                        isSelected = currentSettings.isCompletelyDisabled(),
+                        activeColor = Color(0xFFEF4444),
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            notifEnabled = false
+                            soundEnabled = false
+                            vibrateEnabled = false
+                            messagesEnabled = false
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(if (isLandscape) 12.dp else 18.dp))
+
+                    // SECCIÓN 2: INTERRUPTORES INDIVIDUALES CON LIBERTAD TOTAL
+                    Text(
+                        text = "SELECCIÓN MANUAL INDIVIDUAL",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF94A3B8),
+                        letterSpacing = 0.8.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        cornerRadius = 16.dp,
+                        borderWidth = 0.8.dp
+                    ) {
+                        Column(modifier = Modifier.padding(if (isLandscape) 10.dp else 14.dp)) {
+                            // Toggle 1: Notificaciones Sísmicas (General)
+                            SettingToggleRow(
+                                icon = Icons.Default.Notifications,
+                                title = "Sistema de Notificaciones",
+                                description = if (notifEnabled) "Monitoreo activo las 24 horas" else "Desactivadas por completo",
+                                checked = notifEnabled,
+                                activeColor = Color(0xFF00E5FF),
+                                onCheckedChange = { isChecked ->
+                                    notifEnabled = isChecked
+                                    if (!isChecked) {
+                                        soundEnabled = false
+                                        vibrateEnabled = false
+                                        messagesEnabled = false
+                                    } else {
+                                        messagesEnabled = true
+                                        soundEnabled = true
+                                        vibrateEnabled = true
+                                    }
+                                }
+                            )
+
+                            Spacer(modifier = Modifier.height(if (isLandscape) 8.dp else 12.dp))
+
+                            // Toggle 2: Sonido de Alarma
+                            SettingToggleRow(
+                                icon = if (soundEnabled) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                                title = "Sonido de Alarma Sísmica",
+                                description = "Alerta audible de alta prioridad (nivel USAGE_ALARM)",
+                                checked = soundEnabled,
+                                enabled = notifEnabled,
+                                activeColor = Color(0xFF38BDF8),
+                                onCheckedChange = { isChecked ->
+                                    soundEnabled = isChecked
+                                    if (isChecked && !notifEnabled) notifEnabled = true
+                                }
+                            )
+
+                            Spacer(modifier = Modifier.height(if (isLandscape) 8.dp else 12.dp))
+
+                            // Toggle 3: Solo Vibrar / Vibración
+                            SettingToggleRow(
+                                icon = Icons.Default.Vibration,
+                                title = "Vibración Táctil de Emergencia",
+                                description = "Patrón de pulso sísmico (0, 350, 150, 350, 500 ms)",
+                                checked = vibrateEnabled,
+                                enabled = notifEnabled,
+                                activeColor = Color(0xFFF59E0B),
+                                onCheckedChange = { isChecked ->
+                                    vibrateEnabled = isChecked
+                                    if (isChecked && !notifEnabled) notifEnabled = true
+                                }
+                            )
+
+                            Spacer(modifier = Modifier.height(if (isLandscape) 8.dp else 12.dp))
+
+                            // Toggle 4: Solo Mensajes / Visuales
+                            SettingToggleRow(
+                                icon = Icons.Default.Message,
+                                title = "Mensajes y Banners Visuales",
+                                description = "Avisos emergentes (Heads-up) y en pantalla de bloqueo",
+                                checked = messagesEnabled,
+                                enabled = notifEnabled,
+                                activeColor = Color(0xFFA78BFA),
+                                onCheckedChange = { isChecked ->
+                                    messagesEnabled = isChecked
+                                    if (isChecked && !notifEnabled) notifEnabled = true
+                                }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(if (isLandscape) 12.dp else 16.dp))
+
+                    // SECCIÓN 3: BARRA INTERACTIVA DE MAGNITUD MÍNIMA (SLIDER)
+                    val sliderSeverityColor = when {
+                        minMag <= 2.0f -> Color(0xFF00E676)
+                        minMag < 4.0f -> Color(0xFF00E5FF)
+                        minMag < 5.0f -> Color(0xFFFFD600)
+                        minMag < 6.0f -> Color(0xFFFF6D00)
+                        else -> Color(0xFFFF1744)
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "RANGO DE ALERTA POR MAGNITUD",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF94A3B8),
+                            letterSpacing = 0.8.sp
+                        )
+
+                        // Badge interactivo de magnitud actual
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(sliderSeverityColor.copy(alpha = 0.2f))
+                                .border(1.dp, sliderSeverityColor.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 10.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = if (minMag <= 2.0f) "Todos los sismos" else "M ≥ ${String.format(Locale.US, "%.1f", minMag)}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontFamily = FontFamily.Monospace,
+                                color = sliderSeverityColor
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    GlassCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        cornerRadius = 16.dp,
+                        borderWidth = 0.8.dp
+                    ) {
+                        Column(modifier = Modifier.padding(if (isLandscape) 10.dp else 14.dp)) {
+                            val magSeverityDesc = when {
+                                minMag <= 2.0f -> "🟢 Sin filtro: Recibirás alerta de absolutamente todos los sismos detectados."
+                                minMag < 4.0f -> "🔵 Leves en adelante: Sentidos en reposo o pisos altos (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
+                                minMag < 5.0f -> "🟡 Moderados en adelante: Sentidos ampliamente por la población (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
+                                minMag < 6.0f -> "🟠 Fuertes en adelante: Sacudida notable y potencial daño local (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
+                                else -> "🔴 Severos únicamente: Sismos destructivos o de gran magnitud (M ≥ ${String.format(Locale.US, "%.1f", minMag)})."
+                            }
+
+                            Text(
+                                text = magSeverityDesc,
+                                fontSize = 11.sp,
+                                color = Color(0xFFCBD5E1),
+                                lineHeight = 15.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Barra Slider para mover la magnitud libremente
+                            Slider(
+                                value = minMag.coerceIn(2.0f, 6.5f),
+                                onValueChange = { newValue ->
+                                    minMag = round(newValue * 10f) / 10f
+                                },
+                                valueRange = 2.0f..6.5f,
+                                steps = 44, // Saltos de 0.1 en 0.1
+                                colors = SliderDefaults.colors(
+                                    thumbColor = sliderSeverityColor,
+                                    activeTrackColor = sliderSeverityColor,
+                                    inactiveTrackColor = Color(0x33FFFFFF)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            // Indicadores en extremos de la barra
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "2.0 (Todos)",
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF64748B)
+                                )
+                                Text(
+                                    text = "4.0",
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF64748B)
+                                )
+                                Text(
+                                    text = "6.5+ (Severos)",
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Chips de acceso rápido para saltar a valores clave
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                listOf(
+                                    2.0f to "Todos",
+                                    3.0f to "M ≥ 3.0",
+                                    4.0f to "M ≥ 4.0",
+                                    5.0f to "M ≥ 5.0",
+                                    6.0f to "M ≥ 6.0"
+                                ).forEach { (mag, label) ->
+                                    val isSelected = abs(minMag - mag) < 0.05f
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(
+                                                if (isSelected) Color(0x333186FF) else Color(0x12FFFFFF)
+                                            )
+                                            .border(
+                                                width = 0.8.dp,
+                                                color = if (isSelected) Color(0xFF60A5FA) else Color(0x1AFFFFFF),
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .clickable { minMag = mag }
+                                            .padding(vertical = 6.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = label,
+                                            fontSize = 10.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isSelected) Color(0xFF93C5FD) else Color(0xFF94A3B8),
+                                            maxLines = 1
                                         )
-                                        .border(
-                                            width = 0.8.dp,
-                                            color = if (isSelected) Color(0xFF60A5FA) else Color(0x1AFFFFFF),
-                                            shape = RoundedCornerShape(8.dp)
-                                        )
-                                        .clickable { minMag = mag }
-                                        .padding(vertical = 6.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = label,
-                                        fontSize = 10.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) Color(0xFF93C5FD) else Color(0xFF94A3B8),
-                                        maxLines = 1
-                                    )
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(if (isLandscape) 12.dp else 16.dp))
 
-                // BOTÓN DE PRUEBA INMEDIATA
-                Button(
-                    onClick = {
-                        if (currentSettings.isCompletelyDisabled()) {
-                            Toast.makeText(
-                                context,
-                                "⚠️ Las notificaciones están desactivadas. Activa una opción para probar.",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        } else {
-                            SeismicAlarmReceiver.sendTestNotification(context, currentSettings)
-                            Toast.makeText(
-                                context,
-                                "⚡ Alerta de prueba enviada en modo: ${currentSettings.getModeDescription()}",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0x2200E5FF)
-                    ),
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x6600E5FF))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = Color(0xFF00E5FF),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Probar Alerta Ahora",
-                        color = Color(0xFF00E5FF),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                }
+                    // BOTÓN DE PRUEBA INMEDIATA
+                    Button(
+                        onClick = {
+                            if (currentSettings.isCompletelyDisabled()) {
+                                Toast.makeText(
+                                    context,
+                                    "⚠️ Las notificaciones están desactivadas. Activa una opción para probar.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                SeismicAlarmReceiver.sendTestNotification(context, currentSettings)
+                                Toast.makeText(
+                                    context,
+                                    "⚡ Alerta de prueba enviada en modo: ${currentSettings.getModeDescription()}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(if (isLandscape) 40.dp else 44.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0x2200E5FF)
+                        ),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x6600E5FF))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = Color(0xFF00E5FF),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Probar Alerta Ahora",
+                            color = Color(0xFF00E5FF),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                } // FIN DEL CUERPO CON SCROLL
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(if (isLandscape) 8.dp else 12.dp))
 
-                // BOTONES CERRAR Y GUARDAR
+                // BOTONES CERRAR Y GUARDAR (FOOTER FIJO ANCLADO AL FONDO)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -605,7 +688,7 @@ fun NotificationSettingsModal(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
+                            .height(if (isLandscape) 42.dp else 48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
@@ -635,7 +718,7 @@ fun NotificationSettingsModal(
                         },
                         modifier = Modifier
                             .weight(1.5f)
-                            .height(48.dp),
+                            .height(if (isLandscape) 42.dp else 48.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF3186FF)
                         ),

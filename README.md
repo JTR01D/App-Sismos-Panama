@@ -14,11 +14,11 @@ Aplicación nativa para Android diseñada para el monitoreo, alerta temprana, di
 
 No requieres compilar el código fuente para disfrutar de la aplicación en tu dispositivo:
 
-### 📥 Descarga del APK Oficial (Público y Directo)
+### 📥 Descarga del APK Oficial (Público y Siempre Actualizado)
 👉 **[Descargar SismosPanama.apk (Última Versión Estable)](https://github.com/JTR01D/App-Sismos-Panama/releases/download/latest/SismosPanama.apk)**
 
-* **Actualizaciones Directas en la App**: La aplicación cuenta con un módulo interno que comprueba los nuevos lanzamientos publicados en este repositorio y permite descargar la nueva versión con un solo toque desde la sección **Acerca de**.
-* Consulta el historial de mejoras en la sección de **[Releases](../../releases/latest)**.
+* ⚡ **Actualizaciones e Instalación Directa In-App**: La app detecta automáticamente nuevas versiones desde GitHub Releases al iniciarse o desde la pantalla **Acerca de**. El APK se descarga en segundo plano con barra de progreso en tiempo real y se instala directamente mediante el instalador nativo del sistema sin salir a navegadores web externos.
+* 📦 Consulta el historial completo de versiones y notas de lanzamiento en **[Releases](../../releases/latest)**.
 
 ---
 
@@ -74,8 +74,8 @@ Módulo educativo y de divulgación geológica que expone las principales estruc
 ---
 
 ### 6. Centro de Alertas y Sistema de Actualizaciones In-App
-* **Gestor de Notificaciones y Umbrales**: Control granular continuo con deslizador táctil (*slider*) para definir la magnitud mínima de activación (de 2.0 a 6.5+), perfiles rápidos (Completa, Solo Sonido, Solo Vibración, Solo Mensajes, Silencio) y un botón de prueba de sirena y vibración en vivo.
-* **Módulo de Actualizaciones de GitHub**: Verifica en segundo plano la existencia de nuevas versiones publicadas en el repositorio mediante la API oficial de GitHub Releases, permitiendo descargar el instalador APK directamente.
+* **Gestor de Notificaciones y Umbrales**: Control granular continuo con deslizador táctil (*slider*) para definir la magnitud mínima de activación (de 2.0 a 6.5+), perfiles rápidos (Completa, Solo Sonido, Solo Vibración, Solo Mensajes, Silencio) y un botón de prueba de sirena y vibración en vivo. Botones inferiores simétricos y optimizados para cualquier resolución de pantalla.
+* **Módulo de Actualización e Instalación In-App**: Sistema integrado que detecta actualizaciones oficiales, descarga el APK directamente sin navegador externo con cálculo porcentual de megabytes y abre el instalador nativo de Android de forma automática y segura.
 
 | Gestor de Alertas Sísmicas (Control de Umbral) | Actualizaciones In-App (GitHub Releases) |
 | :---: | :---: |
@@ -99,10 +99,12 @@ Módulo educativo y de divulgación geológica que expone las principales estruc
 * **Control Continuo del Rango de Magnitud**: Deslizador continuo de `2.0` a `6.5+` con saltos de `0.1` e insignias dinámicas de severidad.
 * **Modalidad de Alertas 24/7**: Solo Sonido, Solo Vibración, Solo Mensajes, Completo o Silencio.
 
-### 🌐 Actualizaciones Automáticas In-App
-* **Repositorio de Actualizaciones (`UpdateRepository`)**: Consulta asíncrona a la API de GitHub Releases sin bloquear la interfaz.
-* **Comparador de Versiones Semánticas**: Notifica al usuario únicamente cuando hay una versión superior a la instalada.
-* **Descarga e Instalación Directa**: Enlace directo al archivo APK alojado en GitHub Releases con tamaño formateado en megabytes.
+### 🌐 Actualizaciones Automáticas In-App Sin Navegador
+* **Gestor de Actualizaciones (`InAppUpdateManager`)**: Cliente OkHttp con streaming de bytes que descarga el APK directamente en el almacenamiento interno de la app sin redirigir al navegador.
+* **Diálogo Emergente Reactivo (`AppUpdateDialog`)**: Muestra porcentaje numérico y megabytes descargados en tiempo real con indicador lineal iluminado en tono Cyan neón.
+* **Instalación Nativa con `FileProvider`**: Ejecuta la intención `ACTION_VIEW` con tipo `application/vnd.android.package-archive` y permiso de lectura URI seguro.
+* **Soporte de Fuentes Desconocidas**: Guía explicativa con acceso directo a los ajustes del sistema (`ACTION_MANAGE_UNKNOWN_APP_SOURCES`) para Android 8.0+.
+* **Comparador de Versiones y Builds**: Detecta versiones semánticas y números de compilación mayores para notificar oportunamente al usuario.
 
 ---
 
@@ -110,7 +112,7 @@ Módulo educativo y de divulgación geológica que expone las principales estruc
 
 ```text
 app/src/main/
-├── AndroidManifest.xml                  // Permisos, receivers, workers y servicios
+├── AndroidManifest.xml                  // Permisos, receivers, FileProvider y servicios
 ├── assets/
 │   ├── leaflet/                         // Librería Leaflet offline embebida
 │   └── map.html                         // Lienzo interactivo del mapa sismológico
@@ -134,23 +136,25 @@ app/src/main/
 │   │   │   ├── PanamaRegion.kt          // Polígonos y regiones sismotectónicas
 │   │   │   └── UsgsDto.kt               // Deserializadores GeoJSON FDSN
 │   │   └── repository/
-│   │       ├── EarthquakeRepository.kt  // Parser robusto IGC-UP, fallback USGS y distancias
-│   │       └── UpdateRepository.kt      // Consulta a GitHub Releases API y descarga de APK
+│   │       ├── EarthquakeRepository.kt  // Parser IGC-UP, fallback USGS y distancias
+│   │       ├── InAppUpdateManager.kt    // Descarga interna de APK y disparador de instalación FileProvider
+│   │       └── UpdateRepository.kt      // Consulta a GitHub Releases API con comparación semántica y de build
 │   └── ui/
 │       ├── components/
+│       │   ├── AppUpdateDialog.kt       // Modal de actualización con barra de progreso en vivo e instalación
 │       │   ├── EarthquakeCard.kt        // Tarjeta interactiva con indicadores de riesgo
 │       │   ├── GlassCard.kt             // Contenedor translúcido con efecto cristal esmerilado
 │       │   ├── MagnitudeBadge.kt        // Distintivo cromático por magnitud Richter
-│       │   ├── NotificationSettingsModal.kt // Modal con Slider continuo de magnitud y chips
+│       │   ├── NotificationSettingsModal.kt // Modal con Slider continuo de magnitud, chips y botones balanceados
 │       │   ├── PanamaBottomNavigationBar.kt // Barra de navegación inferior flotante Liquid Glass
 │       │   └── PanamaRegionsBanner.kt   // Chips de filtrado rápido regional
 │       ├── screens/
-│       │   ├── HomeScreen.kt            // Feed sísmico principal en vivo con paneles colapsables
+│       │   ├── HomeScreen.kt            // Feed sísmico principal, paneles colapsables y detector de updates
 │       │   ├── DetailScreen.kt          // Análisis sismotectónico y simulación de ondas P & S
 │       │   ├── FaultsScreen.kt          // Catálogo técnico de fallas y glosario
 │       │   ├── DashboardScreen.kt       // Estadísticas, gráficos y análisis de enjambres
 │       │   ├── InteractiveMapScreen.kt  // Explorador tectónico 2D con detección de enjambres
-│       │   └── AboutScreen.kt           // Acerca de la app, actualizador GitHub y fuentes oficiales
+│       │   └── AboutScreen.kt           // Acerca de la app, módulo de actualización GitHub y créditos
 │       ├── theme/
 │       │   ├── Color.kt
 │       │   ├── Theme.kt
@@ -160,10 +164,12 @@ app/src/main/
 └── res/
     ├── drawable/
     ├── mipmap-anydpi-v26/
-    └── values/
-        ├── colors.xml
-        ├── strings.xml
-        └── themes.xml
+    ├── values/
+    │   ├── colors.xml
+    │   ├── strings.xml
+    │   └── themes.xml
+    └── xml/
+        └── file_paths.xml               // Rutas seguras del FileProvider para instalación de APK
 ```
 
 ---
@@ -172,7 +178,7 @@ app/src/main/
 
 | Atributo | Especificación |
 | :--- | :--- |
-| **Versión Actual** | `2.5.0 Pro Tectónica` (Build 25) |
+| **Versión Actual** | `2.5.8 Pro Tectónica` (Build 33) |
 | **Lenguaje** | Kotlin 2.0.21 (JVM Target 17) |
 | **Min SDK** | Android 8.0 Oreo (API 26) |
 | **Target / Compile SDK** | Android 15 (API 35) |
@@ -181,8 +187,9 @@ app/src/main/
 | **Red y API** | Retrofit 2 + Gson + OkHttp 4 + Web Scraping IGC-UP + GitHub Releases API |
 | **Monitoreo en Segundo Plano** | SeismicAlertCoordinator + AlarmManager + WorkManager + BroadcastReceiver |
 | **Motor Cartográfico** | Leaflet.js embebido en WebView nativo (Assets locales offline) |
-| **Permisos de Sistema** | `INTERNET`, `POST_NOTIFICATIONS`, `VIBRATE`, `SCHEDULE_EXACT_ALARM`, `RECEIVE_BOOT_COMPLETED`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS` |
-| **Seguridad** | Sin rastreadores de terceros, sin telemetría invasiva, 100% código abierto |
+| **Actualizador In-App** | OkHttp ByteStream + FileProvider (`${applicationId}.provider`) |
+| **Permisos de Sistema** | `INTERNET`, `POST_NOTIFICATIONS`, `VIBRATE`, `SCHEDULE_EXACT_ALARM`, `RECEIVE_BOOT_COMPLETED`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `REQUEST_INSTALL_PACKAGES` |
+| **Seguridad** | Firma digital persistente `CN=SismosPanama`, sin rastreadores de terceros, sin telemetría invasiva, 100% código abierto |
 
 ---
 
@@ -209,7 +216,7 @@ Si deseas compilar la aplicación en tu propio entorno:
 
 ## 👨‍💻 Autor y Desarrollador
 
-Desarrollado de forma individual por:
+Desarrollado por:
 
 * **JTR01D** ([GitHub: @JTR01D](https://github.com/JTR01D))
 * **Repositorio Oficial**: [https://github.com/JTR01D/App-Sismos-Panama](https://github.com/JTR01D/App-Sismos-Panama)

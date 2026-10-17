@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -35,6 +36,8 @@ import com.sismos.panama.BuildConfig
 import com.sismos.panama.data.models.AlertSettings
 import com.sismos.panama.data.models.AppUpdateInfo
 import com.sismos.panama.data.repository.UpdateRepository
+import com.sismos.panama.data.repository.InAppUpdateManager
+import java.io.File
 import com.sismos.panama.ui.components.NotificationSettingsModal
 import com.sismos.panama.ui.theme.*
 import androidx.compose.runtime.rememberCoroutineScope
@@ -309,10 +312,17 @@ private fun AboutGitHubUpdatesCard(
     modifier: Modifier = Modifier
 ) {
     val updateRepo = remember { UpdateRepository() }
+    val updateManager = remember { InAppUpdateManager(context) }
     val scope = rememberCoroutineScope()
     var isChecking by remember { mutableStateOf(false) }
     var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
     var checkError by remember { mutableStateOf<String?>(null) }
+
+    var isDownloading by remember { mutableStateOf(false) }
+    var downloadPercent by remember { mutableStateOf(0) }
+    var downloadStatusText by remember { mutableStateOf<String?>(null) }
+    var downloadedApkFile by remember { mutableStateOf<File?>(null) }
+    var showPermissionDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         isChecking = true
@@ -330,6 +340,45 @@ private fun AboutGitHubUpdatesCard(
     val cardBorderBrush = when {
         updateInfo?.isUpdateAvailable == true -> Brush.linearGradient(listOf(Color(0xFF00E5FF), Color(0xFFFFB300)))
         else -> Brush.linearGradient(listOf(Color(0x333186FF), Color(0x2200E5FF)))
+    }
+
+    if (showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionDialog = false },
+            title = {
+                Text(
+                    text = "Permiso de Instalación",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            },
+            text = {
+                Text(
+                    text = "Para instalar la actualización directamente desde Sismos Panamá sin usar el navegador, Android requiere que permitas 'Instalar aplicaciones desconocidas' para esta aplicación.",
+                    fontSize = 13.sp,
+                    color = Color(0xFFCBD5E1)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPermissionDialog = false
+                        updateManager.openInstallPermissionSettings()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF)),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Abrir Ajustes", color = Color(0xFF070B13), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionDialog = false }) {
+                    Text("Cancelar", color = Color(0xFF94A3B8))
+                }
+            },
+            containerColor = Color(0xFF1E293B),
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 
     Card(
@@ -444,34 +493,142 @@ private fun AboutGitHubUpdatesCard(
                     }
                 }
 
+                if (isDownloading) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x1A00E5FF))
+                            .border(0.8.dp, Color(0x4400E5FF), RoundedCornerShape(10.dp))
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Descargando actualización...",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            Text(
+                                text = "$downloadPercent%",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF00E5FF)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { downloadPercent / 100f },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(6.dp)
+                                .clip(RoundedCornerShape(3.dp)),
+                            color = Color(0xFF00E5FF),
+                            trackColor = Color(0x3300E5FF)
+                        )
+                        if (downloadStatusText != null) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = downloadStatusText ?: "",
+                                fontSize = 10.5.sp,
+                                color = Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+                } else if (downloadStatusText != null && downloadedApkFile == null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = downloadStatusText ?: "",
+                        fontSize = 11.sp,
+                        color = Color(0xFFEF4444)
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(updateInfo?.apkDownloadUrl))
-                            context.startActivity(intent)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF)),
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = null,
-                            tint = Color(0xFF070B13),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Descargar APK" + (if (updateInfo?.getFormattedApkSize()?.isNotBlank() == true) " (${updateInfo?.getFormattedApkSize()})" else ""),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF070B13)
-                        )
+                    if (downloadedApkFile != null && downloadedApkFile!!.exists()) {
+                        Button(
+                            onClick = {
+                                if (updateManager.canInstallApks()) {
+                                    updateManager.installApk(downloadedApkFile!!)
+                                } else {
+                                    showPermissionDialog = true
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Instalar Actualización",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                val url = updateInfo?.apkDownloadUrl ?: return@Button
+                                isDownloading = true
+                                downloadPercent = 0
+                                downloadStatusText = "Iniciando descarga..."
+                                scope.launch {
+                                    updateManager.downloadApk(url) { percent, downloaded, total ->
+                                        downloadPercent = percent
+                                        val downloadedMb = String.format(java.util.Locale.US, "%.1f", downloaded / (1024f * 1024f))
+                                        val totalMb = if (total > 0) String.format(java.util.Locale.US, "%.1f", total / (1024f * 1024f)) else "?"
+                                        downloadStatusText = "$percent% ($downloadedMb MB de $totalMb MB)"
+                                    }.onSuccess { file ->
+                                        isDownloading = false
+                                        downloadedApkFile = file
+                                        downloadStatusText = "¡Descarga completa!"
+                                        if (updateManager.canInstallApks()) {
+                                            updateManager.installApk(file)
+                                        } else {
+                                            showPermissionDialog = true
+                                        }
+                                    }.onFailure { err ->
+                                        isDownloading = false
+                                        downloadStatusText = "Error al descargar: ${err.message}"
+                                    }
+                                }
+                            },
+                            enabled = !isDownloading,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00E5FF)),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = null,
+                                tint = Color(0xFF070B13),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = if (isDownloading) "Descargando..." else "Descargar e Instalar" + (if (updateInfo?.getFormattedApkSize()?.isNotBlank() == true) " (${updateInfo?.getFormattedApkSize()})" else ""),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF070B13)
+                            )
+                        }
                     }
 
                     OutlinedButton(
@@ -901,7 +1058,7 @@ private fun SourceLinkItem(
             )
         }
         Icon(
-            imageVector = Icons.Default.OpenInNew,
+            imageVector = Icons.AutoMirrored.Filled.OpenInNew,
             contentDescription = "Abrir enlace",
             tint = Color(0xFF60A5FA),
             modifier = Modifier.size(16.dp)

@@ -87,9 +87,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.unit.sp
 import com.sismos.panama.data.models.AlertSettings
+import com.sismos.panama.data.models.AppUpdateInfo
 import com.sismos.panama.data.models.Earthquake
+import com.sismos.panama.data.repository.UpdateRepository
+import com.sismos.panama.ui.components.AppUpdateDialog
 import com.sismos.panama.ui.components.EarthquakeCard
 import com.sismos.panama.ui.components.NotificationSettingsModal
 import com.sismos.panama.ui.components.PanamaRegionsBanner
@@ -117,6 +121,24 @@ fun HomeScreen(
     var showNotificationSettings by remember { mutableStateOf(false) }
     var alertSettings by remember { mutableStateOf(AlertSettings.load(context)) }
     var isPanelsExpanded by rememberSaveable { mutableStateOf(!initialCollapsed) }
+    var pendingUpdateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var hasCheckedForUpdates by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        if (!hasCheckedForUpdates) {
+            hasCheckedForUpdates = true
+            try {
+                val updateRepo = UpdateRepository()
+                val result = updateRepo.checkForUpdates()
+                result.onSuccess { info ->
+                    if (info.isUpdateAvailable) {
+                        pendingUpdateInfo = info
+                    }
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = initialScrollIndex,
         initialFirstVisibleItemScrollOffset = initialScrollOffset
@@ -358,6 +380,14 @@ fun HomeScreen(
         NotificationSettingsModal(
             onDismiss = { showNotificationSettings = false },
             onSettingsChanged = { alertSettings = it }
+        )
+    }
+
+    pendingUpdateInfo?.let { updateInfo ->
+        AppUpdateDialog(
+            context = context,
+            updateInfo = updateInfo,
+            onDismiss = { pendingUpdateInfo = null }
         )
     }
 }

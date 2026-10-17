@@ -19,6 +19,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -111,34 +114,44 @@ fun NotificationSettingsModal(
     ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth(if (isLandscape) 0.88f else 0.94f)
-                .widthIn(max = if (isLandscape) 640.dp else 440.dp)
-                .fillMaxHeight(if (isLandscape) 0.94f else 0.90f)
-                .clip(RoundedCornerShape(24.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF131D2E),
-                            Color(0xFF0F172A),
-                            Color(0xFF0A0F1D)
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(
+                    horizontal = if (isLandscape) 36.dp else 14.dp,
+                    vertical = if (isLandscape) 10.dp else 16.dp
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(if (isLandscape) 0.92f else 0.96f)
+                    .widthIn(max = if (isLandscape) 640.dp else 440.dp)
+                    .fillMaxHeight(if (isLandscape) 0.94f else 0.90f)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFF131D2E),
+                                Color(0xFF0F172A),
+                                Color(0xFF0A0F1D)
+                            )
                         )
                     )
-                )
-                .border(
-                    width = 1.2.dp,
-                    brush = Brush.verticalGradient(
-                        listOf(Color(0x6600E5FF), Color(0x223186FF), Color(0x10FFFFFF))
-                    ),
-                    shape = RoundedCornerShape(24.dp)
-                )
-                .padding(
-                    horizontal = if (isLandscape) 16.dp else 20.dp,
-                    vertical = if (isLandscape) 12.dp else 16.dp
-                )
-        ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
+                    .border(
+                        width = 1.2.dp,
+                        brush = Brush.verticalGradient(
+                            listOf(Color(0x6600E5FF), Color(0x223186FF), Color(0x10FFFFFF))
+                        ),
+                        shape = RoundedCornerShape(24.dp)
+                    )
+                    .padding(
+                        horizontal = if (isLandscape) 16.dp else 20.dp,
+                        vertical = if (isLandscape) 12.dp else 16.dp
+                    )
             ) {
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
                 // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -735,6 +748,7 @@ fun NotificationSettingsModal(
             }
         }
     }
+}
 }
 
 @Composable

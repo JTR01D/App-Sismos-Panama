@@ -79,7 +79,15 @@ class UpdateRepository(
                     }
                 }
 
-                val hasNewer = isNewerVersion(remoteVersion = remoteVersion, currentVersion = currentVersion)
+                val remoteBuild = extractBuild(releaseTitle, releaseNotes)
+                val currentBuild = BuildConfig.VERSION_CODE
+
+                val hasNewer = isNewerVersion(
+                    remoteVersion = remoteVersion,
+                    currentVersion = currentVersion,
+                    remoteBuild = remoteBuild,
+                    currentBuild = currentBuild
+                )
 
                 Result.success(
                     AppUpdateInfo(
@@ -109,18 +117,32 @@ class UpdateRepository(
             if (match != null) return match.groupValues[1]
         }
 
-        // 2. Intentar buscar en el título del release (ej: "Sismos Panamá v2.5.1")
+        // 2. Intentar buscar en el título del release (ej: "Sismos Panamá v2.5.4")
         val titleMatch = versionRegex.find(title)
         if (titleMatch != null) return titleMatch.groupValues[1]
 
-        // 3. Intentar buscar en el cuerpo del release (ej: "Versión: v2.5.1")
+        // 3. Intentar buscar en el cuerpo del release (ej: "Versión: v2.5.4")
         val bodyMatch = versionRegex.find(body)
         if (bodyMatch != null) return bodyMatch.groupValues[1]
 
         return null
     }
 
-    private fun isNewerVersion(remoteVersion: String, currentVersion: String): Boolean {
+    private fun extractBuild(title: String, body: String): Int? {
+        val buildRegex = Regex("""(?:Build|Compilación)\s*(\d+)""", RegexOption.IGNORE_CASE)
+        val titleMatch = buildRegex.find(title)
+        if (titleMatch != null) return titleMatch.groupValues[1].toIntOrNull()
+        val bodyMatch = buildRegex.find(body)
+        if (bodyMatch != null) return bodyMatch.groupValues[1].toIntOrNull()
+        return null
+    }
+
+    private fun isNewerVersion(
+        remoteVersion: String,
+        currentVersion: String,
+        remoteBuild: Int?,
+        currentBuild: Int
+    ): Boolean {
         val cleanRemote = remoteVersion.trim().removePrefix("v").removePrefix("V")
         val cleanCurrent = currentVersion.trim().removePrefix("v").removePrefix("V")
 
@@ -131,15 +153,21 @@ class UpdateRepository(
         val remoteParts = cleanRemote.split(".").mapNotNull { it.toIntOrNull() }
         val currentParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
 
-        if (remoteParts.isEmpty() || currentParts.isEmpty()) return false
-
-        val maxLen = maxOf(remoteParts.size, currentParts.size)
-        for (i in 0 until maxLen) {
-            val r = remoteParts.getOrElse(i) { 0 }
-            val c = currentParts.getOrElse(i) { 0 }
-            if (r > c) return true
-            if (r < c) return false
+        if (remoteParts.isNotEmpty() && currentParts.isNotEmpty()) {
+            val maxLen = maxOf(remoteParts.size, currentParts.size)
+            for (i in 0 until maxLen) {
+                val r = remoteParts.getOrElse(i) { 0 }
+                val c = currentParts.getOrElse(i) { 0 }
+                if (r > c) return true
+                if (r < c) return false
+            }
         }
+
+        // Si la versión semántica es idéntica (ej. 2.5.3 == 2.5.3), verificar el número de build
+        if (remoteBuild != null && remoteBuild > currentBuild) {
+            return true
+        }
+
         return false
     }
 }

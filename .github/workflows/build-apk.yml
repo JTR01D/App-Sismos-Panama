@@ -99,7 +99,7 @@ jobs:
           git push origin "v${{ steps.get_version.outputs.version_name }}" --force
           git push origin latest --force
 
-      - name: Publish GitHub Release
+      - name: Publish GitHub Release (Version Tag)
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
@@ -110,7 +110,7 @@ jobs:
             
             Descarga directa y pública del instalador para Android (no requiere cuenta de GitHub):
             
-            - 📲 **Descargar APK**: [SismosPanama.apk](https://github.com/${{ github.repository }}/releases/download/latest/SismosPanama.apk)
+            - 📲 **Descargar APK**: [SismosPanama.apk](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version_name }}/SismosPanama.apk)
             - 🏷️ **Versión**: v${{ steps.get_version.outputs.version_name }} (Compilación ${{ steps.get_version.outputs.version_code }})
             - ⚡ **Monitoreo**: USGS & EMSC en tiempo real para la República de Panamá
             - 🌋 **Geodinámica**: Catálogo tectónico de fallas y zonas sismogénicas
@@ -118,6 +118,21 @@ jobs:
             - 💎 **Diseño**: Liquid Glass & Jetpack Compose Material 3
           files: release_assets/SismosPanama.apk
           make_latest: true
+
+      - name: Update 'latest' GitHub Release Asset
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Sismos Panamá v${{ steps.get_version.outputs.version_name }} (Build ${{ steps.get_version.outputs.version_code }})"
+          body: |
+            ## 🇵🇦 Sismos Panamá v${{ steps.get_version.outputs.version_name }} (Build ${{ steps.get_version.outputs.version_code }})
+            
+            Descarga directa y pública del instalador para Android (no requiere cuenta de GitHub):
+            
+            - 📲 **Descargar APK**: [SismosPanama.apk](https://github.com/${{ github.repository }}/releases/download/v${{ steps.get_version.outputs.version_name }}/SismosPanama.apk)
+            - 🏷️ **Versión**: v${{ steps.get_version.outputs.version_name }} (Compilación ${{ steps.get_version.outputs.version_code }})
+          files: release_assets/SismosPanama.apk
 
       - name: Delete Old Workflow Runs
         uses: Mattraks/delete-workflow-runs@v2

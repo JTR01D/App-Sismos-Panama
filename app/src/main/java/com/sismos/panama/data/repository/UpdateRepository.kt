@@ -63,7 +63,7 @@ class UpdateRepository(
                 val remoteVersion = extractVersion(tagName, releaseTitle, releaseNotes) ?: currentVersion
 
                 // Buscar el APK dentro de assets
-                var apkUrl = "https://github.com/$repoOwner/$repoName/releases/download/latest/SismosPanama.apk"
+                var apkUrl = "https://github.com/$repoOwner/$repoName/releases/download/$tagName/SismosPanama.apk"
                 var apkSize = 0L
 
                 val assetsArray = json.optJSONArray("assets")

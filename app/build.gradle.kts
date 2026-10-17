@@ -15,8 +15,8 @@ android {
         applicationId = "com.sismos.panama"
         minSdk = 26
         targetSdk = 35
-        versionCode = 29
-        versionName = "2.5.4"
+        versionCode = 30
+        versionName = "2.5.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -35,19 +35,20 @@ android {
                     }
                 }
 
-                val envPass = System.getenv("KEYSTORE_PASSWORD")?.takeIf { it.isNotBlank() }
-                    ?: localProps.getProperty("KEYSTORE_PASSWORD")
-                val envAlias = System.getenv("KEY_ALIAS")?.takeIf { it.isNotBlank() }
-                    ?: localProps.getProperty("KEY_ALIAS")
-                val envKeyPass = System.getenv("KEY_PASSWORD")?.takeIf { it.isNotBlank() }
-                    ?: localProps.getProperty("KEY_PASSWORD")
+                val envPass = System.getenv("KEYSTORE_PASSWORD")?.trim()?.takeIf { it.isNotBlank() }
+                    ?: localProps.getProperty("KEYSTORE_PASSWORD")?.trim()
+                    ?: "sismospanama2026"
+                val envAlias = System.getenv("KEY_ALIAS")?.trim()?.takeIf { it.isNotBlank() }
+                    ?: localProps.getProperty("KEY_ALIAS")?.trim()
+                    ?: "sismospanama"
+                val envKeyPass = System.getenv("KEY_PASSWORD")?.trim()?.takeIf { it.isNotBlank() }
+                    ?: localProps.getProperty("KEY_PASSWORD")?.trim()
+                    ?: envPass
 
-                if (!envPass.isNullOrBlank() && !envAlias.isNullOrBlank()) {
-                    storeFile = keystoreFile
-                    storePassword = envPass
-                    keyAlias = envAlias
-                    keyPassword = if (!envKeyPass.isNullOrBlank()) envKeyPass else envPass
-                }
+                storeFile = keystoreFile
+                storePassword = envPass
+                keyAlias = envAlias
+                keyPassword = envKeyPass
             }
         }
     }

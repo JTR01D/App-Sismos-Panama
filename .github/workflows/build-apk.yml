@@ -36,13 +36,18 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "Decoding persistent keystore from GitHub Secret..."
-            echo "$KEYSTORE_BASE64" | tr -d '\r\n ' | base64 -d > app/release.keystore
-            ls -lh app/release.keystore
-          else
-            echo "No KEYSTORE_BASE64 secret provided, using fallback build"
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::ERROR CRITICO: El secret KEYSTORE_BASE64 no existe o esta vacio en GitHub Secrets!"
+            echo "Para que las actualizaciones se puedan instalar sin error 'No se instalo la app', el APK debe firmarse con la misma clave."
+            exit 1
           fi
+          echo "Decoding persistent keystore from GitHub Secret..."
+          echo "$KEYSTORE_BASE64" | tr -d '\r\n ' | base64 -d > app/release.keystore
+          if [ ! -s app/release.keystore ]; then
+            echo "::error::app/release.keystore tiene tamaño 0 tras decodificar base64!"
+            exit 1
+          fi
+          ls -lh app/release.keystore
 
       - name: Build Debug APK
         env:
@@ -63,8 +68,10 @@ jobs:
       - name: Prepare APK for Release
         run: |
           mkdir -p release_assets
-          ls -la app/build/outputs/apk/debug/ || ls -la app/build/outputs/apk/ || true
           cp app/build/outputs/apk/debug/*.apk release_assets/SismosPanama.apk
+          echo "=== Verificando Certificado de Firma del APK ==="
+          $ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs release_assets/SismosPanama.apk
+          $ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs release_assets/SismosPanama.apk | grep "CN=SismosPanama" || (echo "::error::El APK NO esta firmado con CN=SismosPanama!" && exit 1)
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4

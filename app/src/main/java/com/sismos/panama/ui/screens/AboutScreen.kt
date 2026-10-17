@@ -1255,7 +1255,7 @@ private fun AboutCreditsCard(context: Context) {
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "DESARROLLADOR ÚNICO",
+                        text = "DESARROLLADOR",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF94A3B8),

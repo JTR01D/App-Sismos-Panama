@@ -22,7 +22,7 @@
 # Claves criptográficas y firmas
 *.jks
 *.keystore
-!app/release.keystore
+keystore_base64.txt
 *.p12
 *.pem
 *.key

@@ -66,19 +66,21 @@ jobs:
           echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
           echo "Detected App Version: v$VERSION_NAME (Build $VERSION_CODE)"
 
-      - name: Update 'latest' Git Tag
+      - name: Update Git Tags (Version Tag & 'latest' Pointer)
         if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -fa "v${{ steps.get_version.outputs.version_name }}" -m "Release v${{ steps.get_version.outputs.version_name }} (${{ github.sha }})"
           git tag -fa latest -m "Release build v${{ steps.get_version.outputs.version_name }} (${{ github.sha }})"
+          git push origin "v${{ steps.get_version.outputs.version_name }}" --force
           git push origin latest --force
 
       - name: Publish GitHub Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
+          tag_name: "v${{ steps.get_version.outputs.version_name }}"
           name: "Sismos Panamá v${{ steps.get_version.outputs.version_name }} (Build ${{ steps.get_version.outputs.version_code }})"
           body: |
             ## 🇵🇦 Sismos Panamá v${{ steps.get_version.outputs.version_name }} (Build ${{ steps.get_version.outputs.version_code }})

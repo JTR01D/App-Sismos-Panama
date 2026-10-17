@@ -59,6 +59,9 @@ class UpdateRepository(
                 val releasePageUrl = json.optString("html_url", "https://github.com/$repoOwner/$repoName/releases")
                 val publishedAt = json.optString("published_at", "")
 
+                // Extraer la versión real remota (buscando en tag_name, name y body)
+                val remoteVersion = extractVersion(tagName, releaseTitle, releaseNotes) ?: currentVersion
+
                 // Buscar el APK dentro de assets
                 var apkUrl = "https://github.com/$repoOwner/$repoName/releases/download/latest/SismosPanama.apk"
                 var apkSize = 0L
@@ -76,12 +79,12 @@ class UpdateRepository(
                     }
                 }
 
-                val hasNewer = isNewerVersion(remoteTag = tagName, currentVersion = currentVersion)
+                val hasNewer = isNewerVersion(remoteVersion = remoteVersion, currentVersion = currentVersion)
 
                 Result.success(
                     AppUpdateInfo(
                         isUpdateAvailable = hasNewer,
-                        latestVersion = tagName.removePrefix("v").removePrefix("V"),
+                        latestVersion = remoteVersion,
                         currentVersion = currentVersion,
                         releaseTitle = releaseTitle,
                         releaseNotes = releaseNotes,
@@ -97,16 +100,38 @@ class UpdateRepository(
         }
     }
 
-    private fun isNewerVersion(remoteTag: String, currentVersion: String): Boolean {
-        val cleanRemote = remoteTag.trim().removePrefix("v").removePrefix("V")
+    private fun extractVersion(tag: String, title: String, body: String): String? {
+        val versionRegex = Regex("""[vV]?(\d+\.\d+(?:\.\d+)?)""")
+
+        // 1. Intentar con tag si no es 'latest'
+        if (!tag.equals("latest", ignoreCase = true)) {
+            val match = versionRegex.find(tag)
+            if (match != null) return match.groupValues[1]
+        }
+
+        // 2. Intentar buscar en el título del release (ej: "Sismos Panamá v2.5.1")
+        val titleMatch = versionRegex.find(title)
+        if (titleMatch != null) return titleMatch.groupValues[1]
+
+        // 3. Intentar buscar en el cuerpo del release (ej: "Versión: v2.5.1")
+        val bodyMatch = versionRegex.find(body)
+        if (bodyMatch != null) return bodyMatch.groupValues[1]
+
+        return null
+    }
+
+    private fun isNewerVersion(remoteVersion: String, currentVersion: String): Boolean {
+        val cleanRemote = remoteVersion.trim().removePrefix("v").removePrefix("V")
         val cleanCurrent = currentVersion.trim().removePrefix("v").removePrefix("V")
 
-        if (cleanRemote.equals("latest", ignoreCase = true)) {
+        if (cleanRemote.equals("latest", ignoreCase = true) || cleanRemote.isBlank()) {
             return false
         }
 
         val remoteParts = cleanRemote.split(".").mapNotNull { it.toIntOrNull() }
         val currentParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
+
+        if (remoteParts.isEmpty() || currentParts.isEmpty()) return false
 
         val maxLen = maxOf(remoteParts.size, currentParts.size)
         for (i in 0 until maxLen) {

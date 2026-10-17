@@ -57,12 +57,21 @@ jobs:
           path: release_assets/SismosPanama.apk
           retention-days: 7
 
+      - name: Extract App Version
+        id: get_version
+        run: |
+          VERSION_NAME=$(grep 'versionName = ' app/build.gradle.kts | sed 's/.*"\(.*\)".*/\1/')
+          VERSION_CODE=$(grep 'versionCode = ' app/build.gradle.kts | sed 's/.*= *\([0-9]*\).*/\1/')
+          echo "version_name=$VERSION_NAME" >> $GITHUB_OUTPUT
+          echo "version_code=$VERSION_CODE" >> $GITHUB_OUTPUT
+          echo "Detected App Version: v$VERSION_NAME (Build $VERSION_CODE)"
+
       - name: Update 'latest' Git Tag
         if: github.ref == 'refs/heads/main'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -fa latest -m "Release build ${{ github.sha }}"
+          git tag -fa latest -m "Release build v${{ steps.get_version.outputs.version_name }} (${{ github.sha }})"
           git push origin latest --force
 
       - name: Publish GitHub Release
@@ -70,13 +79,14 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: "Sismos Panamá - Última Versión (Release)"
+          name: "Sismos Panamá v${{ steps.get_version.outputs.version_name }} (Build ${{ steps.get_version.outputs.version_code }})"
           body: |
-            ## 🇵🇦 Sismos Panamá (APK Oficial)
+            ## 🇵🇦 Sismos Panamá v${{ steps.get_version.outputs.version_name }} (Build ${{ steps.get_version.outputs.version_code }})
             
             Descarga directa y pública del instalador para Android (no requiere cuenta de GitHub):
             
             - 📲 **Descargar APK**: [SismosPanama.apk](https://github.com/${{ github.repository }}/releases/download/latest/SismosPanama.apk)
+            - 🏷️ **Versión**: v${{ steps.get_version.outputs.version_name }} (Compilación ${{ steps.get_version.outputs.version_code }})
             - ⚡ **Monitoreo**: USGS & EMSC en tiempo real para la República de Panamá
             - 🌋 **Geodinámica**: Catálogo tectónico de fallas y zonas sismogénicas
             - 🔔 **Alertas**: Notificaciones sísmicas con sonido y vibración configurables

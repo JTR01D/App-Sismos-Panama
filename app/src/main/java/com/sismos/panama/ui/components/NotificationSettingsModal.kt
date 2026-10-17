@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -699,6 +700,7 @@ fun NotificationSettingsModal(
                             contentColor = Color.White
                         ),
                         shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         modifier = Modifier
                             .weight(1f)
                             .height(if (isLandscape) 42.dp else 48.dp)
@@ -714,7 +716,9 @@ fun NotificationSettingsModal(
                             text = "Cerrar",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
 
@@ -730,8 +734,9 @@ fun NotificationSettingsModal(
                             onDismiss()
                         },
                         modifier = Modifier
-                            .weight(1.5f)
+                            .weight(1f)
                             .height(if (isLandscape) 42.dp else 48.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF3186FF)
                         ),
@@ -741,7 +746,9 @@ fun NotificationSettingsModal(
                             text = "Guardar",
                             color = Color.White,
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 14.sp
+                            fontSize = 13.5.sp,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }

@@ -30,3 +30,4 @@ google-services.json
 .env*
 signing.properties
 release.properties
+release_assets/

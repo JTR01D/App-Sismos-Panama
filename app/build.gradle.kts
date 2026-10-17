@@ -37,18 +37,20 @@ android {
 
                 val envPass = System.getenv("KEYSTORE_PASSWORD")?.trim()?.takeIf { it.isNotBlank() }
                     ?: localProps.getProperty("KEYSTORE_PASSWORD")?.trim()
-                    ?: "sismospanama2026"
+                    ?: ""
                 val envAlias = System.getenv("KEY_ALIAS")?.trim()?.takeIf { it.isNotBlank() }
                     ?: localProps.getProperty("KEY_ALIAS")?.trim()
-                    ?: "sismospanama"
+                    ?: ""
                 val envKeyPass = System.getenv("KEY_PASSWORD")?.trim()?.takeIf { it.isNotBlank() }
                     ?: localProps.getProperty("KEY_PASSWORD")?.trim()
                     ?: envPass
 
-                storeFile = keystoreFile
-                storePassword = envPass
-                keyAlias = envAlias
-                keyPassword = envKeyPass
+                if (envPass.isNotEmpty() && envAlias.isNotEmpty()) {
+                    storeFile = keystoreFile
+                    storePassword = envPass
+                    keyAlias = envAlias
+                    keyPassword = envKeyPass
+                }
             }
         }
     }

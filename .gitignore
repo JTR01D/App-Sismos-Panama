@@ -22,6 +22,7 @@
 # Claves criptográficas y firmas
 *.jks
 *.keystore
+keystore_base64.txt
 *.p12
 *.pem
 *.key

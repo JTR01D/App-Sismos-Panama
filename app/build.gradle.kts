@@ -12,8 +12,8 @@ android {
         applicationId = "com.sismos.panama"
         minSdk = 26
         targetSdk = 35
-        versionCode = 26
-        versionName = "2.5.1"
+        versionCode = 27
+        versionName = "2.5.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -21,9 +21,22 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.keystore")
+            storePassword = "sismospanama2026"
+            keyAlias = "sismospanama"
+            keyPassword = "sismospanama2026"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("release")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

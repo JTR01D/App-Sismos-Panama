@@ -56,6 +56,15 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set -o pipefail
+          if [ -z "$KEYSTORE_PASSWORD" ]; then
+            export KEYSTORE_PASSWORD="sismospanama2026"
+          fi
+          if [ -z "$KEY_ALIAS" ]; then
+            export KEY_ALIAS="sismospanama"
+          fi
+          if [ -z "$KEY_PASSWORD" ]; then
+            export KEY_PASSWORD="$KEYSTORE_PASSWORD"
+          fi
           ./gradlew assembleRelease --no-daemon --stacktrace 2>&1 | tee build_output.log || (echo "=== GRADLE FAILED ==="; tail -n 80 build_output.log; exit 1)
 
       - name: Upload Build Log on Failure
@@ -68,7 +77,13 @@ jobs:
       - name: Prepare APK for Release
         run: |
           mkdir -p release_assets
-          cp app/build/outputs/apk/release/*.apk release_assets/SismosPanama.apk
+          SIGNED_APK=$(ls app/build/outputs/apk/release/*-release.apk 2>/dev/null || ls app/build/outputs/apk/release/*.apk 2>/dev/null | head -n 1)
+          if [ -z "$SIGNED_APK" ]; then
+            echo "::error::No se encontro ningun APK en app/build/outputs/apk/release/"
+            exit 1
+          fi
+          echo "APK seleccionado: $SIGNED_APK"
+          cp "$SIGNED_APK" release_assets/SismosPanama.apk
           echo "=== Verificando Certificado de Firma del APK ==="
           $ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs release_assets/SismosPanama.apk
           $ANDROID_HOME/build-tools/34.0.0/apksigner verify --print-certs release_assets/SismosPanama.apk | grep "CN=SismosPanama" || (echo "::error::El APK NO esta firmado con CN=SismosPanama!" && exit 1)

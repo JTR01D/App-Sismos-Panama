@@ -36,21 +36,21 @@ android {
                 }
 
                 val envPass = System.getenv("KEYSTORE_PASSWORD")?.trim()?.takeIf { it.isNotBlank() }
-                    ?: localProps.getProperty("KEYSTORE_PASSWORD")?.trim()
-                    ?: ""
+                    ?: localProps.getProperty("KEYSTORE_PASSWORD")?.trim()?.takeIf { it.isNotBlank() }
+                    ?: "sismospanama2026"
                 val envAlias = System.getenv("KEY_ALIAS")?.trim()?.takeIf { it.isNotBlank() }
-                    ?: localProps.getProperty("KEY_ALIAS")?.trim()
-                    ?: ""
+                    ?: localProps.getProperty("KEY_ALIAS")?.trim()?.takeIf { it.isNotBlank() }
+                    ?: "sismospanama"
                 val envKeyPass = System.getenv("KEY_PASSWORD")?.trim()?.takeIf { it.isNotBlank() }
-                    ?: localProps.getProperty("KEY_PASSWORD")?.trim()
+                    ?: localProps.getProperty("KEY_PASSWORD")?.trim()?.takeIf { it.isNotBlank() }
                     ?: envPass
 
-                if (envPass.isNotEmpty() && envAlias.isNotEmpty()) {
-                    storeFile = keystoreFile
-                    storePassword = envPass
-                    keyAlias = envAlias
-                    keyPassword = envKeyPass
-                }
+                storeFile = keystoreFile
+                storePassword = envPass
+                keyAlias = envAlias
+                keyPassword = envKeyPass
+                enableV1Signing = true
+                enableV2Signing = true
             }
         }
     }

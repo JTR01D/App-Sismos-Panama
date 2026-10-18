@@ -1,7 +1,11 @@
 package com.sismos.panama.ui.components
 
+import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
+import android.os.Build
 import android.widget.Toast
+import androidx.compose.material3.TextButton
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -640,7 +644,83 @@ fun NotificationSettingsModal(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(if (isLandscape) 12.dp else 16.dp))
+                    // SECCIÓN DE MONITOREO EN SEGUNDO PLANO Y BATERÍA
+                    val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager }
+                    var isIgnoringBattery by remember {
+                        mutableStateOf(
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                powerManager?.isIgnoringBatteryOptimizations(context.packageName) ?: true
+                            } else true
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isIgnoringBattery) Color(0x1810B981) else Color(0x22F59E0B))
+                            .border(
+                                1.dp,
+                                if (isIgnoringBattery) Color(0x4410B981) else Color(0x66F59E0B),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = if (isIgnoringBattery) "⚡" else "🔋",
+                                fontSize = 20.sp
+                            )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (isIgnoringBattery) "Monitoreo en 2º plano activo" else "Optimizar para Segundo Plano",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = Color.White
+                                )
+                                Text(
+                                    text = if (isIgnoringBattery) 
+                                        "Chequeo cada 60 seg sin suspensión de CPU." 
+                                    else 
+                                        "Para recibir alertas al instante en Xiaomi/Samsung con pantalla apagada, activa 'Sin restricciones'.",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF94A3B8),
+                                    lineHeight = 14.sp
+                                )
+                            }
+                            if (!isIgnoringBattery && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                                TextButton(
+                                    onClick = {
+                                        try {
+                                            val intent = Intent(
+                                                android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                                                android.net.Uri.parse("package:${context.packageName}")
+                                            )
+                                            context.startActivity(intent)
+                                        } catch (e: Exception) {
+                                            try {
+                                                val fallbackIntent = Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                                context.startActivity(fallbackIntent)
+                                            } catch (ex: Exception) {}
+                                        }
+                                    },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "ACTIVAR",
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 11.sp,
+                                        color = Color(0xFFF59E0B)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(if (isLandscape) 10.dp else 14.dp))
 
                     // BOTÓN DE PRUEBA INMEDIATA
                     Button(

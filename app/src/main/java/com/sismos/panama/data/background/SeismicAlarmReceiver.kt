@@ -56,7 +56,7 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val INTERVAL_MS = 120_000L // 2 minutos para monitoreo rápido
+        const val INTERVAL_MS = 60_000L // 1 minuto para monitoreo ultra-rápido en segundo plano
 
         fun scheduleNext(context: Context, delayMs: Long = INTERVAL_MS) {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
@@ -72,22 +72,27 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
 
             try {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        if (alarmManager.canScheduleExactAlarms()) {
-                            alarmManager.setExactAndAllowWhileIdle(
-                                AlarmManager.RTC_WAKEUP,
-                                triggerAtMillis,
-                                pendingIntent
-                            )
-                        } else {
-                            alarmManager.setAndAllowWhileIdle(
-                                AlarmManager.RTC_WAKEUP,
-                                triggerAtMillis,
-                                pendingIntent
-                            )
+                    val canExact = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        alarmManager.canScheduleExactAlarms()
+                    } else true
+
+                    if (canExact) {
+                        // setAlarmClock es inmune a Doze Mode y a los retrasos por suspensión en Xiaomi/Samsung
+                        val showIntent = Intent(context, com.sismos.panama.MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         }
+                        val showPendingIntent = PendingIntent.getActivity(
+                            context,
+                            1002,
+                            showIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+                        alarmManager.setAlarmClock(
+                            AlarmManager.AlarmClockInfo(triggerAtMillis, showPendingIntent),
+                            pendingIntent
+                        )
                     } else {
-                        alarmManager.setExactAndAllowWhileIdle(
+                        alarmManager.setAndAllowWhileIdle(
                             AlarmManager.RTC_WAKEUP,
                             triggerAtMillis,
                             pendingIntent

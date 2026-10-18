@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 data class SeismicUiState(
     val isLoading: Boolean = false,
     val earthquakes: List<Earthquake> = emptyList(),
@@ -48,29 +51,36 @@ class SeismicViewModel(
             if (isManualRefresh || _uiState.value.earthquakes.isEmpty()) {
                 _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             }
-            val result = repository.fetchPanamaEarthquakes()
+            val result = withContext(Dispatchers.IO) {
+                repository.fetchPanamaEarthquakes()
+            }
             if (result.isSuccess) {
                 val list = result.getOrNull() ?: emptyList()
                 if (list.isNotEmpty()) {
                     val latest = list.first()
-                    // Evaluar notificación mediante el coordinador centralizado (deduplicación IGC/USGS)
-                    com.sismos.panama.data.background.SeismicAlertCoordinator.checkAndNotify(
-                        getApplication(),
-                        latest,
-                        callerTag = "ViewModel"
-                    )
+                    // Evaluar notificación de forma segura en hilo de cómputo en segundo plano
+                    withContext(Dispatchers.Default) {
+                        com.sismos.panama.data.background.SeismicAlertCoordinator.checkAndNotify(
+                            getApplication(),
+                            latest,
+                            callerTag = "ViewModel"
+                        )
+                    }
                     previousTopEventId = latest.id
                 }
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    earthquakes = list,
-                    filteredEarthquakes = applyFilters(
+                val filtered = withContext(Dispatchers.Default) {
+                    applyFilters(
                         list,
                         _uiState.value.selectedMinMag,
                         _uiState.value.selectedRegion,
                         _uiState.value.selectedFaultId,
                         _uiState.value.isSwarmOnly
-                    ),
+                    )
+                }
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    earthquakes = list,
+                    filteredEarthquakes = filtered,
                     lastUpdated = System.currentTimeMillis()
                 )
             } else {

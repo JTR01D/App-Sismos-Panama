@@ -14,6 +14,8 @@
 /iniciar_servidor.ps1
 /app/build
 *.png
+!app/src/main/res/**/*.png
+!playstore-icon.png
 !docs/screenshots/*.png
 *.log
 .kotlin/

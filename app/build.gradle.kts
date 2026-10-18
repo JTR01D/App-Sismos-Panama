@@ -15,8 +15,8 @@ android {
         applicationId = "com.sismos.panama"
         minSdk = 26
         targetSdk = 35
-        versionCode = 34
-        versionName = "2.5.9"
+        versionCode = 35
+        versionName = "2.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -26,7 +26,8 @@ android {
 
     signingConfigs {
         create("release") {
-            val keystoreFile = rootProject.file("app/release.keystore")
+            val keystoreFile = rootProject.file("app/release.keystore").takeIf { it.exists() }
+                ?: file("release.keystore")
             if (keystoreFile.exists()) {
                 val localProps = Properties().apply {
                     val propFile = rootProject.file("local.properties")

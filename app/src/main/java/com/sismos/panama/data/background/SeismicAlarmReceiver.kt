@@ -44,8 +44,10 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
                 }
             } catch (_: Exception) {
             } finally {
-                // Reprogramar la siguiente alarma para dentro de 2 minutos
-                scheduleNext(context, INTERVAL_MS)
+                // Reprogramar la siguiente alarma respetando la preferencia del usuario (30s por defecto)
+                val settings = com.sismos.panama.data.models.AlertSettings.load(context)
+                val nextDelay = (settings.syncIntervalSeconds.coerceIn(15, 300) * 1000L)
+                scheduleNext(context, nextDelay)
                 pendingResult.finish()
             }
         }
@@ -56,7 +58,7 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val INTERVAL_MS = 60_000L // 1 minuto para monitoreo ultra-rápido en segundo plano
+        const val INTERVAL_MS = 30_000L // 30 segundos para detección ultra-inmediata en segundo plano
 
         fun scheduleNext(context: Context, delayMs: Long = INTERVAL_MS) {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return

@@ -13,7 +13,8 @@ data class AlertSettings(
     val soundEnabled: Boolean = true,
     val vibrateEnabled: Boolean = true,
     val messagesEnabled: Boolean = true,
-    val minMagnitude: Float = 3.0f
+    val minMagnitude: Float = 3.0f,
+    val syncIntervalSeconds: Int = 30
 ) {
     /**
      * Retorna verdadero si todas las alertas están apagadas por el usuario.
@@ -46,6 +47,7 @@ data class AlertSettings(
         private const val KEY_VIBRATE_ENABLED = "alerts_vibrate_enabled"
         private const val KEY_MESSAGES_ENABLED = "alerts_messages_enabled"
         private const val KEY_MIN_MAGNITUDE = "alerts_min_magnitude"
+        private const val KEY_SYNC_INTERVAL = "alerts_sync_interval_seconds"
 
         fun load(context: Context): AlertSettings {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -54,7 +56,8 @@ data class AlertSettings(
                 soundEnabled = prefs.getBoolean(KEY_SOUND_ENABLED, true),
                 vibrateEnabled = prefs.getBoolean(KEY_VIBRATE_ENABLED, true),
                 messagesEnabled = prefs.getBoolean(KEY_MESSAGES_ENABLED, true),
-                minMagnitude = prefs.getFloat(KEY_MIN_MAGNITUDE, 3.0f)
+                minMagnitude = prefs.getFloat(KEY_MIN_MAGNITUDE, 3.0f),
+                syncIntervalSeconds = prefs.getInt(KEY_SYNC_INTERVAL, 30)
             )
         }
 
@@ -66,6 +69,7 @@ data class AlertSettings(
                 .putBoolean(KEY_VIBRATE_ENABLED, settings.vibrateEnabled)
                 .putBoolean(KEY_MESSAGES_ENABLED, settings.messagesEnabled)
                 .putFloat(KEY_MIN_MAGNITUDE, settings.minMagnitude)
+                .putInt(KEY_SYNC_INTERVAL, settings.syncIntervalSeconds)
                 .apply()
         }
 

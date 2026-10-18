@@ -102,13 +102,15 @@ fun NotificationSettingsModal(
     var vibrateEnabled by remember { mutableStateOf(initialSettings.vibrateEnabled) }
     var messagesEnabled by remember { mutableStateOf(initialSettings.messagesEnabled) }
     var minMag by remember { mutableFloatStateOf(if (initialSettings.minMagnitude <= 0.0f) 2.0f else initialSettings.minMagnitude) }
+    var syncIntervalSec by remember { mutableStateOf(initialSettings.syncIntervalSeconds) }
 
     val currentSettings = AlertSettings(
         notificationsEnabled = notifEnabled,
         soundEnabled = soundEnabled,
         vibrateEnabled = vibrateEnabled,
         messagesEnabled = messagesEnabled,
-        minMagnitude = if (minMag <= 2.0f) 0.0f else minMag
+        minMagnitude = if (minMag <= 2.0f) 0.0f else minMag,
+        syncIntervalSeconds = syncIntervalSec
     )
 
     val scrollState = rememberScrollState()
@@ -644,6 +646,63 @@ fun NotificationSettingsModal(
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(if (isLandscape) 10.dp else 14.dp))
+
+                    // SELECTOR DE FRECUENCIA DE SEGUNDO PLANO
+                    Text(
+                        text = "FRECUENCIA EN SEGUNDO PLANO",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF94A3B8),
+                        letterSpacing = 0.8.sp
+                    )
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            30 to ("⚡ 30 seg" to "Instantáneo"),
+                            60 to ("🚀 60 seg" to "Recomendado"),
+                            120 to ("🔋 2 min" to "Ahorro")
+                        ).forEach { (seconds, labels) ->
+                            val (title, sub) = labels
+                            val isSelected = syncIntervalSec == seconds
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) Color(0x3300E5FF) else Color(0x14FFFFFF))
+                                    .border(
+                                        1.dp,
+                                        if (isSelected) Color(0xFF00E5FF) else Color(0x22FFFFFF),
+                                        RoundedCornerShape(10.dp)
+                                    )
+                                    .clickable { syncIntervalSec = seconds }
+                                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = title,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected) Color(0xFF00E5FF) else Color.White
+                                    )
+                                    Text(
+                                        text = sub,
+                                        fontSize = 9.sp,
+                                        color = if (isSelected) Color(0xFF7DD3FC) else Color(0xFF94A3B8)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
                     // SECCIÓN DE MONITOREO EN SEGUNDO PLANO Y BATERÍA
                     val powerManager = remember { context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager }
                     var isIgnoringBattery by remember {
@@ -806,9 +865,10 @@ fun NotificationSettingsModal(
                         onClick = {
                             AlertSettings.save(context, currentSettings)
                             onSettingsChanged(currentSettings)
+                            SeismicAlarmReceiver.scheduleNext(context, (currentSettings.syncIntervalSeconds * 1000L))
                             Toast.makeText(
                                 context,
-                                "✓ Configuración de alertas guardada",
+                                "✓ Guardado: Monitoreo cada ${currentSettings.syncIntervalSeconds}s",
                                 Toast.LENGTH_SHORT
                             ).show()
                             onDismiss()

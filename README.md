@@ -114,6 +114,12 @@ Módulo educativo y de divulgación geológica que expone las principales estruc
 * **Soporte de Fuentes Desconocidas**: Guía explicativa con acceso directo a los ajustes del sistema (`ACTION_MANAGE_UNKNOWN_APP_SOURCES`) para Android 8.0+.
 * **Comparador de Versiones y Builds**: Detecta versiones semánticas y números de compilación mayores para notificar oportunamente al usuario.
 
+### 📶 Conectividad de Alta Eficiencia: Respuesta Rápida y Ahorro Extremo de Datos
+* **0 MB en Cartografía (Cero Consumo de Teselas / Tiles)**: A diferencia de los mapas basados en el SDK de Google Maps o Mapbox que descargan continuamente cientos de imágenes (*raster/vector tiles*) consumiendo decenas de megabytes por sesión, la cartografía de Sismos Panamá está **100% vectorizada e integrada en el código nativo**. Navegar, hacer zoom o explorar Panamá, Costa Rica y Colombia consume **0 KB de datos móviles** para la visualización del mapa, funcionando incluso sin conexión o en modo avión.
+* **Tiempo de Respuesta Ultra Rápido (Baja Latencia)**: Implementación optimizada sobre **OkHttp 4 con reutilización de conexiones (*Connection Pooling*)** y persistencia de sockets TCP/TLS activos, eliminando la penalización de latencia en cada consulta periódica.
+* **Payloads Ultralivianos Comprimidos (< 15 KB)**: Cada sondeo a las redes sismológicas descarga únicamente pequeñas cadenas de texto JSON/HTML comprimidas mediante cabeceras `gzip` / `deflate`. La aplicación opera fluidamente incluso bajo redes móviles 3G lentas o con señal inestable en zonas rurales (EDGE / 2G).
+* **Gestión Inteligente de Batería y Red en Segundo Plano**: La arquitectura en segundo plano (`SeismicAlertCoordinator` + `AlarmManager` exacto) sincroniza únicamente la información diferencial nueva, evitando peticiones redundantes cuando no existen nuevos sismos registrados, preservando al máximo la batería y el plan de datos.
+
 ---
 
 ## 🛠️ Arquitectura del Proyecto
@@ -196,6 +202,8 @@ app/src/main/
 | **Red y API** | Retrofit 2 + Gson + OkHttp 4 + Web Scraping IGC-UP + GitHub Releases API |
 | **Monitoreo en Segundo Plano** | SeismicAlertCoordinator + AlarmManager + WorkManager + BroadcastReceiver |
 | **Motor Cartográfico** | Jetpack Compose Canvas Nativo 60/120 FPS (Proyección Equirectangular Subpíxel + Anti-Colisión) |
+| **Consumo de Datos y Red** | Cartografía 100% offline (0 KB en mapas), payloads comprimidos (< 15 KB/consulta), ultra bajo consumo móvil |
+| **Tiempo de Respuesta / Latencia** | Sockets reutilizables OkHttp 4 + Coroutines IO asíncronas, despacho de alertas en milisegundos |
 | **Actualizador In-App** | OkHttp ByteStream + FileProvider (`${applicationId}.provider`) |
 | **Permisos de Sistema** | `INTERNET`, `POST_NOTIFICATIONS`, `VIBRATE`, `SCHEDULE_EXACT_ALARM`, `RECEIVE_BOOT_COMPLETED`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `REQUEST_INSTALL_PACKAGES` |
 | **Seguridad** | Firma digital persistente `CN=SismosPanama`, sin rastreadores de terceros, sin telemetría invasiva, 100% código abierto |

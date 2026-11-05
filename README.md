@@ -37,8 +37,16 @@ La pantalla principal ofrece un flujo dinámico de eventos en tiempo real. Dispo
 
 ---
 
-### 2. Explorador Tectónico 2D & Detector Inteligente de Enjambres
-Cartografía interactiva georreferenciada con fallas geológicas activas (Falla Soná-Tonosí, Zona de Fractura de Panamá, Falla de Limón, Falla de Pedro Miguel y Miraflores). Cuando el algoritmo detecta un enjambre sísmico en curso (ej. Península de Azuero), despliega automáticamente una píldora flotante destacada con botón de acceso directo al sismo más reciente (`★ #1 RECIENTE`) y control de descarte rápido (`X`). Incluye un selector interactivo compacto de peligro sísmico (*bolita scrubber*) y paneles colapsables.
+### 2. Explorador Tectónico 2D de Alta Resolución & Detección de Enjambres
+Cartografía vectorial georreferenciada de alta precisión renderizada nativamente con **Jetpack Compose Canvas a 60/120 FPS**. Incorpora el catálogo completo de fallas geológicas corticales activas de Panamá (Zona de Fractura de Panamá, Falla de Limón, Soná-Tonosí, Pedro Miguel, Miraflores, Gatún), hidrografía continua del Canal de Panamá (Lago Gatún de 111 nodos, Lago Alajuela y esclusas), manchas urbanas metropolitanas, y un **motor de prevención de colisión de etiquetas (*Screen-Space LOD Anti-Collision*)**.
+
+Incluye contexto geográfico regional ampliado en alta resolución:
+* **República de Panamá**: Masa continental tropical esmeralda, islas y archipiélagos (Coiba, Las Perlas, Cébaco, Taboga, Bocas del Toro), manchas urbanas y límites provinciales internos punteados.
+* **Costa Rica y Colombia en Alta Resolución**: Cobertura cartográfica completa con las **7 provincias de Costa Rica** (`LIMÓN`, `SAN JOSÉ`, `PUNTARENAS`, `CARTAGO`, `ALAJUELA`, `HEREDIA`, `GUANACASTE`) y departamentos de **Colombia** (`CHOCÓ`, `ANTIOQUIA`, `CÓRDOBA`, `SUCRE`, `BOLÍVAR`) con sus límites territoriales oficiales.
+* **Poblados y Guápiles**: Puntos georreferenciados de alta nitidez que incluyen a **Guápiles** en la provincia de Limón con máxima prioridad sobre la Ruta 32, además de San José, Puerto Limón, Turbo, Apartadó, Necoclí, Montería, Medellín, etc.
+* **Red Vial y Escudos de Ruta Estilo Apple Maps**: Carretera Panamericana (Ruta 1), Ruta 2, Corredor Norte (6), Autopista Centenario (4), Autopista Colón (9), Corredor Cocolí (852), Ruta 32 (San José - Guápiles - Limón), y Rutas 90 y 62 en Colombia.
+* **Fondo Oceánico Táctico**: Gradiente batimétrico táctico con isóbata continental de 200m y cuadrícula geográfica dinámica (*graticule grid*).
+* **Detector Inteligente de Enjambres**: Si se registra un enjambre sísmico en curso (ej. Azuero o Golfo de Chiriquí), despliega automáticamente una tarjeta interactiva flotante con acceso directo al sismo más reciente (`★ #1 RECIENTE`) y control de descarte rápido (`X`).
 
 | Vista Móvil (Smartphone) | Vista Tablet (Gran Formato) |
 | :---: | :---: |
@@ -153,7 +161,8 @@ app/src/main/
 │       │   ├── DetailScreen.kt          // Análisis sismotectónico y simulación de ondas P & S
 │       │   ├── FaultsScreen.kt          // Catálogo técnico de fallas y glosario
 │       │   ├── DashboardScreen.kt       // Estadísticas, gráficos y análisis de enjambres
-│       │   ├── InteractiveMapScreen.kt  // Explorador tectónico 2D con detección de enjambres
+│       │   ├── AppleCartographyData.kt  // Geodatos vectoriales de alta resolución (Panamá, Costa Rica, Colombia)
+│       │   ├── InteractiveMapScreen.kt  // Explorador tectónico 2D Canvas nativo con detección de enjambres
 │       │   └── AboutScreen.kt           // Acerca de la app, módulo de actualización GitHub y créditos
 │       ├── theme/
 │       │   ├── Color.kt
@@ -178,7 +187,7 @@ app/src/main/
 
 | Atributo | Especificación |
 | :--- | :--- |
-| **Versión Actual** | `2.5.8 Pro Tectónica` (Build 33) |
+| **Versión Actual** | `2.6.3 Ultra Cartográfica` (Build 38) |
 | **Lenguaje** | Kotlin 2.0.21 (JVM Target 17) |
 | **Min SDK** | Android 8.0 Oreo (API 26) |
 | **Target / Compile SDK** | Android 15 (API 35) |
@@ -186,7 +195,7 @@ app/src/main/
 | **Arquitectura** | MVVM (Model-View-ViewModel) + StateFlow Reactivo |
 | **Red y API** | Retrofit 2 + Gson + OkHttp 4 + Web Scraping IGC-UP + GitHub Releases API |
 | **Monitoreo en Segundo Plano** | SeismicAlertCoordinator + AlarmManager + WorkManager + BroadcastReceiver |
-| **Motor Cartográfico** | Leaflet.js embebido en WebView nativo (Assets locales offline) |
+| **Motor Cartográfico** | Jetpack Compose Canvas Nativo 60/120 FPS (Proyección Equirectangular Subpíxel + Anti-Colisión) |
 | **Actualizador In-App** | OkHttp ByteStream + FileProvider (`${applicationId}.provider`) |
 | **Permisos de Sistema** | `INTERNET`, `POST_NOTIFICATIONS`, `VIBRATE`, `SCHEDULE_EXACT_ALARM`, `RECEIVE_BOOT_COMPLETED`, `REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`, `REQUEST_INSTALL_PACKAGES` |
 | **Seguridad** | Firma digital persistente `CN=SismosPanama`, sin rastreadores de terceros, sin telemetría invasiva, 100% código abierto |

@@ -742,7 +742,7 @@ fun NotificationSettingsModal(
                                 )
                                 Text(
                                     text = if (isIgnoringBattery) 
-                                        "Chequeo cada 60 seg sin suspensión de CPU." 
+                                        "Chequeo cada ${syncIntervalSec}s con HTTP 304 ultraliviano." 
                                     else 
                                         "Para recibir alertas al instante en Xiaomi/Samsung con pantalla apagada, activa 'Sin restricciones'.",
                                     fontSize = 11.sp,
@@ -774,6 +774,104 @@ fun NotificationSettingsModal(
                                         fontSize = 11.sp,
                                         color = Color(0xFFF59E0B)
                                     )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // SECCIÓN DE HISTORIAL DE ALERTAS Y LATENCIA
+                    val alertHistory = remember {
+                        com.sismos.panama.data.background.SeismicAlertCoordinator.getAlertHistory(context)
+                    }
+                    var showHistory by remember { mutableStateOf(false) }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0x14FFFFFF))
+                            .border(1.dp, Color(0x22FFFFFF), RoundedCornerShape(12.dp))
+                            .clickable { showHistory = !showHistory }
+                            .padding(12.dp)
+                    ) {
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(text = "⏱️", fontSize = 16.sp)
+                                    Column {
+                                        Text(
+                                            text = "Registro de Alertas y Latencia",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp,
+                                            color = Color.White
+                                        )
+                                        Text(
+                                            text = "${alertHistory.size} alertas registradas en este dispositivo",
+                                            fontSize = 10.sp,
+                                            color = Color(0xFF94A3B8)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = if (showHistory) "▲ Ocultar" else "▼ Ver",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF00E5FF)
+                                )
+                            }
+
+                            if (showHistory) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                if (alertHistory.isEmpty()) {
+                                    Text(
+                                        text = "Aún no se han emitido alertas de sismos nuevos en este teléfono.",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF64748B),
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    )
+                                } else {
+                                    val timeFmt = java.text.SimpleDateFormat("dd/MM hh:mm:ss a", java.util.Locale("es", "PA")).apply {
+                                        timeZone = java.util.TimeZone.getTimeZone("America/Panama")
+                                    }
+                                    alertHistory.take(5).forEach { item ->
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 4.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(
+                                                    text = "M ${String.format(java.util.Locale.US, "%.1f", item.magnitude)} • ${item.place}",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Color.White,
+                                                    maxLines = 1
+                                                )
+                                                Text(
+                                                    text = "Origen: ${timeFmt.format(java.util.Date(item.eventTimeMillis))} (PA)",
+                                                    fontSize = 9.sp,
+                                                    color = Color(0xFF94A3B8)
+                                                )
+                                            }
+                                            Text(
+                                                text = if (item.latencySeconds < 60) "⚡ +${item.latencySeconds}s" else "⏱️ +${item.latencySeconds / 60}m",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (item.latencySeconds <= 60) Color(0xFF10B981) else Color(0xFFF59E0B)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

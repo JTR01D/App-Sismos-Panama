@@ -28,6 +28,16 @@ object SeismicAlertCoordinator {
     private const val KEY_LAST_NOTIFIED_ID = "last_notified_event_id"
     private const val KEY_NOTIFIED_IDS_SET = "notified_event_ids_set"
     private const val KEY_NOTIFIED_EVENTS_CACHE = "notified_events_cache"
+    private const val KEY_ALERT_HISTORY_LOG = "alert_history_log_list"
+
+    data class AlertHistoryItem(
+        val id: String,
+        val magnitude: Double,
+        val place: String,
+        val eventTimeMillis: Long,
+        val receivedTimeMillis: Long,
+        val latencySeconds: Long
+    )
 
     // Límites de tiempo y distancia para deduplicación
     const val MAX_ALERT_AGE_MS = 20 * 60 * 1000L // 20 minutos: sismos más antiguos no activan sirena/alarma
@@ -141,11 +151,40 @@ object SeismicAlertCoordinator {
             cachedEvents.toList().takeLast(20).toSet()
         } else cachedEvents
 
+        val now = System.currentTimeMillis()
+        val latencySec = ((now - eq.timeMillis) / 1000).coerceAtLeast(0)
+
+        val historyEntry = "${eq.id}|${eq.magnitude}|${eq.place.replace("|", " ")}|${eq.timeMillis}|$now|$latencySec"
+        val existingHistory = prefs.getString(KEY_ALERT_HISTORY_LOG, "") ?: ""
+        val historyList = if (existingHistory.isNotBlank()) existingHistory.split(";;").toMutableList() else mutableListOf()
+        historyList.add(0, historyEntry)
+        val trimmedHistory = historyList.take(25).joinToString(";;")
+
         prefs.edit()
             .putString(KEY_LAST_NOTIFIED_ID, eq.id)
             .putStringSet(KEY_NOTIFIED_IDS_SET, trimmedIds)
             .putStringSet(KEY_NOTIFIED_EVENTS_CACHE, trimmedCache)
+            .putString(KEY_ALERT_HISTORY_LOG, trimmedHistory)
             .apply()
+    }
+
+    fun getAlertHistory(context: Context): List<AlertHistoryItem> {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString(KEY_ALERT_HISTORY_LOG, "") ?: return emptyList()
+        if (raw.isBlank()) return emptyList()
+        return raw.split(";;").mapNotNull { entry ->
+            val p = entry.split("|")
+            if (p.size >= 6) {
+                AlertHistoryItem(
+                    id = p[0],
+                    magnitude = p[1].toDoubleOrNull() ?: 0.0,
+                    place = p[2],
+                    eventTimeMillis = p[3].toLongOrNull() ?: 0L,
+                    receivedTimeMillis = p[4].toLongOrNull() ?: 0L,
+                    latencySeconds = p[5].toLongOrNull() ?: 0L
+                )
+            } else null
+        }
     }
 
     fun haversineDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {

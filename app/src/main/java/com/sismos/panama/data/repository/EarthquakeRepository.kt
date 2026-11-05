@@ -65,23 +65,36 @@ class EarthquakeRepository(
 
     /**
      * Parsea directamente el portal oficial del Instituto de Geociencias (sismosgeociencias.up.ac.pa)
-     * Utiliza HTTP Range (64 KB) y anti-caché dinámico para responder en ~200ms en lugar de descargar 1.1 MB.
+     * Utiliza HTTP Range compacto (24 KB) y cabecera condicional If-Modified-Since para 304 Not Modified.
+     * Si no hay eventos nuevos, la petición consume 0 bytes de cuerpo y responde en ~80ms.
      */
     private fun fetchFromIgcUp(minMagnitude: Double?): Result<List<Earthquake>> {
         return try {
-            val cacheBuster = System.currentTimeMillis()
-            val request = Request.Builder()
-                .url("https://sismosgeociencias.up.ac.pa/?_=$cacheBuster")
+            val reqBuilder = Request.Builder()
+                .url("https://sismosgeociencias.up.ac.pa/")
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36")
-                .header("Range", "bytes=0-65535")
-                .header("Cache-Control", "no-cache, no-store, must-revalidate")
-                .header("Pragma", "no-cache")
+                .header("Range", "bytes=0-24575")
                 .header("Accept", "text/html,application/xhtml+xml")
-                .build()
 
-            val response = httpClient.newCall(request).execute()
+            lastIgcModifiedHeader?.let {
+                reqBuilder.header("If-Modified-Since", it)
+            }
+
+            val response = httpClient.newCall(reqBuilder.build()).execute()
+
+            // Si el IGC responde 304 Not Modified, no hubo eventos nuevos: 0 bytes de cuerpo descargados
+            if (response.code == 304 && cachedIgcList.isNotEmpty()) {
+                val filtered = if (minMagnitude != null) cachedIgcList.filter { it.magnitude >= minMagnitude } else cachedIgcList
+                return Result.success(filtered)
+            }
+
             if (!response.isSuccessful && response.code != 206) {
                 return Result.failure(Exception("HTTP error ${response.code}"))
+            }
+
+            // Guardar Last-Modified para la siguiente petición condicional ultraliviana
+            response.header("Last-Modified")?.let {
+                lastIgcModifiedHeader = it
             }
 
             val bodyString = response.body?.string() ?: return Result.failure(Exception("Empty body"))
@@ -159,7 +172,10 @@ class EarthquakeRepository(
                 )
             }
 
-            if (list.isNotEmpty()) Result.success(list) else Result.failure(Exception("Sin datos IGC"))
+            if (list.isNotEmpty()) {
+                cachedIgcList = list
+                Result.success(list)
+            } else Result.failure(Exception("Sin datos IGC"))
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -400,6 +416,17 @@ class EarthquakeRepository(
             } catch (_: Exception) {}
         }
         return System.currentTimeMillis()
+    }
+
+    companion object {
+        @Volatile
+        private var lastIgcModifiedHeader: String? = null
+        @Volatile
+        private var cachedIgcList: List<Earthquake> = emptyList()
+
+        fun clearHttpCache() {
+            lastIgcModifiedHeader = null
+        }
     }
 
     private fun haversineDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double =

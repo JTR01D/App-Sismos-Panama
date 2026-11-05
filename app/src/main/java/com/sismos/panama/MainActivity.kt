@@ -41,6 +41,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             window.decorView.isForceDarkAllowed = false
         }
@@ -81,6 +85,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
         handleScreenIntent(intent)
     }
 
@@ -93,10 +101,12 @@ class MainActivity : ComponentActivity() {
             "map" -> {
                 val selectFirst = intent.getBooleanExtra("selectFirst", false)
                 val faultId = intent.getStringExtra("fault")
+                val tour = intent.getStringExtra("tour")
                 currentScreenState.value = Screen.Map(
                     initialWaveSimulation = simulate,
                     selectFirst = selectFirst,
-                    initialFaultId = faultId
+                    initialFaultId = faultId,
+                    tourTarget = tour
                 )
             }
             "about" -> currentScreenState.value = Screen.About
@@ -173,7 +183,8 @@ sealed class Screen {
     data class Map(
         val initialWaveSimulation: Boolean = false,
         val selectFirst: Boolean = false,
-        val initialFaultId: String? = null
+        val initialFaultId: String? = null,
+        val tourTarget: String? = null
     ) : Screen()
     object About : Screen()
 }
@@ -218,6 +229,7 @@ fun SismosAppNavigation(
                 initialWaveSimulation = screen.initialWaveSimulation,
                 selectFirst = screen.selectFirst,
                 initialFaultId = screen.initialFaultId,
+                tourTarget = screen.tourTarget,
                 onBack = { screenState.value = Screen.Home() },
                 onEarthquakeSelected = { eq ->
                     screenState.value = Screen.Detail(eq)

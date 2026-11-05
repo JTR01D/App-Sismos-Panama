@@ -1,7 +1,15 @@
 package com.sismos.panama.ui.screens
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Paint
 import android.graphics.Typeface
+import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -12,30 +20,23 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.ui.platform.LocalDensity
-
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -45,18 +46,23 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.sismos.panama.data.models.Earthquake
 import com.sismos.panama.ui.components.GlassCard
 import com.sismos.panama.ui.components.MagnitudeBadge
@@ -178,6 +184,45 @@ val ContinentalShelf200m = listOf(
     Pair(7.10, -77.80)
 )
 
+// Lagos y Embalses Hidrográficos Principales
+val GatunLakePolygon = listOf(
+    Pair(9.12, -79.92),
+    Pair(9.20, -79.85),
+    Pair(9.22, -79.76),
+    Pair(9.14, -79.72),
+    Pair(9.08, -79.82)
+)
+
+val BayanoLakePolygon = listOf(
+    Pair(9.16, -78.98),
+    Pair(9.22, -78.88),
+    Pair(9.19, -78.75),
+    Pair(9.12, -78.62),
+    Pair(9.04, -78.72),
+    Pair(9.08, -78.90)
+)
+
+val AlajuelaLakePolygon = listOf(
+    Pair(9.23, -79.62),
+    Pair(9.27, -79.57),
+    Pair(9.22, -79.53),
+    Pair(9.17, -79.58)
+)
+
+// Crestas y Relieve Topográfico de la Cordillera Central (Estilo Apple Maps Dark 3D Relief)
+val MountainRidges = listOf(
+    listOf(Pair(8.85, -82.85), Pair(8.82, -82.60), Pair(8.75, -82.35)),
+    listOf(Pair(8.65, -81.90), Pair(8.58, -81.50), Pair(8.55, -81.10), Pair(8.60, -80.60)),
+    listOf(Pair(9.30, -79.70), Pair(9.38, -79.30), Pair(9.32, -78.80), Pair(9.10, -78.20)),
+    listOf(Pair(8.80, -77.80), Pair(8.50, -77.50), Pair(8.00, -77.30))
+)
+
+// Coordenadas del Encuadre Cartográfico Regional (Panamá, Costa Rica y Colombia en Alta Resolución)
+const val MAP_MIN_LON = -86.0
+const val MAP_MAX_LON = -75.0
+const val MAP_MIN_LAT = 5.2
+const val MAP_MAX_LAT = 11.2
+
 // Rótulos de Cuerpos de Agua y Cuencas Oceánicas
 data class WaterBodyLabel(val name: String, val lat: Double, val lon: Double)
 
@@ -187,7 +232,10 @@ val PanamaWaterLabels = listOf(
     WaterBodyLabel("GOLFO DE CHIRIQUÍ", 7.85, -82.40),
     WaterBodyLabel("GOLFO DE PANAMÁ", 8.05, -79.20),
     WaterBodyLabel("GOLFO DE MONTIJO", 7.68, -81.25),
-    WaterBodyLabel("BAHÍA DE PARITA", 8.28, -80.35)
+    WaterBodyLabel("BAHÍA DE PARITA", 8.28, -80.35),
+    WaterBodyLabel("GOLFO DE URABÁ", 8.30, -76.90),
+    WaterBodyLabel("GOLFO DULCE", 8.45, -83.40),
+    WaterBodyLabel("GOLFO DE NICOYA", 9.75, -84.95)
 )
 
 // Vectores de Movimiento Tectónico GPS (Geodesia de Placas)
@@ -229,24 +277,25 @@ val PanamaSeismicStations = listOf(
     SeismicStation("SAN", "Santiago", 8.11, -80.98)
 )
 
-// Centros Urbanos Secundarios de Referencia (sin estación sismológica principal)
-data class ReferenceCity(val name: String, val lat: Double, val lon: Double)
+// Centros Urbanos y Referencias Geográficas Detalladas (Estilo Apple Maps)
+data class ReferenceCity(val name: String, val lat: Double, val lon: Double, val isKey: Boolean = false)
 
 val SecondaryReferenceCities = listOf(
-    ReferenceCity("Penonomé", 8.52, -80.36),
-    ReferenceCity("Chitré", 7.96, -80.43),
-    ReferenceCity("Colón", 9.36, -79.90),
+    ReferenceCity("Soná", 8.01, -81.53, isKey = true),
+    ReferenceCity("Las Tablas", 7.76, -80.28, isKey = true),
+    ReferenceCity("Chitré", 7.96, -80.43, isKey = true),
+    ReferenceCity("Penonomé", 8.52, -80.36, isKey = true),
+    ReferenceCity("Boquete", 8.78, -82.44),
+    ReferenceCity("Puerto Armuelles", 8.28, -82.86),
+    ReferenceCity("Pedasí", 7.53, -80.03),
+    ReferenceCity("Colón", 9.36, -79.90, isKey = true),
     ReferenceCity("Changuinola", 9.43, -82.52),
-    ReferenceCity("La Palma", 8.52, -78.14)
-)
-
-// Lago Gatún / Canal de Panamá (Hito geográfico principal)
-val GatunLakePolygon = listOf(
-    Pair(9.12, -79.92),
-    Pair(9.20, -79.85),
-    Pair(9.22, -79.76),
-    Pair(9.14, -79.72),
-    Pair(9.08, -79.82)
+    ReferenceCity("Chepo", 9.17, -79.10),
+    ReferenceCity("Volcán", 8.77, -82.64),
+    ReferenceCity("Santa Fe", 8.51, -81.08),
+    ReferenceCity("La Palma", 8.52, -78.14),
+    ReferenceCity("Jaqué", 7.52, -78.17),
+    ReferenceCity("Metetí", 8.50, -78.00)
 )
 
 // Límites provinciales internos simplificados para dar contexto geográfico real
@@ -263,7 +312,7 @@ val ProvinceBorders = listOf(
     listOf(Pair(8.45, -78.50), Pair(8.90, -78.30), Pair(9.20, -78.00))
 )
 
-// Rótulos provinciales en el mapa (posicionados en los centros geográficos sin colisión)
+// Rótulos provinciales en el mapa
 data class ProvinceLabel(val name: String, val lat: Double, val lon: Double)
 
 val PanamaProvinceLabels = listOf(
@@ -273,8 +322,53 @@ val PanamaProvinceLabels = listOf(
     ProvinceLabel("AZUERO", 7.62, -80.60),
     ProvinceLabel("COCLÉ", 8.62, -80.52),
     ProvinceLabel("COLÓN", 9.18, -80.05),
-    ProvinceLabel("PANAMÁ", 9.25, -79.15),
+    ProvinceLabel("PANAMÁ", 9.10, -79.35),
+    ProvinceLabel("PANAMÁ OESTE", 8.85, -79.85),
     ProvinceLabel("DARIÉN", 8.20, -77.90)
+)
+
+// Provincias de Costa Rica y Departamentos de Colombia (Contexto Cartográfico Completo)
+val NeighborProvinceLabels = listOf(
+    // Costa Rica (Las 7 Provincias Oficiales)
+    ProvinceLabel("LIMÓN", 9.85, -83.25),
+    ProvinceLabel("SAN JOSÉ", 9.75, -84.05),
+    ProvinceLabel("PUNTARENAS", 8.90, -83.45),
+    ProvinceLabel("CARTAGO", 9.80, -83.75),
+    ProvinceLabel("HEREDIA", 10.25, -84.05),
+    ProvinceLabel("ALAJUELA", 10.35, -84.45),
+    ProvinceLabel("GUANACASTE", 10.45, -85.35),
+    // Colombia (Departamentos Limítrofes y del Caribe / Pacífico)
+    ProvinceLabel("CHOCÓ", 6.50, -77.00),
+    ProvinceLabel("ANTIOQUIA", 7.20, -75.80),
+    ProvinceLabel("CÓRDOBA", 8.40, -75.60),
+    ProvinceLabel("SUCRE", 9.15, -75.10),
+    ProvinceLabel("BOLÍVAR", 9.50, -74.90)
+)
+
+val NeighborProvinceBorders = listOf(
+    // Costa Rica: Puntarenas - Limón (Cordillera de Talamanca)
+    listOf(Pair(9.55, -82.60), Pair(9.40, -83.15), Pair(9.20, -83.45), Pair(8.90, -83.70)),
+    // Costa Rica: Limón - Cartago
+    listOf(Pair(9.95, -83.50), Pair(9.80, -83.60), Pair(9.65, -83.65)),
+    // Costa Rica: Cartago - San José
+    listOf(Pair(9.90, -83.95), Pair(9.75, -83.90), Pair(9.55, -83.85)),
+    // Costa Rica: San José - Puntarenas
+    listOf(Pair(9.55, -83.85), Pair(9.45, -84.05), Pair(9.60, -84.45)),
+    // Costa Rica: Limón - Heredia (Hacia Sarapiquí)
+    listOf(Pair(10.55, -83.70), Pair(10.25, -83.85), Pair(10.05, -83.95)),
+    // Costa Rica: Heredia - Alajuela
+    listOf(Pair(10.60, -84.10), Pair(10.20, -84.15), Pair(10.00, -84.20)),
+    // Costa Rica: Alajuela - Puntarenas
+    listOf(Pair(10.00, -84.50), Pair(9.85, -84.70)),
+    // Costa Rica: Guanacaste - Alajuela / Puntarenas (Cordillera de Guanacaste)
+    listOf(Pair(10.85, -85.00), Pair(10.40, -85.05), Pair(10.05, -85.00)),
+
+    // Colombia: Chocó - Antioquia (Eje del Río Atrato / Urabá)
+    listOf(Pair(8.40, -77.00), Pair(7.95, -76.85), Pair(7.30, -76.75), Pair(6.40, -76.60)),
+    // Colombia: Antioquia - Córdoba
+    listOf(Pair(8.65, -76.50), Pair(8.25, -76.30), Pair(8.00, -76.05)),
+    // Colombia: Córdoba - Sucre
+    listOf(Pair(9.30, -75.70), Pair(8.90, -75.40), Pair(8.50, -75.30))
 )
 
 // Modelo interactivo de Fallas Geológicas con ficha técnica completa
@@ -393,7 +487,7 @@ val InteractivePanamaFaults = listOf(
         historicalEvents = "2 de mayo de 1621 (Destrucción de Panamá Viejo, Mw ~6.9)",
         points = listOf(Pair(8.88, -79.62), Pair(9.03, -79.60), Pair(9.18, -79.58)),
         color = Color(0xFF00E5FF),
-        labelAnchor = Pair(9.05, -79.40)
+        labelAnchor = Pair(9.14, -79.62)
     ),
     FaultLineInteractive(
         id = "miraflores",
@@ -407,7 +501,7 @@ val InteractivePanamaFaults = listOf(
         historicalEvents = "Monitoreada permanentemente por la ACP y el IGC-UP",
         points = listOf(Pair(8.95, -79.60), Pair(8.98, -79.58), Pair(9.03, -79.56)),
         color = Color(0xFF00E5FF),
-        labelAnchor = Pair(8.92, -79.68)
+        labelAnchor = Pair(8.91, -79.52)
     ),
     FaultLineInteractive(
         id = "limon",
@@ -470,6 +564,23 @@ enum class MagnitudeHazardTier(
     MAJOR("major", "≥6.0", "Mayor", Color(0xFFFF1744), 6.0, 10.0)
 }
 
+// Cálculo geodésico de distancia ortodrómica en kilómetros (Fórmula de Haversine)
+fun calculateDistanceKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+    val earthRadiusKm = 6371.0
+    val dLat = Math.toRadians(lat2 - lat1)
+    val dLon = Math.toRadians(lon2 - lon1)
+    val a = sin(dLat / 2).pow(2) +
+            cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
+            sin(dLon / 2).pow(2)
+    val c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    return earthRadiusKm * c
+}
+
+// Distancia mínima desde una coordenada a cualquiera de los segmentos de una falla geológica
+fun calculateDistanceToFault(lat: Double, lon: Double, fault: FaultLineInteractive): Double {
+    return fault.points.minOfOrNull { pt -> calculateDistanceKm(lat, lon, pt.first, pt.second) } ?: 9999.0
+}
+
 @Composable
 fun InteractiveMapScreen(
     viewModel: SeismicViewModel,
@@ -477,10 +588,74 @@ fun InteractiveMapScreen(
     onEarthquakeSelected: (Earthquake) -> Unit,
     initialWaveSimulation: Boolean = false,
     selectFirst: Boolean = false,
-    initialFaultId: String? = null
+    initialFaultId: String? = null,
+    tourTarget: String? = null
 ) {
+    val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
     val allEarthquakes = state.filteredEarthquakes
+
+    // ==========================================
+    // INTEGRACIÓN GPS TIEMPO REAL (APPLE BLUE PUCK)
+    // ==========================================
+    var userLocation by remember { mutableStateOf<Location?>(null) }
+    var hasLocationPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        hasLocationPermission = fineGranted || coarseGranted
+        if (hasLocationPermission) {
+            val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+            try {
+                val lastGps = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                val lastNet = lm?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                val best = listOfNotNull(lastGps, lastNet).maxByOrNull { it.time }
+                if (best != null) userLocation = best
+            } catch (_: SecurityException) {}
+        }
+    }
+
+    DisposableEffect(hasLocationPermission) {
+        if (!hasLocationPermission) {
+            onDispose { }
+        } else {
+            val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
+            val locationListener = object : LocationListener {
+                override fun onLocationChanged(location: Location) {
+                    userLocation = location
+                }
+                override fun onProviderEnabled(provider: String) {}
+                override fun onProviderDisabled(provider: String) {}
+            }
+            try {
+                val lastGps = locationManager?.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                val lastNet = locationManager?.getLastKnownLocation(LocationManager.NETWORK_PROVIDER)
+                val best = listOfNotNull(lastGps, lastNet).maxByOrNull { it.time }
+                if (best != null) userLocation = best
+
+                if (locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true) {
+                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 3000L, 2f, locationListener)
+                }
+                if (locationManager?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true) {
+                    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 3000L, 5f, locationListener)
+                }
+            } catch (_: SecurityException) {}
+
+            onDispose {
+                try {
+                    locationManager?.removeUpdates(locationListener)
+                } catch (_: SecurityException) {}
+            }
+        }
+    }
 
     // Filtros interactivos de magnitud y peligro sísmico en mapa
     var selectedHazardTier by remember { mutableStateOf<MagnitudeHazardTier?>(null) }
@@ -537,6 +712,88 @@ fun InteractiveMapScreen(
     var offset by remember { mutableStateOf(Offset.Zero) }
     var isSwarmFocused by remember { mutableStateOf(false) }
     var isSwarmBannerDismissed by remember { mutableStateOf(false) }
+    var canvasSizeState by remember { mutableStateOf(Size.Zero) }
+
+    // Función: Centrar en mi ubicación GPS (Estilo Apple Maps)
+    val onCenterUser: () -> Unit = {
+        if (!hasLocationPermission) {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
+        } else {
+            userLocation?.let { loc ->
+                val minLon = MAP_MIN_LON
+                val maxLon = MAP_MAX_LON
+                val minLat = MAP_MIN_LAT
+                val maxLat = MAP_MAX_LAT
+                val deltaLon = (maxLon - minLon).toFloat()
+                val deltaLat = (maxLat - minLat).toFloat()
+
+                val paddingX = 20f
+                val usableWidth = (canvasSizeState.width - (paddingX * 2f)).coerceAtLeast(100f)
+                val pxPerDegree = usableWidth / deltaLon
+                val mapHeight = deltaLat * pxPerDegree
+
+                val startX = paddingX
+                val startY = (canvasSizeState.height - mapHeight) / 2f
+
+                val rawX = startX + ((loc.longitude - minLon).toFloat() * pxPerDegree)
+                val rawY = startY + ((maxLat - loc.latitude).toFloat() * pxPerDegree)
+
+                val centerX = canvasSizeState.width / 2f
+                val centerY = canvasSizeState.height / 2f
+
+                val targetScale = 3.6f
+                scale = targetScale
+                offset = Offset((centerX - rawX) * targetScale, (centerY - rawY) * targetScale)
+            }
+        }
+    }
+
+    // Control Automático del Recorrido Guiado / Tour Cartográfico
+    LaunchedEffect(tourTarget, canvasSizeState) {
+        if (canvasSizeState.width > 0f && tourTarget != null) {
+            val minLon = MAP_MIN_LON
+            val maxLon = MAP_MAX_LON
+            val minLat = MAP_MIN_LAT
+            val maxLat = MAP_MAX_LAT
+            val deltaLon = (maxLon - minLon).toFloat()
+            val deltaLat = (maxLat - minLat).toFloat()
+
+            val paddingX = 20f
+            val usableWidth = (canvasSizeState.width - (paddingX * 2f)).coerceAtLeast(100f)
+            val pxPerDegree = usableWidth / deltaLon
+            val mapHeight = deltaLat * pxPerDegree
+
+            val startX = paddingX
+            val startY = (canvasSizeState.height - mapHeight) / 2f
+            val centerX = canvasSizeState.width / 2f
+            val centerY = canvasSizeState.height / 2f
+
+            fun centerOn(targetLat: Double, targetLon: Double, targetScale: Float) {
+                val rawX = startX + ((targetLon - minLon).toFloat() * pxPerDegree)
+                val rawY = startY + ((maxLat - targetLat).toFloat() * pxPerDegree)
+                scale = targetScale
+                offset = Offset((centerX - rawX) * targetScale, (centerY - rawY) * targetScale)
+            }
+
+            when (tourTarget.lowercase()) {
+                "overview" -> {
+                    scale = 1.0f
+                    offset = Offset.Zero
+                }
+                "canal" -> centerOn(9.015, -79.610, 5.8f)
+                "metro" -> centerOn(9.020, -79.490, 3.6f)
+                "costarica", "cr" -> centerOn(9.900, -83.700, 2.5f)
+                "guapiles" -> centerOn(10.216, -83.784, 4.2f)
+                "colombia", "col" -> centerOn(7.900, -76.800, 2.5f)
+                "swarm", "azuero" -> centerOn(7.450, -80.700, 2.5f)
+            }
+        }
+    }
 
     // Simulación de ondas en tiempo real
     LaunchedEffect(showWaveSimulation, selectedEq) {
@@ -553,7 +810,7 @@ fun InteractiveMapScreen(
     }
 
     Scaffold(
-        containerColor = Color(0xFF070B13),
+        containerColor = Color(0xFF070B14),
         topBar = {
             MapTopBar(
                 onBack = onBack,
@@ -604,21 +861,32 @@ fun InteractiveMapScreen(
                 displayEarthquakes.maxByOrNull { it.timeMillis }
             }
 
-            // Lienzo interactivo avanzado
+            // Lienzo interactivo avanzado estilo Apple Maps Dark
             AdvancedTectonicMapCanvas(
                 earthquakes = displayEarthquakes,
                 latestEarthquakeId = latestQuake?.id,
                 selectedEarthquake = selectedEq,
                 selectedHazardTier = selectedHazardTier,
                 selectedFault = selectedFault,
+                userLocation = userLocation,
                 showFaults = showFaults,
                 showWaveSimulation = showWaveSimulation,
                 simulationSeconds = simulationTimeSeconds,
                 scale = scale,
                 offset = offset,
+                tourTarget = tourTarget,
+                onCanvasSizeChanged = { canvasSizeState = it },
                 onTransform = { pan, zoom ->
-                    scale = (scale * zoom).coerceIn(0.7f, 6.0f)
-                    offset += pan
+                    val newScale = (scale * zoom).coerceIn(0.85f, 10.0f)
+                    scale = newScale
+                    val maxPanX = (canvasSizeState.width * (newScale - 0.45f)).coerceAtLeast(canvasSizeState.width * 0.35f)
+                    val maxPanY = (canvasSizeState.height * (newScale - 0.45f)).coerceAtLeast(canvasSizeState.height * 0.35f)
+                    val targetX = offset.x + pan.x
+                    val targetY = offset.y + pan.y
+                    offset = Offset(
+                        targetX.coerceIn(-maxPanX, maxPanX),
+                        targetY.coerceIn(-maxPanY, maxPanY)
+                    )
                 },
                 onAutoZoomSwarm = { targetScale, targetOffset ->
                     scale = targetScale
@@ -627,11 +895,11 @@ fun InteractiveMapScreen(
                 },
                 onSelectEarthquake = { eq ->
                     selectedEq = eq
-                    selectedFault = null // Priorizar sismo
+                    selectedFault = null
                 },
                 onSelectFault = { fault ->
                     selectedFault = fault
-                    selectedEq = null // Priorizar falla
+                    selectedEq = null
                 },
                 onTapBlank = {
                     selectedEq = null
@@ -640,7 +908,49 @@ fun InteractiveMapScreen(
                 }
             )
 
-            // Banner flotante de Enfoque Automático en Enjambre
+            // Controles flotantes Apple Liquid Glass (Zoom + GPS + Compás)
+            FloatingAppleMapControls(
+                hasUserLocation = userLocation != null,
+                onZoomIn = {
+                    val newScale = (scale * 1.35f).coerceIn(0.85f, 10.0f)
+                    scale = newScale
+                },
+                onZoomOut = {
+                    val newScale = (scale / 1.35f).coerceIn(0.85f, 10.0f)
+                    scale = newScale
+                    val maxPanX = (canvasSizeState.width * (newScale - 0.45f)).coerceAtLeast(canvasSizeState.width * 0.35f)
+                    val maxPanY = (canvasSizeState.height * (newScale - 0.45f)).coerceAtLeast(canvasSizeState.height * 0.35f)
+                    offset = Offset(
+                        offset.x.coerceIn(-maxPanX, maxPanX),
+                        offset.y.coerceIn(-maxPanY, maxPanY)
+                    )
+                },
+                onCenterUser = onCenterUser,
+                onResetPanama = {
+                    scale = 1f
+                    offset = Offset.Zero
+                    selectedFault = null
+                    selectedEq = null
+                },
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 12.dp)
+            )
+
+            // HUD Superior de Telemetría GPS de Proximidad
+            val closestFault = remember(userLocation) {
+                userLocation?.let { loc ->
+                    InteractivePanamaFaults.map { it to calculateDistanceToFault(loc.latitude, loc.longitude, it) }
+                        .minByOrNull { it.second }
+                }
+            }
+            val closestEq = remember(userLocation, displayEarthquakes) {
+                userLocation?.let { loc ->
+                    displayEarthquakes.map { it to calculateDistanceKm(loc.latitude, loc.longitude, it.latitude, it.longitude) }
+                        .minByOrNull { it.second }
+                }
+            }
+
             val swarmQuakes = remember(displayEarthquakes) {
                 displayEarthquakes.filter { it.latitude in 7.0..8.2 && it.longitude in -82.0..-80.2 }
             }
@@ -649,77 +959,126 @@ fun InteractiveMapScreen(
             }
             val swarmCount = swarmQuakes.size
 
-            if (isSwarmFocused && swarmCount >= 5 && !showWaveSimulation && !isSwarmBannerDismissed) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .padding(top = 10.dp, start = 12.dp, end = 12.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    color = Color(0xF20B1324),
-                    border = BorderStroke(1.2.dp, Color(0xFFFFB300))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 12.dp, top = 4.dp, end = 6.dp, bottom = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+            // Contenedor Vertical de Notificaciones Superiores (GPS + Enjambre)
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(top = 8.dp, start = 12.dp, end = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // HUD Superior de Telemetría GPS de Proximidad
+                if (!showWaveSimulation) {
+                    Surface(
+                        onClick = onCenterUser,
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xEB0C162A),
+                        border = BorderStroke(1.dp, if (userLocation != null) Color(0x66007AFF) else Color(0x3338BDF8))
                     ) {
                         Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            modifier = Modifier.weight(1f, fill = false)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFFFB300))
+                                    .background(if (userLocation != null) Color(0xFF007AFF) else Color(0xFF94A3B8))
                             )
-                            Text(
-                                text = "⚡ Enjambre Azuero ($swarmCount) • M ${String.format(java.util.Locale.US, "%.1f", latestSwarmQuake?.magnitude ?: 0.0)}",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            if (userLocation != null) {
+                                Text(
+                                    text = "📍 A ${closestFault?.second?.toInt() ?: "--"} km de ${closestFault?.first?.shortBadge ?: ""} • A ${closestEq?.second?.toInt() ?: "--"} km de sismo cercano",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            } else {
+                                Text(
+                                    text = "📍 Toca para activar tu ubicación en tiempo real",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF60A5FA),
+                                    maxLines = 1
+                                )
+                            }
                         }
+                    }
+                }
 
+                // Banner flotante de Enfoque Automático en Enjambre
+                if (isSwarmFocused && swarmCount >= 5 && !showWaveSimulation && !isSwarmBannerDismissed) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xF20B1324),
+                        border = BorderStroke(1.2.dp, Color(0xFFFFB300))
+                    ) {
                         Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 12.dp, top = 4.dp, end = 6.dp, bottom = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            if (latestSwarmQuake != null) {
-                                Surface(
-                                    onClick = { selectedEq = latestSwarmQuake },
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = Color(0x33FFB300),
-                                    border = BorderStroke(0.6.dp, Color(0x66FFB300))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFFFB300))
+                                )
+                                Text(
+                                    text = "⚡ Enjambre Azuero ($swarmCount) • M ${String.format(java.util.Locale.US, "%.1f", latestSwarmQuake?.magnitude ?: 0.0)}",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (latestSwarmQuake != null) {
+                                    Surface(
+                                        onClick = { selectedEq = latestSwarmQuake },
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = Color(0x33FFB300),
+                                        border = BorderStroke(0.6.dp, Color(0x66FFB300))
+                                    ) {
+                                        Text(
+                                            text = "📍 Ver #1",
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFFFFD700),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        )
+                                    }
+                                }
+                                IconButton(
+                                    onClick = {
+                                        isSwarmBannerDismissed = true
+                                        isSwarmFocused = false
+                                    },
+                                    modifier = Modifier.size(28.dp)
                                 ) {
-                                    Text(
-                                        text = "📍 Ver #1",
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFFFD700),
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Cerrar aviso de enjambre",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
                                     )
                                 }
-                            }
-                            IconButton(
-                                onClick = {
-                                    isSwarmBannerDismissed = true
-                                    isSwarmFocused = false
-                                },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Cerrar aviso de enjambre",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
                             }
                         }
                     }
@@ -738,7 +1097,7 @@ fun InteractiveMapScreen(
                 )
             }
 
-            // Escala de Peligro Sísmico como selector interactivo por magnitud (contraíble a demanda)
+            // Escala de Peligro Sísmico como selector interactivo por magnitud
             AnimatedVisibility(
                 visible = !showWaveSimulation && selectedEq == null && selectedFault == null,
                 enter = fadeIn(),
@@ -748,7 +1107,6 @@ fun InteractiveMapScreen(
                     .padding(
                         start = 14.dp,
                         end = 14.dp,
-                        top = 12.dp,
                         bottom = 78.dp
                     )
             ) {
@@ -767,34 +1125,16 @@ fun InteractiveMapScreen(
                 )
             }
 
-            // Controles flotantes de Zoom
-            FloatingZoomControls(
-                onZoomIn = { scale = (scale * 1.3f).coerceIn(0.7f, 6.0f) },
-                onZoomOut = { scale = (scale / 1.3f).coerceIn(0.7f, 6.0f) },
-                onReset = {
-                    scale = 1f
-                    offset = Offset.Zero
-                },
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 12.dp)
-            )
-
-            // Mensaje informativo cuando el rango de magnitud seleccionado no tiene eventos registrados
-            val showEmptyNotice = displayEarthquakes.isEmpty() && selectedHazardTier != null && dismissEmptyTierNoticeFor != selectedHazardTier
-            AnimatedVisibility(
-                visible = showEmptyNotice,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically(),
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(24.dp)
-            ) {
+            // Notificación flotante si el rango de magnitud seleccionado no tiene sismos
+            if (selectedHazardTier != null && displayEarthquakes.isEmpty() && dismissEmptyTierNoticeFor != selectedHazardTier) {
                 Surface(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 32.dp),
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xF20B1322),
-                    border = BorderStroke(1.dp, selectedHazardTier?.color?.copy(alpha = 0.65f) ?: Color(0xFF38BDF8)),
-                    modifier = Modifier.widthIn(max = 440.dp)
+                    color = Color(0xF50B1324),
+                    border = BorderStroke(1.2.dp, selectedHazardTier?.color ?: Color(0xFF38BDF8)),
+                    shadowElevation = 16.dp
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -869,7 +1209,7 @@ fun InteractiveMapScreen(
                 }
             }
 
-            // Tarjeta inferior interactiva: Falla seleccionada
+            // Tarjeta inferior interactiva: Falla seleccionada (Estilo Apple Sheet)
             AnimatedVisibility(
                 visible = selectedFault != null,
                 enter = slideInVertically { it } + fadeIn(),
@@ -906,9 +1246,13 @@ fun InteractiveMapScreen(
                             else -> false
                         }
                     }
+                    val userDistToFault = userLocation?.let { loc ->
+                        calculateDistanceToFault(loc.latitude, loc.longitude, fault)
+                    }
                     SelectedFaultCard(
                         fault = fault,
                         associatedQuakesCount = faultQuakes.size,
+                        userDistanceKm = userDistToFault,
                         onDismiss = { selectedFault = null },
                         onFilterFaultQuakes = {
                             showOnlySwarm = fault.id == "sona_tonosi"
@@ -917,7 +1261,7 @@ fun InteractiveMapScreen(
                 }
             }
 
-            // Tarjeta inferior interactiva: Sismo seleccionado
+            // Tarjeta inferior interactiva: Sismo seleccionado (Estilo Apple Sheet)
             AnimatedVisibility(
                 visible = selectedEq != null && selectedFault == null,
                 enter = slideInVertically { it } + fadeIn(),
@@ -927,9 +1271,13 @@ fun InteractiveMapScreen(
                     .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 82.dp)
             ) {
                 selectedEq?.let { eq ->
+                    val userDistToEq = userLocation?.let { loc ->
+                        calculateDistanceKm(loc.latitude, loc.longitude, eq.latitude, eq.longitude)
+                    }
                     SelectedEarthquakeCard(
                         earthquake = eq,
                         isSimulatingWaves = showWaveSimulation,
+                        userDistanceKm = userDistToEq,
                         onToggleWaveSim = {
                             showWaveSimulation = !showWaveSimulation
                         },
@@ -952,11 +1300,14 @@ private fun AdvancedTectonicMapCanvas(
     selectedEarthquake: Earthquake?,
     selectedHazardTier: MagnitudeHazardTier? = null,
     selectedFault: FaultLineInteractive?,
+    userLocation: Location? = null,
     showFaults: Boolean,
     showWaveSimulation: Boolean,
     simulationSeconds: Float,
     scale: Float,
     offset: Offset,
+    tourTarget: String? = null,
+    onCanvasSizeChanged: (Size) -> Unit,
     onTransform: (Offset, Float) -> Unit,
     onAutoZoomSwarm: ((Float, Offset) -> Unit)? = null,
     onSelectEarthquake: (Earthquake) -> Unit,
@@ -973,10 +1324,10 @@ private fun AdvancedTectonicMapCanvas(
         ),
         label = "beaconProgress"
     )
-    val minLon = -83.5
-    val maxLon = -77.0
-    val minLat = 6.8
-    val maxLat = 10.0
+    val minLon = MAP_MIN_LON
+    val maxLon = MAP_MAX_LON
+    val minLat = MAP_MIN_LAT
+    val maxLat = MAP_MAX_LAT
 
     val deltaLon = (maxLon - minLon).toFloat()
     val deltaLat = (maxLat - minLat).toFloat()
@@ -985,6 +1336,10 @@ private fun AdvancedTectonicMapCanvas(
     var hasAutoZoomedToSwarm by remember { mutableStateOf(false) }
 
     LaunchedEffect(canvasSize, earthquakes) {
+        if (tourTarget != null) {
+            hasAutoZoomedToSwarm = true
+            return@LaunchedEffect
+        }
         if (canvasSize.width > 0f && !hasAutoZoomedToSwarm && earthquakes.isNotEmpty()) {
             val swarmQuakes = earthquakes.filter { it.latitude in 7.0..8.2 && it.longitude in -82.0..-80.2 }
             if (swarmQuakes.size >= 5) {
@@ -1097,7 +1452,7 @@ private fun AdvancedTectonicMapCanvas(
                         return@detectTapGestures
                     }
 
-                    // Tocar espacio libre en el mapa deselecciona para mayor libertad
+                    // Tocar espacio libre en el mapa deselecciona
                     onTapBlank?.invoke()
                 }
             }
@@ -1109,15 +1464,39 @@ private fun AdvancedTectonicMapCanvas(
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             canvasSize = size
+            onCanvasSizeChanged(size)
 
-            // 1. Fondo oceánico profundo
+            // Registro de Bounding Boxes de Rótulos para Evitar Superposiciones (Smart Anti-Collision Engine)
+            val occupiedLabelRects = mutableListOf<android.graphics.RectF>()
+
+            fun canDrawLabel(rect: android.graphics.RectF): Boolean {
+                for (existing in occupiedLabelRects) {
+                    if (android.graphics.RectF.intersects(existing, rect)) {
+                        return false
+                    }
+                }
+                occupiedLabelRects.add(rect)
+                return true
+            }
+
+            // Prioridad 1: Reservar el espacio de los rótulos de fallas geológicas para que nunca queden tapados
+            if (showFaults) {
+                InteractivePanamaFaults.forEach { fault ->
+                    val bp = project(fault.labelAnchor.first, fault.labelAnchor.second, size)
+                    val halfW = (fault.shortBadge.length * 4.2f * scale.coerceIn(0.8f, 1.4f)).coerceAtLeast(35f)
+                    val halfH = 14f * scale.coerceIn(0.8f, 1.4f)
+                    occupiedLabelRects.add(android.graphics.RectF(bp.x - halfW, bp.y - halfH, bp.x + halfW, bp.y + halfH))
+                }
+            }
+
+            // 1. Fondo oceánico profundo táctico (Restaurado a solicitud del usuario)
             drawRect(
                 brush = Brush.verticalGradient(
                     colors = listOf(Color(0xFF060A12), Color(0xFF090E1A), Color(0xFF04070D))
                 )
             )
 
-            // Cuadrícula batimétrica
+            // Cuadrícula batimétrica y coordenadas (Graticule Grid)
             drawGeographicGrid(this, size, scale, offset)
 
             // 2. Plataforma Continental de Panamá (Isobata Batimétrica 200m)
@@ -1138,7 +1517,7 @@ private fun AdvancedTectonicMapCanvas(
             // Rótulo discreto de la plataforma continental
             val shelfLabelPos = project(7.18, -80.00, size)
             val shelfPaint = Paint().apply {
-                color = android.graphics.Color.argb(85, 0, 229, 255)
+                color = android.graphics.Color.argb(90, 56, 189, 248)
                 textSize = (9f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(8f)
                 typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
                 textAlign = Paint.Align.CENTER
@@ -1148,14 +1527,14 @@ private fun AdvancedTectonicMapCanvas(
 
             // 3. Rótulos Marítimos y Cuencas Oceánicas
             val oceanTextPaint = Paint().apply {
-                color = android.graphics.Color.argb(70, 56, 189, 248)
+                color = android.graphics.Color.argb(85, 125, 175, 240)
                 textSize = (13f * scale.coerceIn(0.8f, 2.0f)).coerceAtLeast(10f)
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
                 textAlign = Paint.Align.CENTER
                 letterSpacing = 0.25f
             }
             val gulfTextPaint = Paint().apply {
-                color = android.graphics.Color.argb(60, 56, 189, 248)
+                color = android.graphics.Color.argb(75, 125, 175, 240)
                 textSize = (10f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(8.5f)
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
                 textAlign = Paint.Align.CENTER
@@ -1169,14 +1548,14 @@ private fun AdvancedTectonicMapCanvas(
 
             // 4. Placas Tectónicas Principales y Vectores GPS
             val platePaint = Paint().apply {
-                color = android.graphics.Color.argb(125, 148, 163, 184)
+                color = android.graphics.Color.argb(125, 186, 210, 240)
                 textSize = (10f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(8.5f)
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
                 letterSpacing = 0.12f
             }
             val velocityPaint = Paint().apply {
-                color = android.graphics.Color.argb(175, 0, 229, 255)
+                color = android.graphics.Color.argb(190, 0, 229, 255)
                 textSize = (9f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(7.5f)
                 typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
@@ -1186,14 +1565,12 @@ private fun AdvancedTectonicMapCanvas(
                 val vScale = scale.coerceIn(0.8f, 1.6f)
                 val arrowEnd = Offset(p.x + plate.vectorDx * vScale, p.y + plate.vectorDy * vScale)
 
-                // Vector de movimiento geodésico
                 drawLine(
                     color = Color(0x6600E5FF),
                     start = p,
                     end = arrowEnd,
                     strokeWidth = 2.0f * scale.coerceIn(0.8f, 1.6f)
                 )
-                // Flecha de punta
                 val angle = atan2((arrowEnd.y - p.y).toDouble(), (arrowEnd.x - p.x).toDouble())
                 val arrowHeadLen = 10f * vScale
                 val pHead1 = Offset(
@@ -1207,166 +1584,482 @@ private fun AdvancedTectonicMapCanvas(
                 drawLine(color = Color(0xFF00E5FF), start = arrowEnd, end = pHead1, strokeWidth = 2f)
                 drawLine(color = Color(0xFF00E5FF), start = arrowEnd, end = pHead2, strokeWidth = 2f)
 
-                // Rótulo de la placa y velocidad
                 drawContext.canvas.nativeCanvas.drawText(plate.plateName, p.x, p.y - 12f, platePaint)
                 drawContext.canvas.nativeCanvas.drawText(plate.velocityLabel, p.x, p.y + 1f, velocityPaint)
             }
 
-            // 5. Masa Continental del Istmo de Panamá
+            // 4B. Países Vecinos: Costa Rica y Colombia (Tono de fondo geográfico oscuro/oliva)
+            fun drawNeighborCountry(polygon: List<Pair<Double, Double>>) {
+                val cPath = Path()
+                polygon.forEachIndexed { i, pt ->
+                    val p = project(pt.first, pt.second, size)
+                    if (i == 0) cPath.moveTo(p.x, p.y) else cPath.lineTo(p.x, p.y)
+                }
+                cPath.close()
+                // Tono profundo de selva oliva y esmeralda (diferenciado de Panamá, estilo Apple Maps)
+                drawPath(
+                    path = cPath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(Color(0xFF134A38), Color(0xFF175742), Color(0xFF103E2F))
+                    )
+                )
+                drawPath(
+                    path = cPath,
+                    color = Color(0xFF1C634A),
+                    style = Stroke(width = 1.4f * scale.coerceIn(0.8f, 1.8f))
+                )
+            }
+            drawNeighborCountry(HighResCostaRicaCoast)
+            drawNeighborCountry(HighResColombiaCoast)
+
+            // Líneas de Frontera Internacional Punteadas
+            fun drawBorder(points: List<Pair<Double, Double>>) {
+                val bPath = Path()
+                points.forEachIndexed { i, pt ->
+                    val p = project(pt.first, pt.second, size)
+                    if (i == 0) bPath.moveTo(p.x, p.y) else bPath.lineTo(p.x, p.y)
+                }
+                drawPath(
+                    path = bPath,
+                    color = Color(0xCCFFD54F),
+                    style = Stroke(
+                        width = 1.4f * scale.coerceIn(0.8f, 1.8f),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
+                    )
+                )
+            }
+            drawBorder(CostaRicaBorderLine)
+            drawBorder(ColombiaBorderLine)
+
+            // Rótulos de Países Vecinos (Estilo Apple Maps)
+            val neighborCountryPaint = Paint().apply {
+                color = android.graphics.Color.argb(165, 220, 238, 228)
+                textSize = (13.5f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(10.5f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                textAlign = Paint.Align.CENTER
+                letterSpacing = 0.35f
+                setShadowLayer(4f, 0f, 1f, android.graphics.Color.argb(180, 0, 0, 0))
+            }
+            val crPos = project(9.85, -84.10, size)
+            drawContext.canvas.nativeCanvas.drawText("COSTA RICA", crPos.x, crPos.y, neighborCountryPaint)
+
+            val colPos = project(7.00, -75.80, size)
+            drawContext.canvas.nativeCanvas.drawText("COLOMBIA", colPos.x, colPos.y, neighborCountryPaint)
+
+            // Poblados de Costa Rica y Colombia (Contexto Cartográfico Estilo Apple Maps con Anti-Colisión)
+            val neighborTownPaint = Paint().apply {
+                color = android.graphics.Color.WHITE
+                textSize = (8.8f * scale.coerceIn(0.8f, 1.4f)).coerceAtLeast(7.8f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                setShadowLayer(3.5f, 0f, 1f, android.graphics.Color.argb(220, 0, 0, 0))
+            }
+            NeighborCountryTowns.forEach { town ->
+                if (scale >= town.minScale) {
+                    val tPos = project(town.lat, town.lon, size)
+                    val tR = 2.4f * scale.coerceIn(0.8f, 1.3f)
+                    val tW = neighborTownPaint.measureText(town.name)
+                    val tRect = android.graphics.RectF(
+                        tPos.x - tR - 2f,
+                        tPos.y - 10f * scale.coerceIn(0.8f, 1.4f),
+                        tPos.x + tR + tW + 4f,
+                        tPos.y + tR + 2f
+                    )
+                    // Guápiles siempre tiene prioridad garantizada de renderizado
+                    if (town.name == "Guápiles" || canDrawLabel(tRect)) {
+                        drawCircle(color = Color(0xDD080E1C), radius = tR + 1.2f, center = tPos)
+                        drawCircle(
+                            color = if (town.name == "Guápiles" || town.name == "San José" || town.name == "Turbo" || town.name == "Apartadó") Color.White else Color(0xFFE2E8F0),
+                            radius = tR,
+                            center = tPos
+                        )
+                        drawContext.canvas.nativeCanvas.drawText(town.name, tPos.x + tR + 4f, tPos.y + 2.5f, neighborTownPaint)
+                    }
+                }
+            }
+
+            // 5. Masa Continental de Panamá de Alta Resolución (Tono Verde Esmeralda Tropical)
             val panamaPath = Path()
-            OfficialPanamaCoast.forEachIndexed { i, pt ->
+            HighResPanamaCoast.forEachIndexed { i, pt ->
                 val p = project(pt.first, pt.second, size)
                 if (i == 0) panamaPath.moveTo(p.x, p.y) else panamaPath.lineTo(p.x, p.y)
             }
             panamaPath.close()
 
-            // Relleno sólido acrílico
+            // Relleno verde bosque tropical vibrante de Panamá
             drawPath(
                 path = panamaPath,
-                brush = Brush.linearGradient(
-                    colors = listOf(Color(0xFF131D2E), Color(0xFF19263B)),
-                    start = Offset.Zero,
-                    end = Offset(size.width, size.height)
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xFF0F7055), Color(0xFF127B5E), Color(0xFF0D5E47))
                 )
             )
-            // Litoral con borde brillante
+
+            // Borde costero nítido de Panamá
             drawPath(
                 path = panamaPath,
-                color = Color(0xFF38BDF8),
-                style = Stroke(width = 2.2f * scale.coerceIn(0.8f, 2.0f))
+                color = Color(0xFF199371),
+                style = Stroke(width = 1.6f * scale.coerceIn(0.8f, 2.0f))
             )
 
-            // Rótulo central: Microplaca de Panamá
-            val microplatePos = project(8.85, -80.90, size)
-            val microplatePaint = Paint().apply {
-                color = android.graphics.Color.argb(70, 0, 229, 255)
-                textSize = (11f * scale.coerceIn(0.8f, 2.0f)).coerceAtLeast(9f)
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                textAlign = Paint.Align.CENTER
-                letterSpacing = 0.22f
+            // Rótulo Nacional Oficial PANAMÁ (Estilo Apple Maps Rosa Salmón)
+            if (scale < 2.8f) {
+                val panamaCountryPaint = Paint().apply {
+                    color = android.graphics.Color.argb(220, 226, 138, 153)
+                    textSize = (13.5f * scale.coerceIn(0.9f, 2.0f)).coerceAtLeast(11f)
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    textAlign = Paint.Align.CENTER
+                    letterSpacing = 0.28f
+                }
+                val natPos = project(8.52, -80.35, size)
+                drawContext.canvas.nativeCanvas.drawText("PANAMÁ", natPos.x, natPos.y, panamaCountryPaint)
             }
-            drawContext.canvas.nativeCanvas.drawText("MICROPLACA DE PANAMÁ", microplatePos.x, microplatePos.y, microplatePaint)
 
-            // 6. Archipiélagos e Islas
-            // Isla de Coiba
-            val coibaPath = Path()
-            CoibaIsland.forEachIndexed { i, pt ->
-                val p = project(pt.first, pt.second, size)
-                if (i == 0) coibaPath.moveTo(p.x, p.y) else coibaPath.lineTo(p.x, p.y)
+            // Rótulo Geográfico Istmo de Panamá (Estilo Apple Maps)
+            if (scale in 1.8f..4.5f) {
+                val isthmusPaint = Paint().apply {
+                    color = android.graphics.Color.argb(80, 255, 255, 255)
+                    textSize = (11f * scale.coerceIn(1.0f, 2.0f)).coerceAtLeast(10f)
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    textAlign = Paint.Align.CENTER
+                    letterSpacing = 0.40f
+                }
+                val istPos = project(9.30, -79.35, size)
+                drawContext.canvas.nativeCanvas.drawText("ISTMO DE PANAMÁ", istPos.x, istPos.y, isthmusPaint)
             }
-            coibaPath.close()
-            drawPath(path = coibaPath, color = Color(0xFF131D2E))
-            drawPath(path = coibaPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.8f * scale))
 
-            // Archipiélago de Las Perlas
-            val perlasPath = Path()
-            LasPerlasIslands.forEachIndexed { i, pt ->
-                val p = project(pt.first, pt.second, size)
-                if (i == 0) perlasPath.moveTo(p.x, p.y) else perlasPath.lineTo(p.x, p.y)
-            }
-            perlasPath.close()
-            drawPath(path = perlasPath, color = Color(0xFF131D2E))
-            drawPath(path = perlasPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.5f * scale))
-
-            // Bocas del Toro (Isla Colón / Bastimentos)
-            val bocasPath = Path()
-            BocasDelToroIslands.forEachIndexed { i, pt ->
-                val p = project(pt.first, pt.second, size)
-                if (i == 0) bocasPath.moveTo(p.x, p.y) else bocasPath.lineTo(p.x, p.y)
-            }
-            bocasPath.close()
-            drawPath(path = bocasPath, color = Color(0xFF131D2E))
-            drawPath(path = bocasPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.6f * scale))
-
-            // Isla Cébaco (Golfo de Montijo)
-            val cebacoPath = Path()
-            CebacoIsland.forEachIndexed { i, pt ->
-                val p = project(pt.first, pt.second, size)
-                if (i == 0) cebacoPath.moveTo(p.x, p.y) else cebacoPath.lineTo(p.x, p.y)
-            }
-            cebacoPath.close()
-            drawPath(path = cebacoPath, color = Color(0xFF131D2E))
-            drawPath(path = cebacoPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.4f * scale))
-
-            // Isla Taboga (Bahía de Panamá)
-            val tabogaPath = Path()
-            TabogaIsland.forEachIndexed { i, pt ->
-                val p = project(pt.first, pt.second, size)
-                if (i == 0) tabogaPath.moveTo(p.x, p.y) else tabogaPath.lineTo(p.x, p.y)
-            }
-            tabogaPath.close()
-            drawPath(path = tabogaPath, color = Color(0xFF131D2E))
-            drawPath(path = tabogaPath, color = Color(0xFF38BDF8), style = Stroke(width = 1.2f * scale))
-
-            // 7. Lago Gatún / Canal de Panamá
-            val gatunPath = Path()
-            GatunLakePolygon.forEachIndexed { i, pt ->
-                val p = project(pt.first, pt.second, size)
-                if (i == 0) gatunPath.moveTo(p.x, p.y) else gatunPath.lineTo(p.x, p.y)
-            }
-            gatunPath.close()
-            drawPath(path = gatunPath, color = Color(0xFF0B121E))
-            drawPath(path = gatunPath, color = Color(0x6600E5FF), style = Stroke(width = 1.2f * scale))
-
-            // 8. Límites Provinciales Internos
-            ProvinceBorders.forEach { borderLine ->
-                val bPath = Path()
-                borderLine.forEachIndexed { idx, pt ->
+            // 6. Relieve y Crestas Topográficas de la Cordillera Central (Sombreado Hillshade)
+            MountainRidges.forEach { ridge ->
+                val rPath = Path()
+                ridge.forEachIndexed { idx, pt ->
                     val p = project(pt.first, pt.second, size)
-                    if (idx == 0) bPath.moveTo(p.x, p.y) else bPath.lineTo(p.x, p.y)
+                    if (idx == 0) rPath.moveTo(p.x, p.y) else rPath.lineTo(p.x, p.y)
                 }
                 drawPath(
-                    path = bPath,
-                    color = Color(0x3394A3B8),
+                    path = rPath,
+                    color = Color(0x35084030),
+                    style = Stroke(width = 3.5f * scale.coerceIn(0.8f, 2.0f))
+                )
+                drawPath(
+                    path = rPath,
+                    color = Color(0x551BB287),
                     style = Stroke(
-                        width = 1.2f * scale.coerceIn(0.8f, 1.8f),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
+                        width = 1.2f * scale.coerceIn(0.8f, 2.0f),
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
                     )
                 )
             }
 
-            // 9. Rótulos Provinciales de Fondo (Contexto Geográfico Suave / Marca de Agua)
+            // 7. Manchas Urbanas / Huellas Metropolitanas (Estilo Apple/Google Maps Dark Slate)
+            fun drawUrbanArea(polygon: List<Pair<Double, Double>>) {
+                val uPath = Path()
+                polygon.forEachIndexed { idx, pt ->
+                    val p = project(pt.first, pt.second, size)
+                    if (idx == 0) uPath.moveTo(p.x, p.y) else uPath.lineTo(p.x, p.y)
+                }
+                uPath.close()
+                drawPath(path = uPath, color = Color(0xEE1E2838))
+                drawPath(path = uPath, color = Color(0x3388A0C0), style = Stroke(width = 1.0f * scale))
+            }
+            drawUrbanArea(PanamaCityMetropolitanFootprint)
+            drawUrbanArea(ArraijanUrbanFootprint)
+            drawUrbanArea(ChorreraUrbanFootprint)
+            drawUrbanArea(ColonCityUrbanFootprint)
+            drawUrbanArea(listOf(Pair(8.41, -82.45), Pair(8.46, -82.44), Pair(8.45, -82.41), Pair(8.42, -82.42))) // David
+            drawUrbanArea(listOf(Pair(7.94, -80.45), Pair(7.98, -80.44), Pair(7.97, -80.41), Pair(7.93, -80.42))) // Chitré
+
+            // 8. Archipiélagos e Islas de Alta Resolución
+            fun drawIsland(points: List<Pair<Double, Double>>) {
+                val iPath = Path()
+                points.forEachIndexed { i, pt ->
+                    val p = project(pt.first, pt.second, size)
+                    if (i == 0) iPath.moveTo(p.x, p.y) else iPath.lineTo(p.x, p.y)
+                }
+                iPath.close()
+                drawPath(path = iPath, color = Color(0xFF0F7055))
+                drawPath(path = iPath, color = Color(0xFF199371), style = Stroke(width = 1.4f * scale))
+            }
+            drawIsland(HighResCoibaIsland)
+            drawIsland(HighResIslaDelRey)
+            drawIsland(HighResCebacoIsland)
+            drawIsland(BocasDelToroIslands)
+            drawIsland(TabogaIsland)
+
+            // 9. Lagos y Embalses de Alta Resolución (Lago Gatún Dendrítico 111 pts, Alajuela, Bayano)
+            fun drawLake(polygon: List<Pair<Double, Double>>) {
+                val lPath = Path()
+                polygon.forEachIndexed { i, pt ->
+                    val p = project(pt.first, pt.second, size)
+                    if (i == 0) lPath.moveTo(p.x, p.y) else lPath.lineTo(p.x, p.y)
+                }
+                lPath.close()
+                drawPath(path = lPath, color = Color(0xFF070E1A))
+                drawPath(path = lPath, color = Color(0x6638BDF8), style = Stroke(width = 1.1f * scale))
+            }
+            drawLake(HighResGatunLake)
+            // Isla Barro Colorado (Monumento Natural en el centro del Lago Gatún)
+            drawIsland(BarroColoradoIsland)
+            drawLake(HighResAlajuelaLake)
+            drawLake(BayanoLakePolygon)
+
+            // Conector Fluvial Río Chagres (Represa Alajuela a Gamboa)
+            val chagresPath = Path()
+            RioChagresConnector.forEachIndexed { i, pt ->
+                val p = project(pt.first, pt.second, size)
+                if (i == 0) chagresPath.moveTo(p.x, p.y) else chagresPath.lineTo(p.x, p.y)
+            }
+            drawPath(
+                path = chagresPath,
+                color = Color(0xFF070E1A),
+                style = Stroke(width = 2.4f * scale.coerceIn(0.8f, 2.2f), cap = StrokeCap.Round)
+            )
+
+            // =====================================================================
+            // 9B. CANAL DE PANAMÁ CONTINUO (Vía Navegable Interoceánica Océano a Océano)
+            // =====================================================================
+            val canalPath = Path()
+            PanamaCanalWaterway.forEachIndexed { i, pt ->
+                val p = project(pt.first, pt.second, size)
+                if (i == 0) canalPath.moveTo(p.x, p.y) else canalPath.lineTo(p.x, p.y)
+            }
+            // Ribera / orilla acuática del canal
+            drawPath(
+                path = canalPath,
+                color = Color(0x6638BDF8),
+                style = Stroke(
+                    width = 5.2f * scale.coerceIn(0.8f, 2.4f),
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
+            )
+            // Cauce de agua navegable
+            drawPath(
+                path = canalPath,
+                color = Color(0xFF070E1A),
+                style = Stroke(
+                    width = 3.6f * scale.coerceIn(0.8f, 2.4f),
+                    cap = StrokeCap.Round,
+                    join = StrokeJoin.Round
+                )
+            )
+
+            // Rótulos Acuáticos de Lagos y Canal (Estilo Apple Maps)
+            if (scale >= 2.0f) {
+                val hydroLabelPaint = Paint().apply {
+                    color = android.graphics.Color.argb(195, 95, 170, 240)
+                    textSize = (9.5f * scale.coerceIn(0.8f, 1.5f)).coerceAtLeast(8.5f)
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.ITALIC)
+                    textAlign = Paint.Align.CENTER
+                }
+                val gatunPos = project(9.16, -79.88, size)
+                drawContext.canvas.nativeCanvas.drawText("Lago Gatún", gatunPos.x, gatunPos.y, hydroLabelPaint)
+
+                val alajuelaPos = project(9.22, -79.62, size)
+                drawContext.canvas.nativeCanvas.drawText("Lago Alajuela", alajuelaPos.x, alajuelaPos.y, hydroLabelPaint)
+
+                if (scale >= 3.2f) {
+                    val bciPos = project(9.15, -79.84, size)
+                    drawContext.canvas.nativeCanvas.drawText("Isla Barro Colorado", bciPos.x, bciPos.y, hydroLabelPaint)
+                }
+
+                if (scale >= 3.0f) {
+                    val canalPos = project(9.08, -79.70, size)
+                    drawContext.canvas.nativeCanvas.drawText("Canal de Panamá", canalPos.x, canalPos.y, hydroLabelPaint)
+                }
+            }
+
+            // 10. Red Vial y Carreteras Principales (Carretera Panamericana Ruta 1, Ruta 2, Ruta 9 y Corredores)
+            fun drawHighway(waypoints: List<Pair<Double, Double>>, isPrimary: Boolean = true) {
+                val hPath = Path()
+                waypoints.forEachIndexed { i, pt ->
+                    val p = project(pt.first, pt.second, size)
+                    if (i == 0) hPath.moveTo(p.x, p.y) else hPath.lineTo(p.x, p.y)
+                }
+                drawPath(
+                    path = hPath,
+                    color = Color(0xFF111E2D),
+                    style = Stroke(width = (if (isPrimary) 3.6f else 2.6f) * scale.coerceIn(0.8f, 2.0f))
+                )
+                drawPath(
+                    path = hPath,
+                    color = Color(0xFF7F9BB8),
+                    style = Stroke(width = (if (isPrimary) 2.0f else 1.4f) * scale.coerceIn(0.8f, 2.0f))
+                )
+            }
+            drawHighway(PanAmericanHighwayRoute1, isPrimary = true)
+            drawHighway(ViaCentenarioHighway, isPrimary = true)
+            drawHighway(CorredorSurHighway, isPrimary = false)
+            drawHighway(CorredorNorteHighway, isPrimary = false)
+            drawHighway(AutopistaArraijanChorrera, isPrimary = false)
+            drawHighway(ColonHighwayRoute9, isPrimary = false)
+            drawHighway(AzueroHighwayRoute2, isPrimary = false)
+            // Red Vial de Costa Rica y Colombia
+            drawHighway(CostaRicaRoute32Highway, isPrimary = true)
+            drawHighway(CostaRicaRoute2Highway, isPrimary = true)
+            drawHighway(ColombiaRoute90Highway, isPrimary = true)
+            drawHighway(ColombiaRoute62Highway, isPrimary = true)
+
+            // Escudos de Rutas Viales (Solo visibles con zoom >= 2.5 para evitar saturación)
+            if (scale >= 2.5f) {
+                val shieldPaint = Paint().apply {
+                    color = android.graphics.Color.WHITE
+                    style = Paint.Style.FILL
+                }
+                val shieldBorderPaint = Paint().apply {
+                    color = android.graphics.Color.argb(180, 20, 30, 45)
+                    style = Paint.Style.STROKE
+                    strokeWidth = 1.0f
+                }
+                val shieldTextPaint = Paint().apply {
+                    color = android.graphics.Color.BLACK
+                    textSize = (8.5f * scale.coerceIn(0.8f, 1.6f)).coerceAtLeast(7.5f)
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    textAlign = Paint.Align.CENTER
+                }
+                fun drawRouteShield(routeNum: String, lat: Double, lon: Double) {
+                    val sPos = project(lat, lon, size)
+                    val sW = 14f * scale.coerceIn(0.8f, 1.4f)
+                    val sH = 12f * scale.coerceIn(0.8f, 1.4f)
+                    val sRect = android.graphics.RectF(sPos.x - sW / 2f, sPos.y - sH / 2f, sPos.x + sW / 2f, sPos.y + sH / 2f)
+                    drawContext.canvas.nativeCanvas.drawRoundRect(sRect, 3.5f, 3.5f, shieldPaint)
+                    drawContext.canvas.nativeCanvas.drawRoundRect(sRect, 3.5f, 3.5f, shieldBorderPaint)
+                    drawContext.canvas.nativeCanvas.drawText(routeNum, sPos.x, sPos.y + (sH * 0.32f), shieldTextPaint)
+                }
+                // Panamá
+                drawRouteShield("1", 8.42, -80.18)
+                drawRouteShield("1", 8.94, -79.62)
+                drawRouteShield("3", 9.03, -79.62)
+                drawRouteShield("4", 8.99, -79.62)
+                drawRouteShield("6", 9.04, -79.52)
+                drawRouteShield("1", 8.44, -82.35)
+                drawRouteShield("2", 7.82, -80.31)
+                drawRouteShield("9", 9.18, -79.72)
+                drawRouteShield("852", 8.97, -79.58)
+                // Costa Rica (Ruta 32 San José - Guápiles - Limón y Ruta 2)
+                drawRouteShield("32", 10.15, -83.75)
+                drawRouteShield("2", 8.65, -82.95)
+                // Colombia (Ruta 90 Carretera al Mar y Ruta 62 Urabá-Medellín)
+                drawRouteShield("90", 8.42, -76.78)
+                drawRouteShield("62", 7.65, -76.68)
+            }
+
+            // 11. Hitos y Distintivos Cartográficos con Control Inteligente de Zoom (LOD / Anti-Colisión)
+            // 11. Hitos y Distintivos Cartográficos (Estilo Apple Maps Pins Circulares + Tipografía Nítida)
+            val landmarkTextPaint = Paint().apply {
+                color = android.graphics.Color.WHITE
+                textSize = (8.5f * scale.coerceIn(0.8f, 1.4f)).coerceAtLeast(7.5f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                setShadowLayer(3.5f, 0f, 1f, android.graphics.Color.argb(220, 0, 0, 0))
+            }
+
+            AppleMapLandmarks.forEach { landmark ->
+                // Smart Zoom LOD: Si el zoom actual es inferior al mínimo del hito, NO se dibuja (evita el amontonamiento)
+                if (scale < landmark.minScale) return@forEach
+
+                val lPos = project(landmark.lat, landmark.lon, size)
+                val pinRadius = 6.5f * scale.coerceIn(0.8f, 1.3f)
+                val labelText = if (landmark.extra.isNotEmpty()) "${landmark.name} (${landmark.extra})" else landmark.name
+                val textW = landmarkTextPaint.measureText(labelText)
+                val textH = 14f * scale.coerceIn(0.8f, 1.3f)
+                val lRect = android.graphics.RectF(
+                    lPos.x - pinRadius - 3f,
+                    lPos.y - pinRadius - 3f,
+                    lPos.x + pinRadius + textW + 8f,
+                    lPos.y + pinRadius + 3f
+                )
+                // Anti-colisión: Si interseca con otro elemento prioritario ya dibujado, omitir para mantener el mapa limpio
+                if (!canDrawLabel(lRect)) return@forEach
+
+                val pinColor = when (landmark.type) {
+                    LandmarkType.NATIONAL_PARK -> Color(0xFF1B6B4C)
+                    LandmarkType.MOUNTAIN_PEAK -> Color(0xFF795548)
+                    LandmarkType.AIRPORT -> Color(0xFF1976D2)
+                    LandmarkType.CANAL_LOCK -> Color(0xFF0277BD)
+                    LandmarkType.LANDMARK -> Color(0xFF5E35B1)
+                }
+                drawCircle(color = pinColor, radius = pinRadius, center = lPos)
+                drawCircle(color = Color.White, radius = pinRadius, center = lPos, style = Stroke(width = 1.0f))
+
+                drawContext.canvas.nativeCanvas.drawText(
+                    labelText,
+                    lPos.x + pinRadius + 4f,
+                    lPos.y + (pinRadius * 0.45f),
+                    landmarkTextPaint
+                )
+            }
+
+            // 11B. Rótulos de Barrios y Vecindarios (Estilo Google Maps)
+            val neighborhoodPaint = Paint().apply {
+                color = android.graphics.Color.argb(200, 203, 213, 225)
+                textSize = (9.5f * scale.coerceIn(0.8f, 1.4f)).coerceAtLeast(8f)
+                typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+                textAlign = Paint.Align.CENTER
+                letterSpacing = 0.08f
+            }
+            PanamaNeighborhoods.forEach { nb ->
+                if (scale >= nb.minScale) {
+                    val nPos = project(nb.lat, nb.lon, size)
+                    val nW = neighborhoodPaint.measureText(nb.name)
+                    val nRect = android.graphics.RectF(
+                        nPos.x - nW / 2f - 4f,
+                        nPos.y - 12f * scale.coerceIn(0.8f, 1.4f),
+                        nPos.x + nW / 2f + 4f,
+                        nPos.y + 4f
+                    )
+                    if (canDrawLabel(nRect)) {
+                        drawContext.canvas.nativeCanvas.drawText(nb.name, nPos.x, nPos.y, neighborhoodPaint)
+                    }
+                }
+            }
+
+            // 12. Límites Provinciales Internos (Panamá, Costa Rica y Colombia)
+            fun drawInternalBorder(borderList: List<List<Pair<Double, Double>>>, strokeColor: Color) {
+                borderList.forEach { borderLine ->
+                    val bPath = Path()
+                    borderLine.forEachIndexed { idx, pt ->
+                        val p = project(pt.first, pt.second, size)
+                        if (idx == 0) bPath.moveTo(p.x, p.y) else bPath.lineTo(p.x, p.y)
+                    }
+                    drawPath(
+                        path = bPath,
+                        color = strokeColor,
+                        style = Stroke(
+                            width = 1.1f * scale.coerceIn(0.8f, 1.8f),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
+                        )
+                    )
+                }
+            }
+            drawInternalBorder(ProvinceBorders, Color(0x66FFFFFF))
+            drawInternalBorder(NeighborProvinceBorders, Color(0x55E2E8F0))
+
+            // 13. Rótulos Provinciales de Fondo (Panamá)
             val provTextPaint = Paint().apply {
-                color = android.graphics.Color.argb(45, 148, 163, 184)
+                color = android.graphics.Color.argb(195, 255, 255, 255)
                 textSize = (12f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(10f)
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
                 letterSpacing = 0.20f
+                setShadowLayer(4f, 0f, 1f, android.graphics.Color.argb(180, 0, 0, 0))
             }
             PanamaProvinceLabels.forEach { prov ->
                 val pos = project(prov.lat, prov.lon, size)
                 drawContext.canvas.nativeCanvas.drawText(prov.name, pos.x, pos.y, provTextPaint)
             }
 
-            // 10. Hito Volcánico: Volcán Barú (3,475 m)
-            val baruPos = project(BaruVolcano.lat, BaruVolcano.lon, size)
-            // Resplandor volcánico ámbar
-            drawCircle(
-                color = Color(0x22FF9800),
-                radius = 16f * scale.coerceIn(0.8f, 2.0f),
-                center = baruPos
-            )
-            // Triángulo representativo del volcán
-            val triH = 10f * scale.coerceIn(0.8f, 1.8f)
-            val triW = 8f * scale.coerceIn(0.8f, 1.8f)
-            val vPath = Path().apply {
-                moveTo(baruPos.x, baruPos.y - triH)
-                lineTo(baruPos.x + triW, baruPos.y + (triH * 0.6f))
-                lineTo(baruPos.x - triW, baruPos.y + (triH * 0.6f))
-                close()
-            }
-            drawPath(path = vPath, color = Color(0xFFFF9800))
-            drawPath(path = vPath, color = Color(0xFFFFD54F), style = Stroke(width = 1.2f))
-
-            val baruPaint = Paint().apply {
-                color = android.graphics.Color.argb(220, 255, 183, 77)
-                textSize = (9.5f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(8f)
+            // Rótulos Provinciales y Departamentales de Vecinos (Costa Rica y Colombia en Alta Resolución)
+            val neighborProvTextPaint = Paint().apply {
+                color = android.graphics.Color.argb(185, 230, 245, 235)
+                textSize = (11f * scale.coerceIn(0.8f, 1.7f)).coerceAtLeast(9f)
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 textAlign = Paint.Align.CENTER
+                letterSpacing = 0.22f
+                setShadowLayer(4f, 0f, 1f, android.graphics.Color.argb(180, 0, 0, 0))
             }
-            drawContext.canvas.nativeCanvas.drawText("▲ VOLCÁN BARÚ (${BaruVolcano.elevation})", baruPos.x, baruPos.y - triH - 4f, baruPaint)
+            NeighborProvinceLabels.forEach { prov ->
+                val pos = project(prov.lat, prov.lon, size)
+                drawContext.canvas.nativeCanvas.drawText(prov.name, pos.x, pos.y, neighborProvTextPaint)
+            }
 
-            // 11. Estaciones Sismológicas Oficiales (Red Sismológica Nacional IGC - Universidad de Panamá)
+            // 12. Estaciones Sismológicas Oficiales (Red Sismológica Nacional IGC - Universidad de Panamá)
             val stationBadgePaint = Paint().apply {
                 color = android.graphics.Color.argb(235, 9, 16, 32)
                 style = Paint.Style.FILL
@@ -1391,29 +2084,10 @@ private fun AdvancedTectonicMapCanvas(
                 val sPos = project(station.lat, station.lon, size)
                 val dSize = 4.5f * scale.coerceIn(0.8f, 1.6f)
 
-                // Resplandor de pulso
-                drawCircle(
-                    color = Color(0x2800E5FF),
-                    radius = dSize * 2.8f,
-                    center = sPos
-                )
-
-                // Diamante oficial ◆
-                val diamondPath = Path().apply {
-                    moveTo(sPos.x, sPos.y - dSize)
-                    lineTo(sPos.x + dSize, sPos.y)
-                    lineTo(sPos.x, sPos.y + dSize)
-                    lineTo(sPos.x - dSize, sPos.y)
-                    close()
-                }
-                drawPath(path = diamondPath, color = Color(0xFF00E5FF))
-                drawPath(path = diamondPath, color = Color.White, style = Stroke(width = 1.0f))
-
-                // Badge descriptivo de la estación IGC
                 val codeText = "◆ ${station.code}"
-                val locText = " • ${station.locality}"
+                val locText = if (station.code == "UPA" && scale >= 2.8f) "" else " • ${station.locality}"
                 val codeW = stationCodePaint.measureText(codeText)
-                val locW = stationLocalityPaint.measureText(locText)
+                val locW = if (locText.isNotEmpty()) stationLocalityPaint.measureText(locText) else 0f
                 val totalW = codeW + locW
 
                 val badgeH = 17f * scale.coerceIn(0.8f, 1.4f)
@@ -1431,29 +2105,57 @@ private fun AdvancedTectonicMapCanvas(
                     badgeStartY + badgeH
                 )
 
+                if (!canDrawLabel(badgeRect)) return@forEach
+
+                drawCircle(
+                    color = Color(0x2800E5FF),
+                    radius = dSize * 2.8f,
+                    center = sPos
+                )
+                val diamondPath = Path().apply {
+                    moveTo(sPos.x, sPos.y - dSize)
+                    lineTo(sPos.x + dSize, sPos.y)
+                    lineTo(sPos.x, sPos.y + dSize)
+                    lineTo(sPos.x - dSize, sPos.y)
+                    close()
+                }
+                drawPath(path = diamondPath, color = Color(0xFF00E5FF))
+                drawPath(path = diamondPath, color = Color.White, style = Stroke(width = 1.0f))
+
                 drawContext.canvas.nativeCanvas.drawRoundRect(badgeRect, 5f, 5f, stationBadgePaint)
                 drawContext.canvas.nativeCanvas.drawRoundRect(badgeRect, 5f, 5f, stationBorderPaint)
 
                 val textBaselineY = badgeStartY + (badgeH * 0.72f)
                 drawContext.canvas.nativeCanvas.drawText(codeText, badgeStartX, textBaselineY, stationCodePaint)
-                drawContext.canvas.nativeCanvas.drawText(locText, badgeStartX + codeW, textBaselineY, stationLocalityPaint)
+                if (locText.isNotEmpty()) {
+                    drawContext.canvas.nativeCanvas.drawText(locText, badgeStartX + codeW, textBaselineY, stationLocalityPaint)
+                }
             }
 
-            // 12. Centros Urbanos Secundarios (sin estación sismológica principal)
+            // 13. Centros Urbanos y Ciudades de Referencia (Estilo Apple Maps Crisp Typography)
             val secCityPaint = Paint().apply {
-                color = android.graphics.Color.argb(140, 203, 213, 225)
-                textSize = (8.5f * scale.coerceIn(0.8f, 1.6f)).coerceAtLeast(7.5f)
+                color = android.graphics.Color.argb(165, 226, 232, 240)
+                textSize = (8.8f * scale.coerceIn(0.8f, 1.6f)).coerceAtLeast(8f)
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
             }
             SecondaryReferenceCities.forEach { city ->
                 val cPos = project(city.lat, city.lon, size)
-                val dotR = 2.5f * scale.coerceIn(0.8f, 1.4f)
-                drawCircle(color = Color(0xDD080E1C), radius = dotR + 1.2f, center = cPos)
-                drawCircle(color = Color(0xFF64748B), radius = dotR, center = cPos)
-                drawContext.canvas.nativeCanvas.drawText(city.name, cPos.x + dotR + 4f, cPos.y + 3f, secCityPaint)
+                val dotR = (if (city.isKey) 3.0f else 2.3f) * scale.coerceIn(0.8f, 1.4f)
+                val cW = secCityPaint.measureText(city.name)
+                val cRect = android.graphics.RectF(
+                    cPos.x - dotR - 2f,
+                    cPos.y - 10f * scale.coerceIn(0.8f, 1.4f),
+                    cPos.x + dotR + cW + 4f,
+                    cPos.y + dotR + 2f
+                )
+                if (city.name == "Ciudad de Panamá" || canDrawLabel(cRect)) {
+                    drawCircle(color = Color(0xDD080E1C), radius = dotR + 1.2f, center = cPos)
+                    drawCircle(color = if (city.isKey) Color(0xFF94A3B8) else Color(0xFF64748B), radius = dotR, center = cPos)
+                    drawContext.canvas.nativeCanvas.drawText(city.name, cPos.x + dotR + 4f, cPos.y + 3f, secCityPaint)
+                }
             }
 
-            // 7. Enjambre Sísmico Activo (Azuero - Coiba): Área Resaltada
+            // 14. Enjambre Sísmico Activo (Azuero - Coiba): Área Resaltada
             val clusterQuakes = earthquakes.filter { it.latitude in 7.0..8.2 && it.longitude in -82.0..-80.2 }
             if (clusterQuakes.size >= 5) {
                 val centerPt = project(7.55, -81.0, size)
@@ -1469,7 +2171,6 @@ private fun AdvancedTectonicMapCanvas(
                     style = Stroke(width = 1.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f))
                 )
 
-                // Rótulo del enjambre
                 val swarmTextPaint = Paint().apply {
                     color = android.graphics.Color.argb(220, 255, 183, 77)
                     textSize = (11f * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(10f)
@@ -1484,7 +2185,7 @@ private fun AdvancedTectonicMapCanvas(
                 )
             }
 
-            // 8. Fallas Tectónicas Activas con Rótulos Interactivos
+            // 15. Fallas Tectónicas Activas con Rótulos Interactivos
             if (showFaults) {
                 InteractivePanamaFaults.forEach { fault ->
                     val isFaultSelected = selectedFault?.id == fault.id
@@ -1513,7 +2214,6 @@ private fun AdvancedTectonicMapCanvas(
                     // Rótulo / Etiqueta Interactiva sobre el mapa
                     val badgePos = project(fault.labelAnchor.first, fault.labelAnchor.second, size)
 
-                    // Fondo de la etiqueta
                     val badgePaint = Paint().apply {
                         color = if (isFaultSelected) android.graphics.Color.argb(240, 30, 41, 59) else android.graphics.Color.argb(200, 15, 23, 42)
                         style = Paint.Style.FILL
@@ -1544,7 +2244,7 @@ private fun AdvancedTectonicMapCanvas(
                 }
             }
 
-            // 9. Simulación de Ondas Sísmicas P y S con física realista de atenuación geométrica
+            // 16. Simulación de Ondas Sísmicas P y S con física realista de atenuación
             if (showWaveSimulation && selectedEarthquake != null) {
                 val epi = project(selectedEarthquake.latitude, selectedEarthquake.longitude, size)
                 val paddingX = 20f
@@ -1559,7 +2259,6 @@ private fun AdvancedTectonicMapCanvas(
                 val radiusS = distKmS * pxPerKm
 
                 val mag = selectedEarthquake.magnitude.toFloat().coerceAtLeast(2.5f)
-                // Alcance físico según magnitud (los sismos mayores cubren más territorio antes de disiparse)
                 val maxReachKm = (90f * 10.0.pow(((mag - 3.0) / 2.25)).toFloat()).coerceIn(70f, 1300f)
 
                 val attenP = ((1f - (distKmP / maxReachKm)).coerceIn(0f, 1f)).pow(1.3f)
@@ -1569,7 +2268,7 @@ private fun AdvancedTectonicMapCanvas(
                 val strokeP = (3.2f * magScale * attenP * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(0.6f)
                 val strokeS = (4.8f * magScale * attenS * scale.coerceIn(0.8f, 1.8f)).coerceAtLeast(0.8f)
 
-                // Onda P (Cyan / Compresiva) - se atenúa progresivamente
+                // Onda P (Cyan / Compresiva)
                 if (attenP > 0.015f && radiusP > 4f) {
                     val alphaStroke = (0.65f * attenP * magScale.coerceAtMost(1.2f)).coerceIn(0f, 0.85f)
                     val alphaFill = (0.12f * attenP).coerceIn(0f, 0.22f)
@@ -1577,7 +2276,7 @@ private fun AdvancedTectonicMapCanvas(
                     drawCircle(color = Color(0xFF00E5FF).copy(alpha = alphaFill), radius = radiusP, center = epi)
                 }
 
-                // Onda S (Roja / Corte) - más destructiva y pierde energía con la distancia
+                // Onda S (Roja / Corte)
                 if (attenS > 0.015f && radiusS > 4f) {
                     val alphaStroke = (0.85f * attenS * magScale.coerceAtMost(1.3f)).coerceIn(0f, 0.95f)
                     val alphaFill = (0.18f * attenS).coerceIn(0f, 0.32f)
@@ -1586,8 +2285,7 @@ private fun AdvancedTectonicMapCanvas(
                 }
             }
 
-            // 10. Epicentros / Sismos con Rótulos y Claridad
-            // Ordenar por magnitud ascendente: sismos grandes sobre sismos pequeños
+            // 17. Epicentros / Sismos con Rótulos y Claridad
             val sortedEarthquakes = earthquakes.sortedBy { it.magnitude }
 
             val magLabelPaint = Paint().apply {
@@ -1602,16 +2300,16 @@ private fun AdvancedTectonicMapCanvas(
                 val isSelected = selectedEarthquake?.id == eq.id
 
                 val magColor = when {
-                    eq.magnitude >= 6.0 -> Color(0xFFFF1744) // Severo / Destructivo (Rojo Carmesí)
-                    eq.magnitude >= 5.0 -> Color(0xFFFF6D00) // Fuerte / Daño estructural (Naranja Fuego)
-                    eq.magnitude >= 4.0 -> Color(0xFFFFD600) // Moderado / Sentido ampliamente (Ámbar Dorado)
-                    eq.magnitude >= 3.0 -> Color(0xFF00E5FF) // Leve / Sentido débilmente (Cian Eléctrico)
-                    else -> Color(0xFF00E676)                // Instrumental / Imperceptible (Verde Esmeralda)
+                    eq.magnitude >= 6.0 -> Color(0xFFFF1744)
+                    eq.magnitude >= 5.0 -> Color(0xFFFF6D00)
+                    eq.magnitude >= 4.0 -> Color(0xFFFFD600)
+                    eq.magnitude >= 3.0 -> Color(0xFF00E5FF)
+                    else -> Color(0xFF00E676)
                 }
 
                 val baseRadius = (eq.magnitude.toFloat() * 2.5f).coerceIn(6.5f, 22f) * scale.coerceIn(0.8f, 2.2f)
 
-                // 1. Anillo oscuro exterior para separar ópticamente sismos encimados
+                // Anillo oscuro exterior
                 drawCircle(
                     color = Color(0xF0080E1C),
                     radius = baseRadius + 2.5f,
@@ -1630,7 +2328,6 @@ private fun AdvancedTectonicMapCanvas(
                     )
                 }
 
-                // 2. Halo de disipación de energía sismológica
                 val haloMultiplier = when {
                     eq.magnitude >= 6.0 -> 3.2f
                     eq.magnitude >= 5.0 -> 2.2f
@@ -1643,7 +2340,6 @@ private fun AdvancedTectonicMapCanvas(
                     center = pos
                 )
 
-                // Para eventos destructivos M >= 6.0: Doble anillo de advertencia general
                 if (eq.magnitude >= 6.0) {
                     drawCircle(
                         color = Color(0xFFFF1744),
@@ -1653,14 +2349,14 @@ private fun AdvancedTectonicMapCanvas(
                     )
                 }
 
-                // 3. Núcleo con color de categoría destructiva
+                // Núcleo
                 drawCircle(
                     color = magColor,
                     radius = baseRadius,
                     center = pos
                 )
 
-                // 4. Centro brillante de ruptura
+                // Centro brillante de ruptura
                 drawCircle(
                     color = Color.White.copy(alpha = 0.85f),
                     radius = (baseRadius * 0.35f).coerceAtLeast(2.2f),
@@ -1686,7 +2382,6 @@ private fun AdvancedTectonicMapCanvas(
                     )
                 }
 
-                // En sismos perceptibles (M ≥ 3.5), seleccionados o más reciente: dibujar etiqueta con el número de magnitud para claridad inmediata
                 if (eq.magnitude >= 3.5 || isSelected || isLatest) {
                     val magText = String.format(java.util.Locale.US, "%.1f", eq.magnitude)
                     val tagBgPaint = Paint().apply {
@@ -1710,7 +2405,6 @@ private fun AdvancedTectonicMapCanvas(
                     drawContext.canvas.nativeCanvas.drawText(magText, pos.x, pos.y - baseRadius - 6f, magLabelPaint)
                 }
 
-                // Distintivo especial flotante en oro: "★ #1 RECIENTE"
                 if (isLatest) {
                     val latestBadgeText = "★ #1 RECIENTE"
                     val latestTextPaint = Paint().apply {
@@ -1735,7 +2429,6 @@ private fun AdvancedTectonicMapCanvas(
                     drawContext.canvas.nativeCanvas.drawText(latestBadgeText, pos.x, topY - 3.5f, latestTextPaint)
                 }
 
-                // Retícula de selección
                 if (isSelected) {
                     drawCircle(
                         color = Color.White,
@@ -1746,10 +2439,198 @@ private fun AdvancedTectonicMapCanvas(
                 }
             }
 
-            // 17. Instrumentos Cartográficos de Navegación y Referencia
+            // ==========================================
+            // 18. GPS BLUE PUCK (ESTILO APPLE MAPS iOS)
+            // ==========================================
+            if (userLocation != null) {
+                val uPos = project(userLocation.latitude, userLocation.longitude, size)
+
+                if (uPos.x in -150f..(size.width + 150f) && uPos.y in -150f..(size.height + 150f)) {
+                    val appleBlue = Color(0xFF007AFF)
+
+                    // 1. Radar expansivo pulsante
+                    val pulseMaxRadius = 38f * scale.coerceIn(0.8f, 2.0f)
+                    val pulseRad = 12f + (beaconProgress * (pulseMaxRadius - 12f))
+                    val pulseAlpha = (1f - beaconProgress) * 0.45f
+                    drawCircle(
+                        color = appleBlue.copy(alpha = pulseAlpha),
+                        radius = pulseRad,
+                        center = uPos
+                    )
+
+                    // 2. Halo de precisión estimada
+                    val accMeters = userLocation.accuracy.coerceIn(10f, 500f)
+                    val pxPerKm = ((size.width - 40f) / deltaLon) / 110.5f * scale
+                    val accPx = (accMeters / 1000f * pxPerKm).coerceIn(14f, 75f)
+                    drawCircle(
+                        color = appleBlue.copy(alpha = 0.12f),
+                        radius = accPx,
+                        center = uPos
+                    )
+                    drawCircle(
+                        color = appleBlue.copy(alpha = 0.30f),
+                        radius = accPx,
+                        center = uPos,
+                        style = Stroke(width = 1.0f)
+                    )
+
+                    // 3. Sombra de separación
+                    drawCircle(
+                        color = Color(0x66000000),
+                        radius = 11.5f,
+                        center = uPos
+                    )
+
+                    // 4. Anillo exterior blanco Apple
+                    drawCircle(
+                        color = Color.White,
+                        radius = 9.5f,
+                        center = uPos
+                    )
+
+                    // 5. Núcleo azul vibrante iOS
+                    drawCircle(
+                        color = appleBlue,
+                        radius = 7.0f,
+                        center = uPos
+                    )
+
+                    // 6. Reflejo especular blanco (efecto cristal)
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.75f),
+                        radius = 2.2f,
+                        center = Offset(uPos.x - 1.8f, uPos.y - 1.8f)
+                    )
+
+                    // 7. Etiqueta flotante Apple "TU UBICACIÓN"
+                    val userTagPaint = Paint().apply {
+                        color = android.graphics.Color.WHITE
+                        textSize = 9.5f
+                        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                        textAlign = Paint.Align.CENTER
+                    }
+                    val tagBg = Paint().apply {
+                        color = android.graphics.Color.argb(235, 10, 18, 36)
+                        style = Paint.Style.FILL
+                    }
+                    val tagBorder = Paint().apply {
+                        color = android.graphics.Color.argb(160, 0, 122, 255)
+                        style = Paint.Style.STROKE
+                        strokeWidth = 1.2f
+                    }
+                    val labelText = "📍 TU UBICACIÓN"
+                    val lWidth = userTagPaint.measureText(labelText)
+                    val tagRect = android.graphics.RectF(
+                        uPos.x - lWidth / 2f - 7f,
+                        uPos.y - 28f,
+                        uPos.x + lWidth / 2f + 7f,
+                        uPos.y - 10f
+                    )
+                    drawContext.canvas.nativeCanvas.drawRoundRect(tagRect, 9f, 9f, tagBg)
+                    drawContext.canvas.nativeCanvas.drawRoundRect(tagRect, 9f, 9f, tagBorder)
+                    drawContext.canvas.nativeCanvas.drawText(labelText, uPos.x, uPos.y - 15.5f, userTagPaint)
+                }
+            }
+
+            // 19. Instrumentos Cartográficos de Navegación y Referencia
             drawCoordinateTickMarks(this, size) { lat, lon -> project(lat, lon, size) }
             drawDynamicScaleBar(this, size, scale, deltaLon)
             drawTectonicCompass(this, size, scale)
+        }
+    }
+}
+
+// Botones Flotantes Apple Liquid Glass (Zoom, Centrar en Mí, Centrar Panamá)
+@Composable
+private fun FloatingAppleMapControls(
+    hasUserLocation: Boolean,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
+    onCenterUser: () -> Unit,
+    onResetPanama: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Botón: Centrar en Mi Ubicación (Apple Style)
+        IconButton(
+            onClick = onCenterUser,
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(Color(0xDD0D1627))
+                .border(1.2.dp, if (hasUserLocation) Color(0xFF007AFF) else Color(0x44FFFFFF), CircleShape)
+                .shadow(6.dp, CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Navigation,
+                contentDescription = "Centrar en mi ubicación",
+                tint = if (hasUserLocation) Color(0xFF007AFF) else Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        // Agrupación Zoom (+ / -)
+        Surface(
+            shape = RoundedCornerShape(22.dp),
+            color = Color(0xDD0D1627),
+            border = BorderStroke(1.dp, Color(0x44FFFFFF)),
+            shadowElevation = 6.dp
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                IconButton(
+                    onClick = onZoomIn,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Acercar",
+                        tint = Color.White,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .width(24.dp)
+                        .height(1.dp)
+                        .background(Color(0x33FFFFFF))
+                )
+                IconButton(
+                    onClick = onZoomOut,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Remove,
+                        contentDescription = "Alejar",
+                        tint = Color.White,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+            }
+        }
+
+        // Botón: Vista General de Panamá
+        IconButton(
+            onClick = onResetPanama,
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(Color(0xDD0D1627))
+                .border(1.dp, Color(0x44FFFFFF), CircleShape)
+                .shadow(6.dp, CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Public,
+                contentDescription = "Ver todo Panamá",
+                tint = Color(0xFF94A3B8),
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -1775,7 +2656,6 @@ private fun drawTectonicCompass(
         style = Stroke(width = 1.2f)
     )
 
-    // Ticks cardinales e intercardinales
     for (deg in 0 until 360 step 45) {
         val rad = Math.toRadians(deg.toDouble())
         val p1 = Offset(
@@ -1794,7 +2674,6 @@ private fun drawTectonicCompass(
         )
     }
 
-    // Flecha Norte (Bicolor: Cian Eléctrico y Blanco)
     val northPathRight = Path().apply {
         moveTo(compassCenter.x, compassCenter.y - r)
         lineTo(compassCenter.x + 4.5f, compassCenter.y)
@@ -1811,7 +2690,6 @@ private fun drawTectonicCompass(
     }
     drawScope.drawPath(northPathLeft, color = Color.White)
 
-    // Flecha Sur
     val southPath = Path().apply {
         moveTo(compassCenter.x, compassCenter.y + r)
         lineTo(compassCenter.x + 4f, compassCenter.y)
@@ -1820,7 +2698,6 @@ private fun drawTectonicCompass(
     }
     drawScope.drawPath(southPath, color = Color(0xFF475569))
 
-    // Puntos Este y Oeste
     val eastPath = Path().apply {
         moveTo(compassCenter.x + r, compassCenter.y)
         lineTo(compassCenter.x, compassCenter.y + 3.5f)
@@ -1837,7 +2714,6 @@ private fun drawTectonicCompass(
     }
     drawScope.drawPath(westPath, color = Color(0xFF64748B))
 
-    // Letra "N" de Norte
     val compassPaint = Paint().apply {
         color = android.graphics.Color.argb(240, 0, 229, 255)
         textSize = 9.5f
@@ -1871,7 +2747,6 @@ private fun drawDynamicScaleBar(
 
     val origin = Offset(24f, 215f)
 
-    // Fondo acrílico estilizado
     val bgRect = android.graphics.RectF(
         origin.x - 6f,
         origin.y - 18f,
@@ -1890,7 +2765,6 @@ private fun drawDynamicScaleBar(
     drawScope.drawContext.canvas.nativeCanvas.drawRoundRect(bgRect, 6f, 6f, bgPaint)
     drawScope.drawContext.canvas.nativeCanvas.drawRoundRect(bgRect, 6f, 6f, borderPaint)
 
-    // Barra segmentada (Cian / Blanco)
     val halfWidth = barWidthPx / 2f
     drawScope.drawRect(
         color = Color(0xFF00E5FF),
@@ -1903,12 +2777,10 @@ private fun drawDynamicScaleBar(
         size = Size(halfWidth, 3.5f)
     )
 
-    // Marcas de división
     drawScope.drawLine(Color.White, Offset(origin.x, origin.y - 3f), Offset(origin.x, origin.y + 6f), strokeWidth = 1f)
     drawScope.drawLine(Color.White, Offset(origin.x + halfWidth, origin.y - 3f), Offset(origin.x + halfWidth, origin.y + 6f), strokeWidth = 1f)
     drawScope.drawLine(Color.White, Offset(origin.x + barWidthPx, origin.y - 3f), Offset(origin.x + barWidthPx, origin.y + 6f), strokeWidth = 1f)
 
-    // Textos de escala
     val textPaint = Paint().apply {
         color = android.graphics.Color.argb(220, 203, 213, 225)
         textSize = 8.5f
@@ -1931,9 +2803,8 @@ private fun drawCoordinateTickMarks(
         typeface = Typeface.create(Typeface.MONOSPACE, Typeface.NORMAL)
     }
 
-    // Latitud (7°N, 8°N, 9°N)
-    for (lat in 7..9) {
-        val pt = project(lat.toDouble(), -83.45)
+    for (lat in 6..10) {
+        val pt = project(lat.toDouble(), MAP_MIN_LON + 0.5)
         if (pt.y in 50f..(size.height - 50f)) {
             drawScope.drawLine(
                 color = Color(0x3300E5FF),
@@ -1945,9 +2816,8 @@ private fun drawCoordinateTickMarks(
         }
     }
 
-    // Longitud (-83°W a -78°W)
-    for (lon in -83..-78) {
-        val pt = project(9.95, lon.toDouble())
+    for (lon in -85..-76) {
+        val pt = project(MAP_MAX_LAT - 0.25, lon.toDouble())
         if (pt.x in 25f..(size.width - 25f)) {
             drawScope.drawLine(
                 color = Color(0x3300E5FF),
@@ -2004,8 +2874,8 @@ private fun MapTopBar(
 
     val topBarBrush = Brush.verticalGradient(
         colors = listOf(
-            Color(0xEA0D1627), // 92% frosted deep slate navy
-            Color(0xF2080D1A)  // 95% frosted dark navy
+            Color(0xEA0D1627),
+            Color(0xF2080D1A)
         )
     )
 
@@ -2064,7 +2934,6 @@ private fun MapTopBar(
                 )
             }
 
-            // Botón para contraer/expandir panel de herramientas y capas
             IconButton(
                 onClick = { areToolsExpanded = !areToolsExpanded },
                 modifier = Modifier.size(38.dp)
@@ -2077,7 +2946,6 @@ private fun MapTopBar(
                 )
             }
 
-            // Centrar Panamá
             IconButton(
                 onClick = onResetView,
                 modifier = Modifier.size(38.dp)
@@ -2091,7 +2959,6 @@ private fun MapTopBar(
             }
         }
 
-        // Fila de Capas y Carrusel de Fallas (Contraíble a demanda, sin filtros de magnitud redundantes)
         AnimatedVisibility(
             visible = !showWaveSimulation && areToolsExpanded,
             enter = expandVertically() + fadeIn(),
@@ -2100,7 +2967,6 @@ private fun MapTopBar(
             Column {
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Capas y herramientas principales (sin duplicidad de magnitud)
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -2156,7 +3022,6 @@ private fun MapTopBar(
                     }
                 }
 
-                // Carrusel Horizontal de Fallas Registradas (si la capa de fallas está activa)
                 if (showFaults) {
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
@@ -2222,7 +3087,6 @@ private fun MapLegendBadge(
     onToggleCollapse: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // 6 Posiciones discretas: 0=Todos, 1=<3.0, 2=3.0-3.9, 3=4.0-4.9, 4=5.0-5.9, 5=≥6.0
     val targetIndex = when (selectedTier) {
         null -> 0
         MagnitudeHazardTier.MICRO -> 1
@@ -2238,7 +3102,6 @@ private fun MapLegendBadge(
         else -> tiers[targetIndex - 1].color
     }
 
-    // Texto informativo dinámico según la posición de la bolita
     val headerBadgeText = when (targetIndex) {
         0 -> "TODOS • $totalQuakesCount SISMOS"
         else -> {
@@ -2248,7 +3111,6 @@ private fun MapLegendBadge(
         }
     }
 
-    // Animación fluida de la bolita cuando no está siendo arrastrada directamente
     var isDragging by remember { mutableStateOf(false) }
     var dragX by remember { mutableFloatStateOf(0f) }
 
@@ -2340,7 +3202,6 @@ private fun MapLegendBadge(
                     .padding(horizontal = 14.dp, vertical = 7.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // 1. Fila de Encabezado: Título y Badge de Información Dinámica
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2376,7 +3237,6 @@ private fun MapLegendBadge(
                         )
                     }
 
-                    // Badge dinámico con información del nivel seleccionado
                     Surface(
                         shape = RoundedCornerShape(5.dp),
                         color = activeColor.copy(alpha = 0.18f),
@@ -2409,199 +3269,202 @@ private fun MapLegendBadge(
                     }
                 }
 
-            // 2. Track Gradiente con la "Bolita" Desplazable (Slider Interactivo)
-            val labels = listOf("Todos", "<3.0", "3.0-3.9", "4.0-4.9", "5.0-5.9", "≥6.0")
+                val labels = listOf("Todos", "<3.0", "3.0-3.9", "4.0-4.9", "5.0-5.9", "≥6.0")
 
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(28.dp)
-            ) {
-                val density = LocalDensity.current
-                val widthPx = constraints.maxWidth.toFloat()
-                val thumbRadiusPx = with(density) { 9.dp.toPx() }
-                val haloRadiusPx = with(density) { 14.dp.toPx() }
-                val usableWidthPx = (widthPx - 2 * thumbRadiusPx).coerceAtLeast(1f)
-
-                // Función auxiliar para mapear coordenada X a índice de magnitud 0..5
-                fun getIndexFromX(x: Float): Int {
-                    val relativeX = (x - thumbRadiusPx).coerceIn(0f, usableWidthPx)
-                    return ((relativeX / usableWidthPx) * 5f).roundToInt().coerceIn(0, 5)
-                }
-
-                fun selectIndex(idx: Int) {
-                    val newTier = if (idx == 0) null else tiers[idx - 1]
-                    onSelectTier(newTier)
-                }
-
-                val currentThumbX = if (isDragging) {
-                    dragX.coerceIn(thumbRadiusPx, widthPx - thumbRadiusPx)
-                } else {
-                    thumbRadiusPx + (animatedIndex / 5f) * usableWidthPx
-                }
-
-                Box(
+                BoxWithConstraints(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(Unit) {
-                            detectTapGestures { offset ->
-                                val tappedIdx = getIndexFromX(offset.x)
-                                selectIndex(tappedIdx)
-                            }
-                        }
-                        .pointerInput(Unit) {
-                            detectHorizontalDragGestures(
-                                onDragStart = { offset ->
-                                    isDragging = true
-                                    dragX = offset.x
-                                    val idx = getIndexFromX(offset.x)
-                                    selectIndex(idx)
-                                },
-                                onDragEnd = {
-                                    isDragging = false
-                                    val idx = getIndexFromX(dragX)
-                                    selectIndex(idx)
-                                },
-                                onDragCancel = {
-                                    isDragging = false
-                                },
-                                onHorizontalDrag = { change, dragAmount ->
-                                    change.consume()
-                                    dragX += dragAmount
-                                    val idx = getIndexFromX(dragX)
-                                    selectIndex(idx)
-                                }
-                            )
-                        }
+                        .fillMaxWidth()
+                        .height(28.dp)
                 ) {
-                    // Barra continua de gradiente sísmico (láser neón de 4dp)
+                    val density = LocalDensity.current
+                    val widthPx = constraints.maxWidth.toFloat()
+                    val thumbRadiusPx = with(density) { 9.dp.toPx() }
+                    val haloRadiusPx = with(density) { 14.dp.toPx() }
+                    val usableWidthPx = (widthPx - 2 * thumbRadiusPx).coerceAtLeast(1f)
+
+                    fun getIndexFromX(x: Float): Int {
+                        val relativeX = (x - thumbRadiusPx).coerceIn(0f, usableWidthPx)
+                        return ((relativeX / usableWidthPx) * 5f).roundToInt().coerceIn(0, 5)
+                    }
+
+                    fun selectIndex(idx: Int) {
+                        val newTier = if (idx == 0) null else tiers[idx - 1]
+                        onSelectTier(newTier)
+                    }
+
+                    val currentThumbX = if (isDragging) {
+                        dragX.coerceIn(thumbRadiusPx, widthPx - thumbRadiusPx)
+                    } else {
+                        thumbRadiusPx + (animatedIndex / 5f) * usableWidthPx
+                    }
+
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 9.dp)
-                            .height(4.dp)
-                            .align(Alignment.Center)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(
-                                Brush.horizontalGradient(
-                                    listOf(
-                                        Color(0xFF38BDF8),
-                                        Color(0xFF00E676),
-                                        Color(0xFF00E5FF),
-                                        Color(0xFFFFD600),
-                                        Color(0xFFFF6D00),
-                                        Color(0xFFFF1744)
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTapGestures { offset ->
+                                    val tappedIdx = getIndexFromX(offset.x)
+                                    selectIndex(tappedIdx)
+                                }
+                            }
+                            .pointerInput(Unit) {
+                                detectHorizontalDragGestures(
+                                    onDragStart = { offset ->
+                                        isDragging = true
+                                        dragX = offset.x
+                                        val idx = getIndexFromX(offset.x)
+                                        selectIndex(idx)
+                                    },
+                                    onDragEnd = {
+                                        isDragging = false
+                                        val idx = getIndexFromX(dragX)
+                                        selectIndex(idx)
+                                    },
+                                    onDragCancel = {
+                                        isDragging = false
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        dragX += dragAmount
+                                        val idx = getIndexFromX(dragX)
+                                        selectIndex(idx)
+                                    }
+                                )
+                            }
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 9.dp)
+                                .height(4.dp)
+                                .align(Alignment.Center)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            Color(0xFF38BDF8),
+                                            Color(0xFF00E676),
+                                            Color(0xFF00E5FF),
+                                            Color(0xFFFFD600),
+                                            Color(0xFFFF6D00),
+                                            Color(0xFFFF1744)
+                                        )
                                     )
                                 )
+                        )
+
+                        for (i in 0..5) {
+                            val tickXPx = thumbRadiusPx + (i.toFloat() / 5f) * usableWidthPx
+                            val tickXDp = with(density) { tickXPx.toDp() }
+                            val isTickActive = targetIndex == i
+
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .offset(x = tickXDp - 2.5.dp)
+                                    .size(5.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isTickActive) Color.White else Color(0x66000000))
+                                    .border(0.5.dp, if (isTickActive) activeColor else Color(0x44FFFFFF), CircleShape)
                             )
-                    )
+                        }
 
-                    // Puntos de parada discretos a lo largo del riel
-                    for (i in 0..5) {
-                        val tickXPx = thumbRadiusPx + (i.toFloat() / 5f) * usableWidthPx
-                        val tickXDp = with(density) { tickXPx.toDp() }
-                        val isTickActive = targetIndex == i
-
+                        val thumbXDp = with(density) { (currentThumbX - haloRadiusPx).toDp() }
                         Box(
                             modifier = Modifier
                                 .align(Alignment.CenterStart)
-                                .offset(x = tickXDp - 2.5.dp)
-                                .size(5.dp)
-                                .clip(CircleShape)
-                                .background(if (isTickActive) Color.White else Color(0x66000000))
-                                .border(0.5.dp, if (isTickActive) activeColor else Color(0x44FFFFFF), CircleShape)
-                        )
-                    }
-
-                    // La "Bolita" Desplazable (Glowing Thumb)
-                    val thumbXDp = with(density) { (currentThumbX - haloRadiusPx).toDp() }
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterStart)
-                            .offset(x = thumbXDp)
-                            .size(28.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        // Halo exterior pulsante/difuso
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(activeColor.copy(alpha = 0.35f))
-                        )
-                        // Núcleo sólido de la bolita
-                        Box(
-                            modifier = Modifier
-                                .size(15.dp)
-                                .clip(CircleShape)
-                                .background(activeColor)
-                                .border(1.8.dp, Color.White, CircleShape),
+                                .offset(x = thumbXDp)
+                                .size(28.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Destello blanco central
                             Box(
                                 modifier = Modifier
-                                    .size(3.5.dp)
+                                    .size(24.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
+                                    .background(activeColor.copy(alpha = 0.35f))
                             )
+                            Box(
+                                modifier = Modifier
+                                    .size(15.dp)
+                                    .clip(CircleShape)
+                                    .background(activeColor)
+                                    .border(1.8.dp, Color.White, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(3.5.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            // 3. Rótulos de Rangos debajo del riel
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                labels.forEachIndexed { i, label ->
-                    val isCurrent = targetIndex == i
-                    val labelColor = when {
-                        isCurrent -> activeColor
-                        i == 0 -> Color(0xFF64748B)
-                        else -> tiers[i - 1].color.copy(alpha = 0.65f)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    labels.forEachIndexed { i, label ->
+                        val isCurrent = targetIndex == i
+                        val labelColor = when {
+                            isCurrent -> activeColor
+                            i == 0 -> Color(0xFF64748B)
+                            else -> tiers[i - 1].color.copy(alpha = 0.65f)
+                        }
+
+                        Text(
+                            text = label,
+                            fontSize = 7.5.sp,
+                            fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Medium,
+                            color = labelColor,
+                            fontFamily = FontFamily.Monospace,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(3.dp))
+                                .clickable {
+                                    val newTier = if (i == 0) null else tiers[i - 1]
+                                    onSelectTier(newTier)
+                                }
+                                .padding(horizontal = 2.dp, vertical = 1.dp),
+                            maxLines = 1,
+                            softWrap = false
+                        )
                     }
-
-                    Text(
-                        text = label,
-                        fontSize = 7.5.sp,
-                        fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Medium,
-                        color = labelColor,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(3.dp))
-                            .clickable {
-                                val newTier = if (i == 0) null else tiers[i - 1]
-                                onSelectTier(newTier)
-                            }
-                            .padding(horizontal = 2.dp, vertical = 1.dp),
-                        maxLines = 1,
-                        softWrap = false
-                    )
                 }
             }
         }
     }
 }
-}
 
+// Tarjeta inferior Falla Seleccionada (Estilo Apple Sheet con rounded 24dp y pill handle)
 @Composable
 private fun SelectedFaultCard(
     fault: FaultLineInteractive,
     associatedQuakesCount: Int,
+    userDistanceKm: Double? = null,
     onDismiss: () -> Unit,
     onFilterFaultQuakes: () -> Unit = {}
 ) {
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        cornerRadius = 20.dp
+        cornerRadius = 24.dp
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            // Pill grabber estilo Apple Sheet
+            Box(
+                modifier = Modifier
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Color(0x44FFFFFF))
+                    .align(Alignment.CenterHorizontally)
+            )
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -2655,15 +3518,35 @@ private fun SelectedFaultCard(
                 }
             }
 
-            // Datos de Geociencia explicados para ciudadanos (No geólogos)
+            // Datos de Geociencia explicados para ciudadanos
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Color(0x18FFFFFF))
                     .padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                if (userDistanceKm != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(7.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF007AFF))
+                        )
+                        Text(
+                            text = "📍 Estás a ${userDistanceKm.toInt()} km de esta falla activa",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF60A5FA)
+                        )
+                    }
+                }
+
                 val mechanismPlain = when {
                     fault.mechanism.contains("Rumbo", ignoreCase = true) || fault.mechanism.contains("transcurrente", ignoreCase = true) ->
                         "Deslizamiento lateral (los bloques rozan horizontalmente)"
@@ -2712,9 +3595,9 @@ private fun SelectedFaultCard(
                         contentColor = Color.White
                     ),
                     border = BorderStroke(1.dp, fault.color),
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    modifier = Modifier.fillMaxWidth().height(40.dp)
+                    modifier = Modifier.fillMaxWidth().height(42.dp)
                 ) {
                     Text(
                         text = "⚡ Ver $associatedQuakesCount sismos activos asociados",
@@ -2779,55 +3662,21 @@ private fun WaveSimulationHeader(
     }
 }
 
-@Composable
-private fun FloatingZoomControls(
-    onZoomIn: () -> Unit,
-    onZoomOut: () -> Unit,
-    onReset: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        IconButton(
-            onClick = onZoomIn,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(Color(0xCC162133))
-                .border(0.8.dp, Color(0x44FFFFFF), CircleShape)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Acercar", tint = Color.White, modifier = Modifier.size(18.dp))
-        }
-
-        IconButton(
-            onClick = onZoomOut,
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(Color(0xCC162133))
-                .border(0.8.dp, Color(0x44FFFFFF), CircleShape)
-        ) {
-            Icon(Icons.Default.Remove, contentDescription = "Alejar", tint = Color.White, modifier = Modifier.size(18.dp))
-        }
-    }
-}
-
+// Tarjeta inferior Sismo Seleccionado (Estilo Apple Sheet con rounded 24dp y telemetría GPS)
 @Composable
 private fun SelectedEarthquakeCard(
     earthquake: Earthquake,
     isSimulatingWaves: Boolean,
+    userDistanceKm: Double? = null,
     onToggleWaveSim: () -> Unit,
     onViewDetail: () -> Unit,
     onDismiss: () -> Unit
 ) {
     GlassCard(
         modifier = Modifier.fillMaxWidth(),
-        cornerRadius = if (isSimulatingWaves) 16.dp else 20.dp
+        cornerRadius = if (isSimulatingWaves) 16.dp else 24.dp
     ) {
         if (isSimulatingWaves) {
-            // Modo compacto durante propagación de ondas: Máxima visibilidad del mapa
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2915,6 +3764,16 @@ private fun SelectedEarthquakeCard(
                 modifier = Modifier.padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
+                // Pill grabber estilo Apple Sheet
+                Box(
+                    modifier = Modifier
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color(0x44FFFFFF))
+                        .align(Alignment.CenterHorizontally)
+                )
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -2957,6 +3816,38 @@ private fun SelectedEarthquakeCard(
                     }
                 }
 
+                // Telemetría GPS con estimación de propagación de ondas hasta tu posición
+                if (userDistanceKm != null) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0x22007AFF),
+                        border = BorderStroke(0.8.dp, Color(0x66007AFF)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF007AFF))
+                            )
+                            val distInt = userDistanceKm.toInt()
+                            val timeP = (userDistanceKm / 6.0).toInt()
+                            val timeS = (userDistanceKm / 3.5).toInt()
+                            Text(
+                                text = "📍 A $distInt km de tu ubicación (~${timeP}s Onda P / ~${timeS}s Onda S)",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF93C5FD)
+                            )
+                        }
+                    }
+                }
+
                 Text(
                     text = "Falla asociada: ${earthquake.nearestFault} (${earthquake.faultMechanism})",
                     fontSize = 11.sp,
@@ -2978,7 +3869,7 @@ private fun SelectedEarthquakeCard(
                         border = BorderStroke(1.dp, Color(0x663186FF)),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f).height(40.dp)
+                        modifier = Modifier.weight(1f).height(42.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
@@ -2988,7 +3879,7 @@ private fun SelectedEarthquakeCard(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "Simular",
+                            text = "Simular Onda",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Color.White
@@ -3001,7 +3892,7 @@ private fun SelectedEarthquakeCard(
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.weight(1f).height(40.dp)
+                        modifier = Modifier.weight(1f).height(42.dp)
                     ) {
                         Text(text = "Ver Análisis", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         Spacer(modifier = Modifier.width(4.dp))

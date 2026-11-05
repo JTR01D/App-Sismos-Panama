@@ -36,14 +36,43 @@ data class Earthquake(
         }
 
     fun getFormattedTime(): String {
-        val sdf = SimpleDateFormat("dd/MM/yyyy hh:mm:ss a", Locale("es", "PA"))
-        sdf.timeZone = TimeZone.getTimeZone("America/Panama")
-        return sdf.format(Date(timeMillis))
+        val panamaTz = TimeZone.getTimeZone("America/Panama")
+        val localTz = TimeZone.getDefault()
+
+        val sdfPanama = SimpleDateFormat("dd/MM/yyyy hh:mm:ss a", Locale("es", "PA")).apply {
+            timeZone = panamaTz
+        }
+        val panamaTime = sdfPanama.format(Date(timeMillis))
+
+        val date = Date(timeMillis)
+        val isDifferentTz = localTz.rawOffset != panamaTz.rawOffset ||
+                localTz.inDaylightTime(date) != panamaTz.inDaylightTime(date)
+
+        if (!isDifferentTz) {
+            return panamaTime
+        }
+
+        val sdfLocal = SimpleDateFormat("hh:mm:ss a", Locale.getDefault()).apply {
+            timeZone = localTz
+        }
+        val localTime = sdfLocal.format(date)
+        val localTzName = localTz.getDisplayName(localTz.inDaylightTime(date), TimeZone.SHORT, Locale.getDefault())
+
+        return "$localTime ($localTzName) • $panamaTime (PA)"
+    }
+
+    fun getFormattedPanamaTimeOnly(): String {
+        val sdfPanama = SimpleDateFormat("dd/MM/yyyy hh:mm:ss a", Locale("es", "PA")).apply {
+            timeZone = TimeZone.getTimeZone("America/Panama")
+        }
+        return sdfPanama.format(Date(timeMillis))
     }
 
     fun getTimeAgo(): String {
         val now = System.currentTimeMillis()
         val diff = now - timeMillis
+        if (diff < 0) return "Hace unos instantes"
+
         val seconds = diff / 1000
         val minutes = seconds / 60
         val hours = minutes / 60

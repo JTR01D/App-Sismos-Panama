@@ -168,11 +168,31 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
                 "M $magFormatted • Sismo en $shortLocation"
             }
 
-            // Mensaje secundario corto y entendible: profundidad y ciudad de referencia
-            val content = if (cleanPlace.length > 30) {
-                "$cleanPlace • Prof: ${eq.depthKm.toInt()} km"
+            val sdfPanama = java.text.SimpleDateFormat("hh:mm a", java.util.Locale("es", "PA")).apply {
+                timeZone = java.util.TimeZone.getTimeZone("America/Panama")
+            }
+            val timePanama = sdfPanama.format(java.util.Date(eq.timeMillis))
+
+            val localTz = java.util.TimeZone.getDefault()
+            val panamaTz = java.util.TimeZone.getTimeZone("America/Panama")
+            val date = java.util.Date(eq.timeMillis)
+            val isDiff = localTz.rawOffset != panamaTz.rawOffset ||
+                    localTz.inDaylightTime(date) != panamaTz.inDaylightTime(date)
+
+            val timeHeader = if (isDiff) {
+                val sdfLocal = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.getDefault()).apply {
+                    timeZone = localTz
+                }
+                "${sdfLocal.format(date)} (Local) / $timePanama (PA)"
             } else {
-                "Prof: ${eq.depthKm.toInt()} km • Cerca de ${eq.nearestCity}"
+                "$timePanama (PA)"
+            }
+
+            // Mensaje secundario corto y entendible: hora explícita, profundidad y ciudad de referencia
+            val content = if (cleanPlace.length > 30) {
+                "$cleanPlace • $timeHeader • Prof: ${eq.depthKm.toInt()} km"
+            } else {
+                "Hora: $timeHeader • Prof: ${eq.depthKm.toInt()} km • Cerca de ${eq.nearestCity}"
             }
 
             val builder = NotificationCompat.Builder(context, channelId)
@@ -181,6 +201,8 @@ class SeismicAlarmReceiver : BroadcastReceiver() {
                 .setContentText(content)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(content))
                 .setTicker(title)
+                .setWhen(eq.timeMillis)
+                .setShowWhen(true)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setAutoCancel(true)
                 .setContentIntent(pendingIntent)
